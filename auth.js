@@ -3,7 +3,7 @@
 // =============================================================
 
 import { supabase, signIn, signOut, getSession, getMyProfile } from './supabase.js';
-import { toastError, toastSuccess, toastWarning } from './toast.js';
+import { toastError, toastWarning } from './toast.js';
 import { isNetworkError } from './offline-queue.js';
 
 /** Stato applicativo dell'utente corrente, popolato dopo il login */
@@ -77,7 +77,7 @@ async function withConnectionRetries(task, onAttempt) {
 // aperta resta autenticata a tempo indeterminato. Dopo il periodo di
 // inattività sotto, l'utente viene disconnesso automaticamente; un
 // avviso compare 60s prima per dargli il tempo di reagire con un tocco.
-const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minuti senza interazione
+const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minuti senza interazione
 const IDLE_WARNING_MS = 60 * 1000; // avviso 60s prima della disconnessione
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'touchstart', 'wheel'];
 const LAST_ACTIVITY_KEY = 'magazzino_last_activity_at';
@@ -277,7 +277,6 @@ export function initAuth(onAuthed, onSignedOut) {
       cacheProfile(profile);
       resetIdleTimer(handleIdleTimeout);
       showStatus('');
-      toastSuccess(`Bentornato, ${profile.full_name || profile.email}`);
       onAuthed(profile);
     } catch (err) {
       console.error(err);

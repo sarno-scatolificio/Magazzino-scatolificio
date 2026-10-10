@@ -398,7 +398,7 @@
                     class="w-full rounded-lg bg-graphite-900 border border-graphite-700 px-3 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors">
                   <!-- Cuscinetti: punti in cui è già stato montato su questa linea e macchina -->
                   <button type="button" id="scan-punto-toggle" style="display:none" aria-label="Punti già usati" aria-expanded="false"
-                    class="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 rounded-lg flex items-center justify-center text-graphite-500">
+                    class="absolute right-9 top-1/2 -translate-y-1/2 w-10 h-10 rounded-lg flex items-center justify-center text-graphite-500">
                     <i data-lucide="chevron-down" id="scan-punto-chevron" class="w-4 h-4 transition-transform"></i>
                   </button>
                   <div id="scan-punto-suggest" hidden role="listbox" aria-label="Punti già usati"
@@ -1189,9 +1189,10 @@
           <svg class="nav-svg w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1z"/>
             <path d="M8 5H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2"/>
-            <path class="nav-nt-line" pathLength="10" d="M8.5 11h7"/>
-            <path class="nav-nt-line" pathLength="10" d="M8.5 14.5h7"/>
-            <path class="nav-nt-line" pathLength="10" d="M8.5 18h4"/>
+            <path class="nav-nt-line nt-l1" pathLength="10" d="M8.5 11h7"/>
+            <path class="nav-nt-line nt-l2" pathLength="10" d="M8.5 14.5h7"/>
+            <path class="nav-nt-line nt-l3" pathLength="10" d="M8.5 18h4"/>
+            <g class="nav-nt-pen" aria-hidden="true"><path d="M0 0l3-3" stroke-width="1.6"/><circle r="0.9" fill="currentColor" stroke="none"/></g>
           </svg>
         </span>
         <span class="ui-label whitespace-nowrap font-display font-semibold uppercase tracking-wide">Interventi</span>

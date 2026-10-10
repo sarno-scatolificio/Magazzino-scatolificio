@@ -674,7 +674,10 @@ function setupPrelievoFields(product) {
   els.lineaGroup.classList.toggle('hidden', !!fixedLinea);
   els.lineaFixed.classList.toggle('hidden', !fixedLinea);
   els.lineaFixedName.textContent = fixedLinea === 'L1' ? 'Linea 1' : fixedLinea === 'L2' ? 'Linea 2' : '';
-  if (isPrelievo && isBearing) fillMacchinari(product.macchina);
+  // Punto di utilizzo già assegnato al cuscinetto: nessun suggerimento (non c'è nulla da scegliere) e linea e macchinario
+  // vanno indicati ogni volta dall'operatore, senza macchina preimpostata
+  puntoPrefilled = isBearing && (product.punto_utilizzo_standard || '').trim() !== '';
+  if (isPrelievo && isBearing) fillMacchinari(puntoPrefilled ? '' : product.macchina);
   puntiOpen = false;
   refreshPuntiSuggeriti();
 }
@@ -685,14 +688,16 @@ function setupPrelievoFields(product) {
 let puntiSuggeriti = [];
 let puntiSeq = 0;
 let puntiOpen = false;
+let puntoPrefilled = false; // il cuscinetto ha già un punto di utilizzo assegnato: niente suggerimenti, si scelgono solo linea e macchinario
 
 const isBearingPrelievo = () => currentMode === 'prelievo' && currentProduct?.categoria === 'cuscinetti';
+const suggestionsOn = () => isBearingPrelievo() && !puntoPrefilled;
 
 /** Rilegge i punti già usati per questo cuscinetto su questa linea e macchina (si chiama a ogni cambio di scelta) */
 async function refreshPuntiSuggeriti() {
   const seq = ++puntiSeq;
   puntiSuggeriti = [];
-  if (isBearingPrelievo() && els.lineaInput.value && els.macchinarioSelect.value) {
+  if (suggestionsOn() && els.lineaInput.value && els.macchinarioSelect.value) {
     try {
       const list = await listPuntiSuggeriti({ productId: currentProduct.id, linea: els.lineaInput.value, macchinario: els.macchinarioSelect.value });
       if (seq !== puntiSeq) return; // nel frattempo è cambiata la scelta
@@ -705,9 +710,9 @@ async function refreshPuntiSuggeriti() {
 }
 
 function paintPunti() {
-  const has = isBearingPrelievo() && puntiSuggeriti.length > 0;
+  const has = suggestionsOn() && puntiSuggeriti.length > 0;
   els.puntoToggle.style.display = has ? '' : 'none'; // (non [hidden]: la classe flex lo annullerebbe)
-  els.puntoInput.classList.toggle('pr-12', has);
+  els.puntoInput.classList.toggle('pr-20', has); // spazio per la freccia, accanto alla X di cancellazione
   const q = normPunto(els.puntoInput.value);
   const shown = has ? puntiSuggeriti.filter((s) => !q || normPunto(s.punto).includes(q)) : [];
   const open = has && puntiOpen && shown.length > 0;
@@ -891,6 +896,7 @@ async function confirmTransaction() {
     linea = els.lineaInput.value;
     if (!linea) {
       feedback.errorAction();
+      flagMissing(els.lineaGroup);
       toastError('Seleziona la linea (Linea 1 o Linea 2).');
       return;
     }
@@ -898,6 +904,7 @@ async function confirmTransaction() {
       macchinario = els.macchinarioSelect.value;
       if (!macchinario) {
         feedback.errorAction();
+        flagMissing(els.macchinarioSelect);
         toastError('Seleziona il macchinario.');
         return;
       }
@@ -930,6 +937,13 @@ async function confirmTransaction() {
       loadIdlePanel();
     }, 550);
   }
+}
+
+/** Evidenzia per un attimo il campo obbligatorio rimasto vuoto */
+function flagMissing(el) {
+  if (!el) return;
+  el.classList.add('field-missing');
+  setTimeout(() => el.classList.remove('field-missing'), 1800);
 }
 
 /** Chiamata quando si esce dalla vista scanner (es. cambio tab) */
