@@ -252,14 +252,12 @@ function initNav() {
       });
     });
   });
-  document.getElementById('settings-btn').addEventListener('click', (e) => {
-    // L'ingranaggio compie un giro completo a ogni tocco (solo trasformazione: leggera anche sui telefoni lenti)
-    const gear = e.currentTarget.querySelector('svg, i');
-    if (gear) {
-      gear.classList.remove('gear-turn');
-      void gear.getBoundingClientRect(); // riavvia l'animazione anche con tocchi ravvicinati
-      gear.classList.add('gear-turn');
-      gear.addEventListener('animationend', () => gear.classList.remove('gear-turn'), { once: true });
+  document.getElementById('settings-btn').addEventListener('click', () => {
+    if (currentView === 'settings') {
+      // Di nuovo sulla rotella: le Impostazioni si richiudono (come "indietro"), con l'animazione al contrario
+      if ((history.state?.navDepth || 0) > 0) history.back();
+      else switchView('scanner');
+      return;
     }
     switchView('settings', { onStart: () => feedback.navTap() });
   });
@@ -341,6 +339,11 @@ export function switchView(view, { animate = true, onStart, fromBack = false } =
   closeGlobalSearch({ clear: true, silent: true }); // la ricerca in testata non segue nella nuova sezione
 
   const previousView = currentView;
+  // Le Impostazioni "cadono" dall'alto sopra la sezione corrente; richiudendole risalgono (animazione al contrario).
+  // La rotella gira di un quarto di giro in senso orario all'apertura e antiorario alla chiusura.
+  const drop = !animate ? null : view === 'settings' ? 'down' : previousView === 'settings' ? 'up' : null;
+  if (view === 'settings') spinGear(1);
+  else if (previousView === 'settings') spinGear(-1);
   // Ogni cambio di sezione è un passo della cronologia: il tasto indietro del telefono
   // riporta alla sezione precedente (Manuali → Impostazioni → indietro = Manuali).
   if (!fromBack && previousView) pushLayer(() => switchView(previousView, { fromBack: true }));
@@ -395,7 +398,17 @@ export function switchView(view, { animate = true, onStart, fromBack = false } =
     return;
   }
 
-  animateFluidSwap(fromSection, toSection, forward, doRefresh);
+  animateFluidSwap(fromSection, toSection, forward, doRefresh, { drop });
+}
+
+/** Quarto di giro della rotella delle Impostazioni: dir > 0 orario (apre), dir < 0 antiorario (chiude) */
+function spinGear(dir) {
+  const gear = document.querySelector('#settings-btn svg, #settings-btn i');
+  if (!gear) return;
+  gear.classList.remove('gear-cw', 'gear-ccw');
+  void gear.getBoundingClientRect(); // riavvia l'animazione anche con tocchi ravvicinati
+  gear.classList.add(dir > 0 ? 'gear-cw' : 'gear-ccw');
+  gear.addEventListener('animationend', () => gear.classList.remove('gear-cw', 'gear-ccw'), { once: true });
 }
 
 /**
@@ -408,7 +421,7 @@ export function switchView(view, { animate = true, onStart, fromBack = false } =
  *   per rimandare lì il refresh dati pesante, invece di farlo partire nello
  *   stesso istante dell'animazione e rischiare di farla scattare).
  */
-export function animateFluidSwap(fromSection, toSection, forward, onSettled, { flat = false } = {}) {
+export function animateFluidSwap(fromSection, toSection, forward, onSettled, { flat = false, drop = null } = {}) {
   if (isTransitioning) return; // non sovrapporre un'animazione già in corso
   isTransitioning = true;
   const host = toSection.parentElement;
@@ -450,8 +463,11 @@ export function animateFluidSwap(fromSection, toSection, forward, onSettled, { f
   const fromRect = fromSection.getBoundingClientRect();
   host.style.minHeight = `${fromSection.offsetHeight}px`;
 
-  const exitClass = forward ? 'view-fluid-exit-left' : 'view-fluid-exit-right';
-  const enterClass = forward ? 'view-fluid-enter-right' : 'view-fluid-enter-left';
+  // drop = 'down': la sezione entrante (Impostazioni) cade dall'alto SOPRA quella che resta ferma; nessuna dissolvenza.
+  // drop = 'up': al contrario, le Impostazioni (uscenti) risalgono e scoprono la sezione sottostante.
+  const exitClass = drop === 'down' ? 'view-drop-under' : drop === 'up' ? 'view-drop-out' : forward ? 'view-fluid-exit-left' : 'view-fluid-exit-right';
+  const enterClass = drop === 'down' ? 'view-drop-in' : drop === 'up' ? 'view-drop-reveal' : forward ? 'view-fluid-enter-right' : 'view-fluid-enter-left';
+  const animated = drop === 'up' ? fromSection : toSection; // quella che anima davvero: il suo animationend chiude la transizione
 
   fromSection.style.position = 'absolute';
   fromSection.style.top = `${fromRect.top - hostRect.top}px`;
@@ -485,19 +501,19 @@ export function animateFluidSwap(fromSection, toSection, forward, onSettled, { f
 
   let done = false;
   const onEnterEnd = (e) => {
-    if (e.target === toSection) cleanup();
+    if (e.target === animated) cleanup();
   };
   const cleanup = () => {
     if (done) return;
     done = true;
-    toSection.removeEventListener('animationend', onEnterEnd); // niente listener residui se scatta prima il timer
+    animated.removeEventListener('animationend', onEnterEnd); // niente listener residui se scatta prima il timer
     fromSection.classList.add('hidden');
-    fromSection.classList.remove('view-fluid-leaving', 'view-fluid-exit-left', 'view-fluid-exit-right', 'view-fluid-flat');
+    fromSection.classList.remove('view-fluid-leaving', 'view-fluid-exit-left', 'view-fluid-exit-right', 'view-fluid-flat', 'view-drop-under', 'view-drop-out');
     fromSection.style.position = '';
     fromSection.style.top = '';
     fromSection.style.left = '';
     fromSection.style.width = '';
-    toSection.classList.remove('view-fluid-entering', 'view-fluid-enter-right', 'view-fluid-enter-left', 'view-fluid-flat');
+    toSection.classList.remove('view-fluid-entering', 'view-fluid-enter-right', 'view-fluid-enter-left', 'view-fluid-flat', 'view-drop-in', 'view-drop-reveal');
     host.style.minHeight = '';
     host.style.transition = '';
     host.style.position = hostHadPosition;
@@ -521,8 +537,8 @@ export function animateFluidSwap(fromSection, toSection, forward, onSettled, { f
   // l'evento della vista stessa: quelli degli elementi interni (righe della
   // lista, badge, stati vuoti...) risalgono fino a qui e finiscono prima,
   // chiudendo la transizione in anticipo.
-  toSection.addEventListener('animationend', onEnterEnd);
-  setTimeout(cleanup, 480); // rete di sicurezza se l'evento non scattasse
+  animated.addEventListener('animationend', onEnterEnd);
+  setTimeout(cleanup, drop ? 560 : 480); // rete di sicurezza se l'evento non scattasse
 }
 
 /**
