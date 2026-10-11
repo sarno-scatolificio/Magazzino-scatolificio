@@ -1492,8 +1492,12 @@
         <div class="flex items-center gap-2 mb-2">
           <span id="int-detail-linea" class="ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400 text-white"></span>
           <span id="int-detail-stato" class="ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"></span>
+          <button type="button" id="int-detail-desc-edit" aria-label="Modifica il titolo dell'intervento" title="Modifica il titolo" class="press-spring ml-auto -my-1 -mr-1.5 w-10 h-10 rounded-lg text-graphite-300 hover:text-amber-400 flex items-center justify-center transition-colors">
+            <i data-lucide="pencil" class="w-5 h-5" stroke-width="2"></i>
+          </button>
         </div>
         <p id="int-detail-desc" class="text-sm text-graphite-100 leading-relaxed whitespace-pre-wrap"></p>
+        <textarea id="int-detail-desc-input" rows="3" maxlength="300" aria-label="Titolo dell'intervento" placeholder="Cosa va fatto?" class="hidden w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors resize-none"></textarea>
         <p id="int-detail-meta" class="ui-note text-graphite-500 mt-2"></p>
         <button type="button" id="int-detail-photo" class="hidden mt-3 block w-full rounded-lg overflow-hidden border border-graphite-700" aria-label="Ingrandisci la foto promemoria">
           <img id="int-detail-photo-img" alt="Foto promemoria" class="w-full max-h-48 object-cover">

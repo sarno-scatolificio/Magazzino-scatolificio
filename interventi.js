@@ -738,6 +738,13 @@ function initDetailSheet() {
   els.detSeg = $('int-esito-seg');
   els.detNote = $('int-esito-note');
   els.detSave = $('int-detail-save');
+  // Titolo (testo) dell'intervento: la matita lo trasforma in un campo da modificare
+  $('int-detail-desc-edit').addEventListener('click', () => {
+    if (!detail) return;
+    feedback.tap();
+    setDescEditing(true);
+    $('int-detail-desc-input').focus();
+  });
 
   const close = () => closeOverlay(els.detModal);
   $('int-detail-close').addEventListener('click', close);
@@ -806,6 +813,8 @@ async function openDetail(row) {
   $('int-detail-title').textContent = row.macchina;
   $('int-detail-linea').textContent = lineaLabel(row.linea);
   $('int-detail-desc').textContent = row.descrizione;
+  $('int-detail-desc-input').value = row.descrizione;
+  setDescEditing(false);
   $('int-detail-meta').textContent = `Annotato ${fmtDateTime(row.created_at)}${row.created_by_name ? ` da ${row.created_by_name}` : ''}`;
   $('int-detail-photo').classList.add('hidden');
   // L'eliminazione è di chi l'ha creato o dell'Admin (stessa regola del database)
@@ -832,6 +841,13 @@ async function openDetail(row) {
       console.warn('Foto non disponibili.', err);
     }
   }
+}
+
+/** Mostra il titolo come testo oppure come campo modificabile */
+function setDescEditing(on) {
+  $('int-detail-desc').classList.toggle('hidden', on);
+  $('int-detail-desc-input').classList.toggle('hidden', !on);
+  $('int-detail-desc-edit').classList.toggle('hidden', on);
 }
 
 function paintDetail() {
@@ -915,7 +931,13 @@ async function saveDetail() {
   if (!detail) return;
   const { row } = detail;
   const note = els.detNote.value.trim();
-  const unchanged = detail.stato === row.stato && note === (row.note_esito || '') && !detail.foto && !detail.rimuovi && (detail.stato !== 'effettuato' || ([...detail.operatori].sort().join('|') === [...operatoriDi(row)].sort().join('|') && sameMinute(detail.esitoAt, row.esito_at)));
+  const descrizione = $('int-detail-desc-input').value.trim();
+  if (!descrizione) {
+    feedback.errorAction();
+    toastWarning('Il titolo dell\'intervento non può essere vuoto.');
+    return;
+  }
+  const unchanged = descrizione === row.descrizione && detail.stato === row.stato && note === (row.note_esito || '') && !detail.foto && !detail.rimuovi && (detail.stato !== 'effettuato' || ([...detail.operatori].sort().join('|') === [...operatoriDi(row)].sort().join('|') && sameMinute(detail.esitoAt, row.esito_at)));
   // Il giorno e l'ora di esecuzione non possono essere nel futuro
   if (detail.stato === 'effettuato' && detail.esitoAt && detail.esitoAt.getTime() > Date.now() + 60000) {
     feedback.errorAction();
@@ -928,7 +950,7 @@ async function saveDetail() {
   }
   setButtonBusy(els.detSave, true, 'Salvataggio…');
   try {
-    const updated = await updateEsito(row, { stato: detail.stato, note, operatori: detail.operatori, esitoAt: detail.stato === 'effettuato' ? detail.esitoAt : null, foto: detail.foto, rimuoviFoto: detail.rimuovi, authorName: authorName() });
+    const updated = await updateEsito(row, { stato: detail.stato, note, descrizione, operatori: detail.operatori, esitoAt: detail.stato === 'effettuato' ? detail.esitoAt : null, foto: detail.foto, rimuoviFoto: detail.rimuovi, authorName: authorName() });
     state.open = state.open.filter((r) => r.id !== updated.id);
     state.done = state.done.filter((r) => r.id !== updated.id);
     state.doneRecent = state.doneRecent.filter((r) => r.id !== updated.id);
@@ -939,13 +961,23 @@ async function saveDetail() {
       state.doneDays.add(k);
       // Se è stato eseguito nel giorno mostrato compare subito lì
       if (k === state.doneDay) state.done.push(updated);
-      feedback.interventoDone();
-      toastSuccess('Intervento effettuato.', 2500);
+      if (row.stato === 'effettuato') {
+        feedback.confirmAction(); // era già effettuato: si è solo modificato qualcosa (titolo, note, orario…)
+        toastSuccess('Intervento aggiornato.', 2500);
+      } else {
+        feedback.interventoDone();
+        toastSuccess('Intervento effettuato.', 2500);
+      }
     } else {
       state.open.push(updated);
       state.open.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      feedback.interventoReopen();
-      toastSuccess(updated.stato === 'sospeso' ? 'Segnato da completare.' : 'Rimesso da effettuare.', 2500);
+      if (row.stato === updated.stato) {
+        feedback.confirmAction();
+        toastSuccess('Intervento aggiornato.', 2500);
+      } else {
+        feedback.interventoReopen();
+        toastSuccess(updated.stato === 'sospeso' ? 'Segnato da completare.' : 'Rimesso da effettuare.', 2500);
+      }
     }
     closeOverlay(els.detModal);
     renderList();
