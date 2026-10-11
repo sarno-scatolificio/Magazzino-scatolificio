@@ -18,6 +18,7 @@ import { toastSuccess, toastError, toastWarning, toastInfo } from './toast.js';
 import { confirmDialog } from './ui-modal.js';
 import { exportGiornoPdf } from './interventi-pdf.js';
 import { pickDateRange } from './date-range-modal.js';
+import { pickTime } from './time-picker.js';
 import { openOverlay, closeOverlay, enableSheetDrag, setButtonBusy, syncSegIndicator, staggerIndex, emptyStateHtml } from './ui-utils.js';
 import { escapeHtml } from './products-shared.js';
 import feedback from './feedback.js';
@@ -747,6 +748,8 @@ function initDetailSheet() {
     const btn = e.target.closest('[data-stato]');
     if (!btn || !detail) return;
     detail.stato = btn.dataset.stato;
+    // Appena si sceglie "Effettuato" il giorno e l'ora partono da adesso (modificabili)
+    if (detail.stato === 'effettuato' && !detail.esitoAt) detail.esitoAt = new Date();
     feedback.modeSelect();
     paintDetail();
   });
@@ -761,6 +764,29 @@ function initDetailSheet() {
   });
 
   $('int-detail-photo').addEventListener('click', () => detail?.promemoriaUrl && openPhotoViewer(detail.promemoriaUrl));
+  // Giorno (calendario con i pallini blu) e ora (ruote) in cui l'intervento è stato effettuato
+  $('int-quando-day').addEventListener('click', async () => {
+    if (!detail?.esitoAt) return;
+    feedback.tap();
+    const range = await pickDateRange({ from: detail.esitoAt, single: true, marks: state.doneDays, title: 'Giorno di esecuzione' });
+    if (!range || !detail) return;
+    const d = new Date(detail.esitoAt);
+    d.setFullYear(range.from.getFullYear(), range.from.getMonth(), range.from.getDate());
+    detail.esitoAt = d;
+    paintQuando();
+  });
+  $('int-quando-time').addEventListener('click', async () => {
+    if (!detail?.esitoAt) return;
+    feedback.tap();
+    const t = detail.esitoAt;
+    const picked = await pickTime({ value: `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}` });
+    if (!picked || !detail) return;
+    const d = new Date(detail.esitoAt);
+    d.setHours(Number(picked.slice(0, 2)), Number(picked.slice(3, 5)), 0, 0);
+    detail.esitoAt = d;
+    paintQuando();
+  });
+
   // Tendina degli operatori: si apre e si chiude dal campo
   $('int-operatore-btn').addEventListener('click', () => {
     if (!detail) return;
@@ -774,7 +800,7 @@ function initDetailSheet() {
 let wirePhotoDetail = null;
 
 async function openDetail(row) {
-  detail = { row, stato: row.stato, operatori: operatoriDi(row), opOpen: false, foto: null, fotoUrl: '', rimuovi: false, promemoriaUrl: '' };
+  detail = { row, stato: row.stato, operatori: operatoriDi(row), opOpen: false, esitoAt: row.stato === 'effettuato' && row.esito_at ? new Date(row.esito_at) : null, foto: null, fotoUrl: '', rimuovi: false, promemoriaUrl: '' };
   ensureOperatori().then(() => detail?.row === row && paintDetail());
   els.detNote.value = row.note_esito || '';
   $('int-detail-title').textContent = row.macchina;
@@ -817,7 +843,17 @@ function paintDetail() {
   chip.textContent = STATI[detail.row.stato];
   chip.className = `ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${STATO_CHIP[detail.row.stato]}`;
   wirePhotoDetail?.show(detail.fotoUrl);
+  paintQuando();
   paintOperatore();
+}
+
+/** Giorno e ora di esecuzione: visibili solo con esito "Effettuato" */
+function paintQuando() {
+  const show = detail.stato === 'effettuato' && !!detail.esitoAt;
+  $('int-quando-step').classList.toggle('hidden', !show);
+  if (!show) return;
+  $('int-quando-day-value').textContent = dayLabel(dayKey(detail.esitoAt));
+  $('int-quando-time-value').textContent = detail.esitoAt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 }
 
 /** Tendina "Operatori": compare solo con esito "Effettuato" (con "Da effettuare" o "Da completare" non si vede) e permette di sceglierne più d'uno. I nomi non finiscono nel PDF. */
@@ -873,18 +909,26 @@ function paintOperatore() {
   $('int-operatore-empty').classList.toggle('hidden', names.length > 0 || !detail.opOpen);
 }
 
+const sameMinute = (date, iso) => !!date && !!iso && Math.floor(date.getTime() / 60000) === Math.floor(new Date(iso).getTime() / 60000);
+
 async function saveDetail() {
   if (!detail) return;
   const { row } = detail;
   const note = els.detNote.value.trim();
-  const unchanged = detail.stato === row.stato && note === (row.note_esito || '') && !detail.foto && !detail.rimuovi && (detail.stato !== 'effettuato' || [...detail.operatori].sort().join('|') === [...operatoriDi(row)].sort().join('|'));
+  const unchanged = detail.stato === row.stato && note === (row.note_esito || '') && !detail.foto && !detail.rimuovi && (detail.stato !== 'effettuato' || ([...detail.operatori].sort().join('|') === [...operatoriDi(row)].sort().join('|') && sameMinute(detail.esitoAt, row.esito_at)));
+  // Il giorno e l'ora di esecuzione non possono essere nel futuro
+  if (detail.stato === 'effettuato' && detail.esitoAt && detail.esitoAt.getTime() > Date.now() + 60000) {
+    feedback.errorAction();
+    toastWarning('Il giorno e l\'ora di esecuzione non possono essere nel futuro.');
+    return;
+  }
   if (unchanged) {
     closeOverlay(els.detModal);
     return;
   }
   setButtonBusy(els.detSave, true, 'Salvataggio…');
   try {
-    const updated = await updateEsito(row, { stato: detail.stato, note, operatori: detail.operatori, foto: detail.foto, rimuoviFoto: detail.rimuovi, authorName: authorName() });
+    const updated = await updateEsito(row, { stato: detail.stato, note, operatori: detail.operatori, esitoAt: detail.stato === 'effettuato' ? detail.esitoAt : null, foto: detail.foto, rimuoviFoto: detail.rimuovi, authorName: authorName() });
     state.open = state.open.filter((r) => r.id !== updated.id);
     state.done = state.done.filter((r) => r.id !== updated.id);
     state.doneRecent = state.doneRecent.filter((r) => r.id !== updated.id);

@@ -1503,6 +1503,20 @@
           <button type="button" data-stato="effettuato" class="category-tab flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">Effettuato</button>
         </div>
       </div>
+      <!-- Giorno e ora di esecuzione: compaiono solo con esito "Effettuato" (predefinito: adesso) -->
+      <div id="int-quando-step" class="hidden">
+        <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Quando è stato effettuato</label>
+        <div class="grid grid-cols-[1fr_auto] gap-2">
+          <button type="button" id="int-quando-day" class="flex items-center justify-between gap-2 rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm text-left hover:border-amber-400 transition-colors min-h-[44px]">
+            <span id="int-quando-day-value" class="truncate text-graphite-100"></span>
+            <i data-lucide="calendar-days" class="w-4 h-4 text-amber-400 shrink-0"></i>
+          </button>
+          <button type="button" id="int-quando-time" class="flex items-center justify-between gap-2 rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm text-left hover:border-amber-400 transition-colors min-h-[44px] min-w-[7.5rem]">
+            <span id="int-quando-time-value" class="font-mono text-graphite-100"></span>
+            <i data-lucide="clock" class="w-4 h-4 text-amber-400 shrink-0"></i>
+          </button>
+        </div>
+      </div>
       <!-- Operatori: la tendina compare solo quando l'esito è "Effettuato" -->
       <div id="int-operatore-step" class="hidden">
         <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Operatori che hanno effettuato il lavoro <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(puoi sceglierne più di uno)</span></label>

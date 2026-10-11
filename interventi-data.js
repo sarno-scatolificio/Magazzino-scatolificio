@@ -102,7 +102,7 @@ export async function createIntervento({ linea, macchina, descrizione, foto = nu
 /**
  * Aggiorna l'esito. `foto`: Blob nuovo | null (nessun cambio); `rimuoviFoto`: true per toglierla.
  */
-export async function updateEsito(row, { stato, note, operatori = [], foto = null, rimuoviFoto = false, authorName = '' }) {
+export async function updateEsito(row, { stato, note, operatori = [], esitoAt = null, foto = null, rimuoviFoto = false, authorName = '' }) {
   let fotoPath = row.foto_esito_path || null;
   let newPath = null;
   if (foto) {
@@ -118,7 +118,8 @@ export async function updateEsito(row, { stato, note, operatori = [], foto = nul
     operatori: stato === 'effettuato' ? operatori : [],
     foto_esito_path: fotoPath,
     esito_by_name: stato === 'da_effettuare' ? null : authorName || null,
-    esito_at: stato === 'da_effettuare' ? null : stato === row.stato && row.esito_at ? row.esito_at : new Date().toISOString(),
+    // Giorno e ora di esecuzione: quelli scelti per gli effettuati; altrimenti (da completare) quelli già registrati o adesso
+    esito_at: stato === 'da_effettuare' ? null : stato === 'effettuato' && esitoAt ? esitoAt.toISOString() : stato === row.stato && row.esito_at ? row.esito_at : new Date().toISOString(),
   };
   if (stato === 'da_effettuare') patch.esito_by = null;
   else {

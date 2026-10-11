@@ -2612,3 +2612,25 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
 #settings-btn:focus { outline: none; }
 #settings-btn:active { background: rgba(255, 255, 255, 0.3); }
 @media (hover: hover) { #settings-btn:hover { background: rgba(255, 255, 255, 0.15); } #settings-btn:active { background: rgba(255, 255, 255, 0.3); } }
+
+/* Selettore dell'ora: due ruote a scorrimento con aggancio */
+.tp-wrap { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.5rem; height: 220px; }
+.tp-wheel {
+  width: 96px; height: 220px; overflow-y: auto; scroll-snap-type: y mandatory;
+  padding: 88px 0; box-sizing: border-box; scrollbar-width: none; overscroll-behavior: contain;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 32%, #000 68%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 32%, #000 68%, transparent);
+}
+.tp-wheel::-webkit-scrollbar { display: none; }
+.tp-item {
+  height: 44px; scroll-snap-align: center; display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 1.25rem; color: var(--graphite-500, #8b94a0);
+  transition: color var(--dur-fast) ease, transform var(--dur-fast) ease; cursor: pointer;
+}
+.tp-item-on { color: var(--accent); font-weight: 700; transform: scale(1.25); }
+.tp-colon { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+.tp-band {
+  position: absolute; left: 0; right: 0; top: 88px; height: 44px; pointer-events: none;
+  border-top: 2px solid var(--accent-edge); border-bottom: 2px solid var(--accent-edge);
+  background: var(--accent-tint); border-radius: 0.6rem; opacity: 0.55;
+}
