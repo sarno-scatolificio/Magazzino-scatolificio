@@ -1115,7 +1115,10 @@ function openPhotoViewer(url) {
 // ---------------------------------------------------------------
 // PDF DEGLI INTERVENTI EFFETTUATI: scelta del giorno e degli interventi da inserire
 // ---------------------------------------------------------------
-const pdf = { from: null, to: null, rows: [], selected: new Set(), busy: false };
+const pdf = { from: null, to: null, rows: [], selected: new Set(), withPhotos: false, busy: false };
+
+/** La foto che finisce nel PDF: quella dell'esito, altrimenti quella del promemoria (come la miniatura dell'elenco) */
+const pdfPhotoPath = (r) => r.foto_esito_path || r.foto_promemoria_path || '';
 
 const fmtDay = (d) => d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const periodLabel = () => (pdf.from.toDateString() === pdf.to.toDateString() ? fmtDay(pdf.from) : `${fmtDay(pdf.from)} - ${fmtDay(pdf.to)}`);
@@ -1134,6 +1137,11 @@ function initPdfSheet() {
     const all = pdf.selected.size !== pdf.rows.length;
     pdf.selected = new Set(all ? pdf.rows.map((r) => r.id) : []);
     feedback.modeSelect();
+    paintPdfSheet();
+  });
+  $('int-pdf-photos').addEventListener('click', () => {
+    pdf.withPhotos = !pdf.withPhotos;
+    feedback.presetPick();
     paintPdfSheet();
   });
   $('int-pdf-go').addEventListener('click', generatePdf);
@@ -1163,6 +1171,7 @@ async function loadPdfRange(range, { open = false } = {}) {
     pdf.to = range.to;
     pdf.rows = rows;
     pdf.selected = new Set(rows.map((r) => r.id)); // di partenza sono tutti selezionati
+    if (open) pdf.withPhotos = false; // le foto vanno chieste ogni volta: di partenza non incluse
     paintPdfSheet();
     if (open) openOverlay(els.pdfModal);
   } catch (err) {
@@ -1191,6 +1200,19 @@ function paintPdfSheet() {
   const go = $('int-pdf-go');
   go.disabled = n === 0 || pdf.busy;
   $('int-pdf-go-label').textContent = n === 0 ? 'Scegli almeno un intervento' : `Genera PDF (${n})`;
+
+  // Scelta delle foto: compare solo se nel periodo ci sono interventi con una foto allegata
+  const withPhoto = pdf.rows.filter((r) => pdfPhotoPath(r));
+  const chosenWithPhoto = withPhoto.filter((r) => pdf.selected.has(r.id)).length;
+  const photoBtn = $('int-pdf-photos');
+  photoBtn.classList.toggle('hidden', !withPhoto.length);
+  const photoOn = pdf.withPhotos && chosenWithPhoto > 0;
+  photoBtn.setAttribute('aria-checked', String(photoOn));
+  photoBtn.disabled = chosenWithPhoto === 0;
+  photoBtn.querySelector('svg').style.opacity = photoOn ? '1' : '0';
+  $('int-pdf-photos-note').textContent = chosenWithPhoto === 0
+    ? 'Nessun intervento scelto ha una foto'
+    : `${chosenWithPhoto} ${chosenWithPhoto === 1 ? 'intervento scelto ha' : 'interventi scelti hanno'} una foto`;
 
   const list = $('int-pdf-list');
   list.innerHTML = '';
@@ -1240,7 +1262,11 @@ async function generatePdf() {
   const go = $('int-pdf-go');
   setButtonBusy(go, true, 'Preparo il PDF…');
   try {
-    const result = await exportGiornoPdf(pdf.from, pdf.to, { rows: chosen });
+    const result = await exportGiornoPdf(pdf.from, pdf.to, {
+      rows: chosen,
+      withPhotos: pdf.withPhotos,
+      onPhotosSkipped: (n) => toastWarning(`${n} ${n === 1 ? 'foto non è stata inclusa' : 'foto non sono state incluse'}: non disponibili.`),
+    });
     if (result === true) {
       feedback.confirmAction();
       toastSuccess('PDF pronto.', 2500);

@@ -1,12 +1,12 @@
 // =============================================================
 // interventi-pdf.js — PDF degli interventi effettuati in una giornata (o periodo)
 // Organizzato per linea e, dentro ogni linea, per macchina (ordine scelto in Impostazioni, come
-// nell'app). Per ogni intervento si legge solo il lavoro effettuato: niente orari, nomi, note o foto,
-// e niente data/ora di generazione. Sui telefoni che lo supportano si apre il foglio di
+// nell'app). Per ogni intervento si legge solo il lavoro effettuato: niente orari, nomi o note,
+// e niente data/ora di generazione. La foto allegata c'è solo se chi genera il PDF lo sceglie. Sui telefoni che lo supportano si apre il foglio di
 // condivisione (mail, WhatsApp…); altrimenti il file viene scaricato.
 // =============================================================
 
-import { listEffettuatiRange, LINEE, lineaLabel } from './interventi-data.js';
+import { listEffettuatiRange, LINEE, lineaLabel, signedUrls } from './interventi-data.js';
 
 export { listEffettuatiRange };
 import { loadLib } from './ui-utils.js';
@@ -18,6 +18,29 @@ const DEEP = [19, 34, 63];
 const GREY = [98, 102, 110];
 const LINE = [195, 201, 209];
 
+const PHOTO_MAX_W = 62; // mm: larghezza massima della foto nel PDF
+const PHOTO_MAX_H = 52; // mm: altezza massima
+
+/** Foto dell'intervento: quella dell'esito, altrimenti quella del promemoria */
+const photoPathOf = (r) => r.foto_esito_path || r.foto_promemoria_path || '';
+
+/** Scarica la foto e la riduce (il PDF resta leggero da inviare): { data, w, h } o null se non disponibile */
+async function loadPhoto(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const bmp = await createImageBitmap(await res.blob());
+  const scale = Math.min(1, 1100 / Math.max(bmp.width, bmp.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bmp.width * scale));
+  canvas.height = Math.max(1, Math.round(bmp.height * scale));
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  bmp.close?.();
+  return { data: canvas.toDataURL('image/jpeg', 0.78), w: canvas.width, h: canvas.height };
+}
+
 const fmtDate = (d) => d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -26,10 +49,38 @@ const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,
  * @param {Date} to   fine (23:59:59 dell'ultimo giorno)
  * @returns {Promise<'empty'|'cancelled'|true>}
  */
-export async function exportGiornoPdf(from, to, { rows: given = null } = {}) {
+export async function exportGiornoPdf(from, to, { rows: given = null, withPhotos = false, onPhotosSkipped = null } = {}) {
   // `rows`: gli interventi scelti dall'utente; senza, si prendono tutti quelli effettuati nel periodo
   const rows = given ?? (await listEffettuatiRange(from.toISOString(), to.toISOString()));
   if (!rows.length) return 'empty';
+
+  // Foto allegate (solo se richieste): scaricate prima di disegnare, così il PDF non resta a metà
+  const photos = new Map(); // id intervento -> { data, w, h }
+  if (withPhotos) {
+    const wanted = rows.filter((r) => photoPathOf(r));
+    let skipped = 0;
+    if (wanted.length) {
+      let urls = {};
+      try {
+        urls = await signedUrls(wanted.map(photoPathOf));
+      } catch (err) {
+        console.warn('Foto non disponibili per il PDF.', err);
+      }
+      await Promise.all(
+        wanted.map(async (r) => {
+          try {
+            const url = urls[photoPathOf(r)];
+            if (!url) throw new Error('URL mancante');
+            photos.set(r.id, await loadPhoto(url));
+          } catch (err) {
+            skipped += 1;
+            console.warn('Foto non inclusa nel PDF.', err);
+          }
+        })
+      );
+    }
+    if (skipped && onPhotosSkipped) onPhotosSkipped(skipped);
+  }
 
   await loadLib('jspdf');
   const { jsPDF } = window.jspdf;
@@ -133,12 +184,28 @@ export async function exportGiornoPdf(from, to, { rows: given = null } = {}) {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10.5);
         const lines = doc.splitTextToSize(r.descrizione || '', CW - 12);
-        ensure(lines.length * LINE_H + 3);
+        const photo = photos.get(r.id);
+        let pw = 0;
+        let ph = 0;
+        if (photo) {
+          const k = Math.min(PHOTO_MAX_W / photo.w, PHOTO_MAX_H / photo.h);
+          pw = photo.w * k;
+          ph = photo.h * k;
+        }
+        // testo e foto restano sulla stessa pagina
+        ensure(lines.length * LINE_H + 3 + (photo ? ph + 4 : 0));
         doc.setFillColor(...ACCENT);
         doc.circle(M + 3, y - 1.3, 0.9, 'F');
         doc.setTextColor(30, 30, 34);
         doc.text(lines, M + 7, y);
         y += lines.length * LINE_H + 2.4;
+        if (photo) {
+          doc.addImage(photo.data, 'JPEG', M + 7, y - 0.6, pw, ph);
+          doc.setDrawColor(...LINE);
+          doc.setLineWidth(0.2);
+          doc.rect(M + 7, y - 0.6, pw, ph);
+          y += ph + 4;
+        }
       }
       y += 3;
     }
