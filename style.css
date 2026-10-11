@@ -2585,9 +2585,9 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
 
 /* Ingranaggio delle Impostazioni (testata): a Impostazioni aperte resta a un quarto di giro (orario);
    chiudendole torna indietro con una transizione (antioraria). Nessuno scatto a fine corsa. */
-#settings-btn svg, #settings-btn i { transform-origin: 50% 50%; transform: rotate(0deg); transition: transform 380ms cubic-bezier(0.8, 0, 0.8, 0.2); }
-#settings-btn.is-open svg, #settings-btn.is-open i { transform: rotate(90deg); transition-duration: 420ms; transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
-@media (prefers-reduced-motion: reduce) { #settings-btn svg, #settings-btn i { transition-duration: 1ms; } }
+.settings-gear { transform-origin: 50% 50%; transform: rotate(0deg); transition: transform 380ms cubic-bezier(0.8, 0, 0.8, 0.2); }
+#settings-btn.is-open .settings-gear { transform: rotate(90deg); transition-duration: 420ms; transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+@media (prefers-reduced-motion: reduce) { .settings-gear { transition-duration: 1ms; } }
 
 /* Impostazioni: cadono dall'alto verso il basso sopra la sezione corrente (che resta ferma), senza dissolvenza.
    Richiudendole fanno il percorso inverso: risalgono e scoprono la sezione sottostante. */
@@ -2606,3 +2606,9 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
 }
 .view-drop-reveal { position: relative; z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .view-drop-in, .view-drop-out { animation-duration: 1ms; } }
+
+/* Rotella delle Impostazioni: lo sfondo chiaro compare solo mentre si preme (e al passaggio del mouse sui computer),
+   mai come "focus" o "hover" rimasto dopo il tocco */
+#settings-btn:focus { outline: none; }
+#settings-btn:active { background: rgba(255, 255, 255, 0.3); }
+@media (hover: hover) { #settings-btn:hover { background: rgba(255, 255, 255, 0.15); } #settings-btn:active { background: rgba(255, 255, 255, 0.3); } }

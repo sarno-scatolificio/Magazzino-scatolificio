@@ -252,7 +252,8 @@ function initNav() {
       });
     });
   });
-  document.getElementById('settings-btn').addEventListener('click', () => {
+  document.getElementById('settings-btn').addEventListener('click', (e) => {
+    e.currentTarget.blur(); // nessun riquadro di focus che resta dopo il tocco: l'evidenza c'è solo mentre si preme
     if (currentView === 'settings') {
       // Di nuovo sulla rotella: le Impostazioni si richiudono (come "indietro"), con l'animazione al contrario
       if ((history.state?.navDepth || 0) > 0) history.back();

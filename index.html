@@ -139,8 +139,9 @@
 
       <div class="hdr-right flex items-center gap-2 shrink-0">
         <span id="user-role-badge" class="ui-label whitespace-nowrap font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/20 text-white">—</span>
-        <button id="settings-btn" aria-label="Impostazioni" class="hit-area-sm w-9 h-9 rounded-lg flex items-center justify-center text-white hover:bg-white/15 transition-colors">
-          <i data-lucide="settings" class="w-5 h-5" stroke-width="1.8"></i>
+        <button id="settings-btn" aria-label="Impostazioni" class="hit-area-sm w-9 h-9 rounded-lg flex items-center justify-center text-white transition-colors">
+          <!-- La rotazione sta sul contenitore, non sull'icona: le icone vengono ricreate a ogni createIcons() e perderebbero la transizione -->
+          <span class="settings-gear flex items-center justify-center"><i data-lucide="settings" class="w-5 h-5" stroke-width="1.8"></i></span>
         </button>
       </div>
     </div>
