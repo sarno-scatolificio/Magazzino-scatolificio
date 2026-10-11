@@ -2,7 +2,7 @@
 // interventi-pdf.js — PDF degli interventi effettuati in una giornata (o periodo)
 // Organizzato per linea e, dentro ogni linea, per macchina (ordine scelto in Impostazioni, come
 // nell'app). Per ogni intervento si legge solo il lavoro effettuato: niente orari, nomi o note,
-// e niente data/ora di generazione. La foto allegata c'è solo se chi genera il PDF lo sceglie. Sui telefoni che lo supportano si apre il foglio di
+// e niente data/ora di generazione. Le foto ci sono solo per gli interventi per cui chi genera il PDF le sceglie. Sui telefoni che lo supportano si apre il foglio di
 // condivisione (mail, WhatsApp…); altrimenti il file viene scaricato.
 // =============================================================
 
@@ -49,15 +49,15 @@ const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,
  * @param {Date} to   fine (23:59:59 dell'ultimo giorno)
  * @returns {Promise<'empty'|'cancelled'|true>}
  */
-export async function exportGiornoPdf(from, to, { rows: given = null, withPhotos = false, onPhotosSkipped = null } = {}) {
+export async function exportGiornoPdf(from, to, { rows: given = null, photoIds = null, onPhotosSkipped = null } = {}) {
   // `rows`: gli interventi scelti dall'utente; senza, si prendono tutti quelli effettuati nel periodo
   const rows = given ?? (await listEffettuatiRange(from.toISOString(), to.toISOString()));
   if (!rows.length) return 'empty';
 
   // Foto allegate (solo se richieste): scaricate prima di disegnare, così il PDF non resta a metà
   const photos = new Map(); // id intervento -> { data, w, h }
-  if (withPhotos) {
-    const wanted = rows.filter((r) => photoPathOf(r));
+  if (photoIds?.size) {
+    const wanted = rows.filter((r) => photoIds.has(r.id) && photoPathOf(r));
     let skipped = 0;
     if (wanted.length) {
       let urls = {};
