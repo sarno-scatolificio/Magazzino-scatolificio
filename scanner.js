@@ -23,6 +23,7 @@ import { animateNumber, replayAnimation, emptyStateHtml, openOverlay, closeOverl
 import { CATEGORY_LABELS } from './products.js';
 import { shelfLabel } from './products-shared.js';
 import { listPuntiSuggeriti, normPunto } from './punti-utilizzo.js';
+import { openPicker } from './picker.js';
 
 let currentMode = null; // 'deposito' | 'prelievo'
 let currentProduct = null;
@@ -61,8 +62,11 @@ export function initScanner() {
   els.puntoInput = document.getElementById('scan-punto-input');
   els.puntoWrap = document.getElementById('scan-punto-wrap');
   els.puntoLabel = document.getElementById('scan-punto-label');
-els.puntoToggle = document.getElementById('scan-punto-toggle');
 els.puntoSuggest = document.getElementById('scan-punto-suggest');
+els.puntoList = document.getElementById('scan-punto-list');
+els.puntoHome = els.puntoWrap.parentElement; // posizione di partenza (Deposito); nel Prelievo dei cuscinetti il campo va dopo il macchinario
+els.macchinarioBtn = document.getElementById('scan-macchinario-btn');
+els.macchinarioValue = document.getElementById('scan-macchinario-value');
   els.prelievoFields = document.getElementById('scan-prelievo-fields');
   els.lineaGroup = document.getElementById('scan-linea-group');
   els.lineaInput = document.getElementById('scan-linea-input');
@@ -92,27 +96,17 @@ els.puntoSuggest = document.getElementById('scan-punto-suggest');
     machinesCache = null;
   });
 
-  // Punto di utilizzo dei cuscinetti: tendina con i punti già usati per questo cuscinetto su questa linea e macchina
+  // Punto di utilizzo dei cuscinetti: i punti già usati si estendono da soli sotto il campo (appena scelti linea e macchinario);
+  // toccando il campo per scrivere la tendina si chiude
   els.puntoInput.addEventListener('focus', () => {
-    puntiOpen = true;
+    puntiOpen = false;
     paintPunti();
   });
-  els.puntoInput.addEventListener('input', () => {
-    puntiOpen = true;
-    paintPunti();
+  els.macchinarioSelect.addEventListener('change', () => {
+    syncMacchinarioBtn();
+    refreshPuntiSuggeriti({ autoOpen: true });
   });
-  els.puntoToggle.addEventListener('click', () => {
-    puntiOpen = !puntiOpen;
-    feedback.tap();
-    paintPunti();
-  });
-  els.macchinarioSelect.addEventListener('change', refreshPuntiSuggeriti);
-  document.addEventListener('pointerdown', (e) => {
-    if (puntiOpen && !els.puntoWrap.contains(e.target)) {
-      puntiOpen = false;
-      paintPunti();
-    }
-  });
+  els.macchinarioBtn.addEventListener('click', pickMacchinario);
   els.lineaGroup?.querySelectorAll('[data-linea]').forEach((btn) => {
     btn.addEventListener('click', () => {
       feedback.focusTap();
@@ -676,6 +670,8 @@ function setupPrelievoFields(product) {
   els.lineaFixedName.textContent = fixedLinea === 'L1' ? 'Linea 1' : fixedLinea === 'L2' ? 'Linea 2' : '';
   // Punto di utilizzo già assegnato al cuscinetto: nessun suggerimento (non c'è nulla da scegliere) e linea e macchinario
   // vanno indicati ogni volta dall'operatore, senza macchina preimpostata
+  // Cuscinetto in Prelievo: ordine Linea → Macchinario → Punto di utilizzo (il campo scende sotto il macchinario)
+  (isPrelievo && isBearing ? els.prelievoFields : els.puntoHome).appendChild(els.puntoWrap);
   puntoPrefilled = isBearing && (product.punto_utilizzo_standard || '').trim() !== '';
   if (isPrelievo && isBearing) fillMacchinari(puntoPrefilled ? '' : product.macchina);
   puntiOpen = false;
@@ -694,14 +690,17 @@ const isBearingPrelievo = () => currentMode === 'prelievo' && currentProduct?.ca
 const suggestionsOn = () => isBearingPrelievo() && !puntoPrefilled;
 
 /** Rilegge i punti già usati per questo cuscinetto su questa linea e macchina (si chiama a ogni cambio di scelta) */
-async function refreshPuntiSuggeriti() {
+async function refreshPuntiSuggeriti({ autoOpen = false } = {}) {
   const seq = ++puntiSeq;
   puntiSuggeriti = [];
+  puntiOpen = false;
   if (suggestionsOn() && els.lineaInput.value && els.macchinarioSelect.value) {
     try {
       const list = await listPuntiSuggeriti({ productId: currentProduct.id, linea: els.lineaInput.value, macchinario: els.macchinarioSelect.value });
       if (seq !== puntiSeq) return; // nel frattempo è cambiata la scelta
       puntiSuggeriti = list;
+      // Appena scelti linea e macchinario, se ci sono precedenti la tendina si estende da sola (se non si sta già scrivendo)
+      puntiOpen = autoOpen && list.length > 0 && document.activeElement !== els.puntoInput;
     } catch (err) {
       console.warn('Punti di utilizzo non disponibili (offline?).', err);
     }
@@ -711,27 +710,27 @@ async function refreshPuntiSuggeriti() {
 
 function paintPunti() {
   const has = suggestionsOn() && puntiSuggeriti.length > 0;
-  els.puntoToggle.style.display = has ? '' : 'none'; // (non [hidden]: la classe flex lo annullerebbe)
-  els.puntoInput.classList.toggle('pr-20', has); // spazio per la freccia, accanto alla X di cancellazione
-  const q = normPunto(els.puntoInput.value);
-  const shown = has ? puntiSuggeriti.filter((s) => !q || normPunto(s.punto).includes(q)) : [];
-  const open = has && puntiOpen && shown.length > 0;
-  els.puntoSuggest.hidden = !open;
-  els.puntoToggle.setAttribute('aria-expanded', String(open));
-  const chevron = els.puntoToggle.firstElementChild;
-  if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
-  if (!open) return;
-
-  els.puntoSuggest.innerHTML = '';
+  const open = has && puntiOpen;
+  els.puntoSuggest.classList.toggle('is-open', open);
+  els.puntoSuggest.setAttribute('aria-hidden', String(!open));
+  if (!has) {
+    els.puntoList.innerHTML = '';
+    return;
+  }
+  // Il contenuto resta mentre la tendina si richiude (animazione); si ricostruisce solo quando serve
+  const sig = puntiSuggeriti.map((s) => `${s.punto}|${s.volte}|${s.ultimo}`).join('§');
+  if (els.puntoList.dataset.sig === sig && els.puntoList.childElementCount) return;
+  els.puntoList.dataset.sig = sig;
+  els.puntoList.innerHTML = '';
   const cap = document.createElement('p');
   cap.className = 'px-3 pt-2 pb-1 ui-note font-semibold uppercase tracking-wide text-graphite-500';
   cap.textContent = 'Già montato qui';
-  els.puntoSuggest.appendChild(cap);
-  shown.forEach((s) => {
+  els.puntoList.appendChild(cap);
+  puntiSuggeriti.forEach((s) => {
     const d = document.createElement('div');
     d.setAttribute('role', 'separator');
     d.className = 'h-px bg-graphite-700/70 mx-3';
-    els.puntoSuggest.appendChild(d);
+    els.puntoList.appendChild(d);
     const row = document.createElement('button');
     row.type = 'button';
     row.setAttribute('role', 'option');
@@ -743,16 +742,43 @@ function paintPunti() {
     meta.className = 'block ui-note text-graphite-500';
     meta.textContent = `montato ${s.volte} ${s.volte === 1 ? 'volta' : 'volte'} · ultimo ${new Date(s.ultimo).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' })}`;
     row.append(name, meta);
-    // pointerdown: la scelta avviene prima che il campo perda il focus
-    row.addEventListener('pointerdown', (e) => e.preventDefault());
     row.addEventListener('click', () => {
       els.puntoInput.value = s.punto;
       puntiOpen = false;
       feedback.presetPick();
       paintPunti();
     });
-    els.puntoSuggest.appendChild(row);
+    els.puntoList.appendChild(row);
   });
+}
+
+/** Macchinario: finestra dell'app (non l'elenco di sistema). Prima va scelta la linea. */
+async function pickMacchinario() {
+  if (!els.lineaInput.value) {
+    feedback.errorAction();
+    flagMissing(els.lineaGroup);
+    toastError('Scegli prima la linea.');
+    return;
+  }
+  const options = [...els.macchinarioSelect.options].map((o) => o.value).filter(Boolean);
+  const picked = await openPicker({
+    title: `Macchinario · ${els.lineaInput.value === 'L1' ? 'Linea 1' : 'Linea 2'}`,
+    options,
+    keepOrder: true,
+    currentValue: els.macchinarioSelect.value,
+  });
+  if (picked === null) return; // annullato
+  els.macchinarioSelect.value = picked;
+  if (picked) feedback.stepDone();
+  els.macchinarioSelect.dispatchEvent(new Event('change'));
+}
+
+/** Mostra nel pulsante il macchinario scelto */
+function syncMacchinarioBtn() {
+  const v = els.macchinarioSelect.value;
+  els.macchinarioValue.textContent = v || 'Seleziona macchinario…';
+  els.macchinarioValue.classList.toggle('text-graphite-400', !v);
+  els.macchinarioValue.classList.toggle('text-graphite-100', !!v);
 }
 
 function renderMacchinariOptions(names, selected) {
@@ -772,6 +798,7 @@ function renderMacchinariOptions(names, selected) {
   });
   const match = selected ? list.find((n) => n.toLowerCase() === selected.toLowerCase()) : '';
   sel.value = match || '';
+  syncMacchinarioBtn();
   refreshPuntiSuggeriti();
 }
 
@@ -904,7 +931,7 @@ async function confirmTransaction() {
       macchinario = els.macchinarioSelect.value;
       if (!macchinario) {
         feedback.errorAction();
-        flagMissing(els.macchinarioSelect);
+        flagMissing(els.macchinarioBtn);
         toastError('Seleziona il macchinario.');
         return;
       }

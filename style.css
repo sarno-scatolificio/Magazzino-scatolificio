@@ -2557,3 +2557,9 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
 
 /* Campo obbligatorio rimasto vuoto: contorno rosso per un attimo */
 .field-missing { outline: 2px solid #dc2626; outline-offset: 2px; border-radius: 0.6rem; transition: outline-color var(--dur-fast) ease; }
+
+/* Punti di utilizzo già usati: la tendina si estende da sola sotto il campo (nessuna freccia) */
+.punti-expand { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 300ms var(--ease-out); }
+.punti-expand.is-open { grid-template-rows: 1fr; }
+.punti-expand > .punti-expand-inner { overflow: hidden; min-height: 0; }
+@media (prefers-reduced-motion: reduce) { .punti-expand { transition-duration: 1ms; } }

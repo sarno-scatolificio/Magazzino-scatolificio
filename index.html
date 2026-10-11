@@ -393,16 +393,14 @@
               </div>
               <div id="scan-punto-wrap">
                 <label id="scan-punto-label" class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Punto utilizzo</label>
-                <div class="relative">
-                  <input id="scan-punto-input" type="text" placeholder="es. Linea 1" autocomplete="off"
-                    class="w-full rounded-lg bg-graphite-900 border border-graphite-700 px-3 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors">
-                  <!-- Cuscinetti: punti in cui è già stato montato su questa linea e macchina -->
-                  <button type="button" id="scan-punto-toggle" style="display:none" aria-label="Punti già usati" aria-expanded="false"
-                    class="absolute right-9 top-1/2 -translate-y-1/2 w-10 h-10 rounded-lg flex items-center justify-center text-graphite-500">
-                    <i data-lucide="chevron-down" id="scan-punto-chevron" class="w-4 h-4 transition-transform"></i>
-                  </button>
-                  <div id="scan-punto-suggest" hidden role="listbox" aria-label="Punti già usati"
-                    class="absolute left-0 right-0 top-full mt-1.5 z-20 rounded-lg border border-graphite-700 bg-white shadow-lg overflow-hidden max-h-56 overflow-y-auto"></div>
+                <input id="scan-punto-input" type="text" placeholder="es. Linea 1" autocomplete="off"
+                  class="w-full rounded-lg bg-graphite-900 border border-graphite-700 px-3 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors">
+                <!-- Cuscinetti: punti in cui è già stato montato su questa linea e macchina. Si estende da sola sotto il campo;
+                     si chiude quando si tocca il campo per scrivere. -->
+                <div id="scan-punto-suggest" class="punti-expand" aria-hidden="true">
+                  <div class="punti-expand-inner">
+                    <div id="scan-punto-list" role="listbox" aria-label="Punti già usati" class="mt-2 rounded-lg border border-graphite-700 bg-white overflow-hidden max-h-56 overflow-y-auto"></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -426,8 +424,13 @@
               </div>
               <div id="scan-macchinario-wrap" class="hidden">
                 <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Macchinario</label>
-                <select id="scan-macchinario-input"
-                  class="w-full min-h-[44px] rounded-lg bg-graphite-900 border border-graphite-700 px-3 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors"></select>
+                <!-- Si sceglie dalla finestra dell'app (non dall'elenco di sistema); il select nascosto tiene il valore -->
+                <button type="button" id="scan-macchinario-btn"
+                  class="w-full flex items-center justify-between gap-2 min-h-[44px] rounded-lg bg-graphite-900 border border-graphite-700 px-3 py-2.5 text-sm text-left hover:border-amber-400 transition-colors">
+                  <span id="scan-macchinario-value" class="truncate text-graphite-400">Seleziona macchinario…</span>
+                  <i data-lucide="chevron-down" class="w-4 h-4 text-graphite-500 shrink-0"></i>
+                </button>
+                <select id="scan-macchinario-input" class="hidden" tabindex="-1" aria-hidden="true"></select>
               </div>
             </div>
 
