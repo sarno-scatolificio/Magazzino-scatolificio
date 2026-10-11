@@ -1301,6 +1301,11 @@
         <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Codice articolo *</label>
         <input id="product-codice-articolo" required type="text" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 font-mono text-sm focus:border-amber-400 outline-none transition-colors">
       </div>
+      <!-- Descrizione facoltativa del codice articolo: solo per i Cuscinetti -->
+      <div id="product-descrizione-wrap" class="hidden">
+        <label for="product-descrizione" class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Descrizione <span class="normal-case font-normal text-graphite-500">(facoltativa)</span></label>
+        <input id="product-descrizione" type="text" maxlength="200" autocomplete="off" placeholder="es. Cuscinetto a sfere 6204 2RS" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors">
+      </div>
       <!-- Punto d'inserimento: per i Ricambi tecnici il campo "Punto utilizzo standard" viene
            spostato qui (via JS) e mostrato come "Descrizione", a piena larghezza come il codice. -->
       <div id="product-punto-standard-top-slot"></div>

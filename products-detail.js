@@ -212,6 +212,7 @@ function openModal(product = null, { fromDetail = false } = {}) {
   els.macchinaValue.classList.toggle('text-graphite-400', !product?.macchina);
   els.macchinaValue.classList.toggle('text-graphite-100', !!product?.macchina);
   document.getElementById('product-punto-standard').value = product?.punto_utilizzo_standard || '';
+  document.getElementById('product-descrizione').value = product?.descrizione || '';
   renderShelfRows(product ? getProductLocations(product) : []);
   document.getElementById('product-scorta-minima').value = product?.scorta_minima ?? (state.currentCategory === 'cuscinetti' ? 5 : 0);
   document.getElementById('product-codice-barre').value = product?.codice_barre || '';
@@ -430,6 +431,8 @@ function updateLineaMacchinaVisibility() {
   updateGenerateBarcodeVisibility();
   updateManualButtonVisibility();
   updatePuntoStandardField(categoria);
+  // Descrizione facoltativa del codice: solo per i Cuscinetti
+  document.getElementById('product-descrizione-wrap')?.classList.toggle('hidden', categoria !== 'cuscinetti');
 }
 
 /**
@@ -588,10 +591,12 @@ function renderDetail(p) {
   }`;
   els.detailLowStock.classList.toggle('hidden', !lowStock);
 
-  // Descrizione: solo per i Ricambi tecnici, box dedicato subito sotto la testata
+  // Descrizione, box dedicato subito sotto la testata: per i Ricambi tecnici c'è sempre (campo
+  // punto_utilizzo_standard); per i Cuscinetti solo se è stata inserita (campo facoltativo `descrizione`)
   const isRicambi = p.categoria === 'pezzi_ricambio';
-  const descrizione = (p.punto_utilizzo_standard || '').trim();
-  els.detailDescrizioneWrap.classList.toggle('hidden', !isRicambi);
+  const isCuscinetto = p.categoria === 'cuscinetti';
+  const descrizione = ((isCuscinetto ? p.descrizione : p.punto_utilizzo_standard) || '').trim();
+  els.detailDescrizioneWrap.classList.toggle('hidden', !(isRicambi || (isCuscinetto && descrizione)));
   els.detailDescrizione.textContent = descrizione || '—';
   els.detailDescrizione.classList.toggle('text-graphite-400', !descrizione);
 
@@ -748,6 +753,7 @@ async function handleSubmit(e) {
     linea: els.lineaHidden.value || null,
     macchina: els.macchinaHidden.value || null,
     punto_utilizzo_standard: document.getElementById('product-punto-standard').value.trim() || null,
+    ...(els.categoriaSelect.value === 'cuscinetti' ? { descrizione: document.getElementById('product-descrizione').value.trim() || null } : {}),
     scorta_minima: parseInt(document.getElementById('product-scorta-minima').value, 10) || 0,
   };
 

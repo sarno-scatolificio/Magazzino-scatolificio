@@ -213,7 +213,7 @@ export async function listProducts({ search = '', onlyLowStock = false, categori
     }
     // `locazione` è il riepilogo testuale degli scaffali: cercare "SB002" trova anche gli articoli che ci stanno insieme ad altri scaffali
     query = query.or(
-      `codice_articolo.ilike.%${search}%,codice_barre.ilike.%${search}%,locazione.ilike.%${search}%,punto_utilizzo_standard.ilike.%${search}%,macchina.ilike.%${search}%${
+      `codice_articolo.ilike.%${search}%,codice_barre.ilike.%${search}%,locazione.ilike.%${search}%,punto_utilizzo_standard.ilike.%${search}%,descrizione.ilike.%${search}%,macchina.ilike.%${search}%${
         extraIds.length ? `,id.in.(${extraIds.join(',')})` : ''
       }`
     );
