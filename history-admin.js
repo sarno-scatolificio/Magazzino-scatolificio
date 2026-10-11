@@ -11,6 +11,7 @@ import { staggerIndex, emptyStateHtml, setButtonBusy, openOverlay, closeOverlay,
 import { confirmDialog } from './ui-modal.js';
 import feedback from './feedback.js';
 import { loadIdlePanel } from './scanner.js';
+import { escapeHtml } from './html-utils.js';
 
 const els = {};
 let history = [];
@@ -149,8 +150,4 @@ async function handleDeleteSelected() {
     toastError('Errore durante l\'eliminazione.');
     setButtonBusy(els.deleteBtn, false);
   }
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

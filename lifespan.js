@@ -16,6 +16,7 @@
 
 import { listPrelieviForLifespan } from './supabase.js';
 import { normPunto } from './punti-utilizzo.js';
+import { escapeHtml } from './html-utils.js';
 
 const TOLERANCE = 0.1; // anticipata = dura almeno il 10% in meno della media (cambia qui la soglia)
 const MERGE_HOURS = 1; // prelievi dello stesso ricambio a meno di 1 ora l'uno dall'altro = stessa sostituzione
@@ -29,7 +30,6 @@ let lastData = null;
 // Confronto tollerante: maiuscole, accenti, punteggiatura e spazi non fanno differenza ("Lato Motore" = "lato-motore.")
 const norm = normPunto;
 const mean = (list) => list.reduce((a, b) => a + b, 0) / list.length;
-const escapeHtml = (str) => String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 /** Calcola gruppi, medie e sostituzioni anticipate a partire dai prelievi (ordinati dal più vecchio). */
 export function computeLifespan(rows) {

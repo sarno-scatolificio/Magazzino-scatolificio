@@ -18,6 +18,7 @@ import { confirmDialog } from './ui-modal.js';
 import { toastError, toastInfo, toastSuccess, toastWarning } from './toast.js';
 import { isAdmin } from './auth.js';
 import feedback from './feedback.js';
+import { escapeHtml } from './html-utils.js';
 
 const els = {};
 let loaded = false; // dopo il primo caricamento, i rientri nella vista non mostrano più lo scheletro
@@ -1400,8 +1401,4 @@ async function handleCreateSection(e) {
   } finally {
     setButtonBusy(els.submitBtn, false);
   }
-}
-
-function escapeHtml(str) {
-  return String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

@@ -6,6 +6,7 @@
 // =============================================================
 
 import { openOverlay, closeOverlay, enableSheetDrag } from './ui-utils.js';
+import { escapeHtml } from './html-utils.js';
 
 const els = {};
 let resolveFn = null;
@@ -113,10 +114,6 @@ function closePicker(value) {
   const resolve = resolveFn;
   resolveFn = null;
   resolve?.(value);
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 // =============================================================

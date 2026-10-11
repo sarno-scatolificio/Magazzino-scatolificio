@@ -24,6 +24,7 @@ import { CATEGORY_LABELS } from './products.js';
 import { shelfLabel } from './products-shared.js';
 import { listPuntiSuggeriti, normPunto } from './punti-utilizzo.js';
 import { openPicker } from './picker.js';
+import { escapeHtml } from './html-utils.js';
 
 let currentMode = null; // 'deposito' | 'prelievo'
 let currentProduct = null;
@@ -1099,8 +1100,4 @@ function renderRecent(rows) {
     `;
     els.recentListEl.appendChild(row);
   });
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

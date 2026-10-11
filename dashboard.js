@@ -20,6 +20,7 @@ import { pickDateRange } from './date-range-modal.js';
 import { CATEGORY_LABELS } from './products-shared.js';
 import feedback from './feedback.js';
 import { refreshLifespan, resetLifespan } from './lifespan.js';
+import { escapeHtml } from './html-utils.js';
 
 const TABS = ['deposito', 'prelievo'];
 const PAGE_SIZE = 40; // righe mostrate per volta; "Mostra altri" ne aggiunge altre
@@ -376,10 +377,6 @@ function detailCard(r) {
         )
         .join('')}
     </div>`;
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 // --- Esportazione ---------------------------------------------------

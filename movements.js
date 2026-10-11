@@ -9,6 +9,7 @@
 import { listTransactions } from './supabase.js';
 import { toastError } from './toast.js';
 import { staggerIndex, emptyStateHtml, openOverlay, closeOverlay, enableSheetDrag, animatePanelHeight, syncSegIndicator } from './ui-utils.js';
+import { escapeHtml } from './html-utils.js';
 
 const els = {};
 let rows = [];
@@ -135,8 +136,4 @@ function movementRow(r, i) {
 
   wrap.append(head, track);
   return wrap;
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

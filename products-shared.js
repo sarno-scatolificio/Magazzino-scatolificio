@@ -40,9 +40,7 @@ export function binIconHtml(extraClass = 'shelf-ico') {
   return `<svg class="${extraClass} bin-ico w-[22px] h-[22px] text-graphite-400" viewBox="2 2 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="bin-inner" d="M7 5h10l2.5 7h-15z"/><path class="bin-front" d="M4.5 12h15v7a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"/><rect class="bin-label" x="9.5" y="14.5" width="5" height="3" rx="0.6"/></svg>`;
 }
 
-export function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
+export { escapeHtml } from './html-utils.js';
 
 /**
  * Scaffali di un articolo come testo breve: "SA001" se è su uno scaffale solo,

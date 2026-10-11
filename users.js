@@ -8,6 +8,7 @@ import { listProfiles, updateProfileName } from './supabase.js';
 import { toastSuccess, toastError, toastWarning } from './toast.js';
 import { staggerIndex, replayAnimation, emptyStateHtml, setButtonBusy, openOverlay, closeOverlay } from './ui-utils.js';
 import feedback from './feedback.js';
+import { escapeHtml } from './html-utils.js';
 
 const els = {};
 let profiles = [];
@@ -101,8 +102,4 @@ async function saveName(id, name, btn) {
   } finally {
     setButtonBusy(btn, false);
   }
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
