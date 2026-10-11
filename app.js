@@ -340,10 +340,9 @@ export function switchView(view, { animate = true, onStart, fromBack = false } =
 
   const previousView = currentView;
   // Le Impostazioni "cadono" dall'alto sopra la sezione corrente; richiudendole risalgono (animazione al contrario).
-  // La rotella gira di un quarto di giro in senso orario all'apertura e antiorario alla chiusura.
   const drop = !animate ? null : view === 'settings' ? 'down' : previousView === 'settings' ? 'up' : null;
-  if (view === 'settings') spinGear(1);
-  else if (previousView === 'settings') spinGear(-1);
+  // La rotella resta a un quarto di giro finché le Impostazioni sono aperte e torna indietro (con transizione) alla chiusura
+  document.getElementById('settings-btn')?.classList.toggle('is-open', view === 'settings');
   // Ogni cambio di sezione è un passo della cronologia: il tasto indietro del telefono
   // riporta alla sezione precedente (Manuali → Impostazioni → indietro = Manuali).
   if (!fromBack && previousView) pushLayer(() => switchView(previousView, { fromBack: true }));
@@ -399,16 +398,6 @@ export function switchView(view, { animate = true, onStart, fromBack = false } =
   }
 
   animateFluidSwap(fromSection, toSection, forward, doRefresh, { drop });
-}
-
-/** Quarto di giro della rotella delle Impostazioni: dir > 0 orario (apre), dir < 0 antiorario (chiude) */
-function spinGear(dir) {
-  const gear = document.querySelector('#settings-btn svg, #settings-btn i');
-  if (!gear) return;
-  gear.classList.remove('gear-cw', 'gear-ccw');
-  void gear.getBoundingClientRect(); // riavvia l'animazione anche con tocchi ravvicinati
-  gear.classList.add(dir > 0 ? 'gear-cw' : 'gear-ccw');
-  gear.addEventListener('animationend', () => gear.classList.remove('gear-cw', 'gear-ccw'), { once: true });
 }
 
 /**
