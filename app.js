@@ -252,7 +252,15 @@ function initNav() {
       });
     });
   });
-  document.getElementById('settings-btn').addEventListener('click', () => {
+  document.getElementById('settings-btn').addEventListener('click', (e) => {
+    // L'ingranaggio compie un giro completo a ogni tocco (solo trasformazione: leggera anche sui telefoni lenti)
+    const gear = e.currentTarget.querySelector('svg, i');
+    if (gear) {
+      gear.classList.remove('gear-turn');
+      void gear.getBoundingClientRect(); // riavvia l'animazione anche con tocchi ravvicinati
+      gear.classList.add('gear-turn');
+      gear.addEventListener('animationend', () => gear.classList.remove('gear-turn'), { once: true });
+    }
     switchView('settings', { onStart: () => feedback.navTap() });
   });
   document.getElementById('settings-report-btn')?.addEventListener('click', () => {

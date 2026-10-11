@@ -2582,3 +2582,8 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
   pointer-events: none;
 }
 .settings-report-hero:active { transform: translateY(3px); box-shadow: 0 2px 0 #1b3358, 0 8px 16px -10px rgba(36, 64, 111, 0.6); }
+
+/* Ingranaggio delle Impostazioni (testata): un giro a ogni tocco */
+@keyframes gear-turn { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+#settings-btn svg.gear-turn, #settings-btn i.gear-turn { animation: gear-turn 650ms cubic-bezier(0.45, 0, 0.2, 1); transform-origin: 50% 50%; }
+@media (prefers-reduced-motion: reduce) { #settings-btn svg.gear-turn, #settings-btn i.gear-turn { animation: none; } }

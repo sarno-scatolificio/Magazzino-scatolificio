@@ -448,9 +448,8 @@ function renderList() {
   pdfBtn.title = state.doneDays.size ? 'Esporta PDF degli interventi effettuati' : 'Nessun intervento effettuato da esportare';
   paintDateRow();
   const openCount = applyFilters(state.open).length;
-  const doneCount = applyFilters(state.done).length;
   $('int-count-open').textContent = openCount ? `(${openCount})` : '';
-  $('int-count-done').textContent = doneCount ? `(${doneCount})` : '';
+  $('int-count-done').textContent = ''; // negli Effettuati il numero non si mostra
 
   const rows = applyFilters(state.tab === 'open' ? state.open : state.done);
   els.list.innerHTML = '';
