@@ -459,7 +459,7 @@ function renderList() {
     els.list.innerHTML = emptyStateHtml(
       state.tab === 'open' ? 'clipboard-check' : 'clipboard-list',
       filtered ? 'Nessun intervento con questi filtri' : state.tab === 'open' ? 'Nessun intervento da fare' : 'Nessun intervento effettuato in questo giorno',
-      filtered ? 'Cambia o togli i filtri di linea e macchina.' : state.tab === 'open' ? 'Tocca + per annotarne uno durante la sosta.' : 'Scegli un giorno con il pallino blu nel calendario.'
+      filtered ? 'Cambia o togli i filtri di linea e macchina.' : state.tab === 'open' ? 'Tocca + per annotarne uno nuovo.' : 'Scegli un giorno con il pallino blu nel calendario.'
     );
     window.lucide?.createIcons();
     return;
