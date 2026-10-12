@@ -56,7 +56,17 @@ const MAX_ZOOM = 3;
 // Limite di pixel (larghezza × altezza) per il canvas di una singola pagina. Oltre questa
 // soglia, soprattutto con più pagine ad alta risoluzione tenute in memoria insieme, iOS/Safari
 // può svuotare silenziosamente il canvas (appare tutto nero): meglio restare ben al di sotto.
-const MAX_CANVAS_PIXELS = 4_000_000;
+const MAX_CANVAS_PIXELS = 2_500_000;
+// Risoluzione di disegno: densità dello schermo (al massimo 2) con un piccolo extra di nitidezza.
+// Prima era densità × 1,5 senza tetto: su un telefono a densità 3 ogni pagina pesava ~15 MB e con
+// una decina di pagine tenute in memoria il browser svuotava i canvas (schermo nero) o chiudeva la scheda.
+const MAX_OUTPUT_DENSITY = 2;
+const OUTPUT_EXTRA_SHARPNESS = 1.25;
+// Scroll "da lancio": sopra questa velocità (px/ms) le pagine che sfilano non vengono disegnate;
+// si disegnano solo quelle su cui ci si ferma, al massimo MAX_PARALLEL_RENDERS alla volta.
+const FAST_SCROLL_PX_PER_MS = 1.2;
+const SCROLL_SETTLE_MS = 110;
+const MAX_PARALLEL_RENDERS = 2;
 // Ogni pagina dell'intervallo aperto (l'intera sezione, o tutto il manuale) ha da subito il
 // suo segnaposto, senza chiamare getPage: la dimensione arriva dalla pagina di riferimento
 // e si corregge da sola quando la pagina viene davvero renderizzata. Così la lunghezza dello
@@ -70,6 +80,7 @@ export const state = {
   numPages: 0,
   zoom: 1, // moltiplicatore sopra la scala "adatta alla larghezza", cambia risoluzione di rendering
   fitScale: 1,
+  fitWidth: 320, // larghezza (px) a cui ogni pagina viene adattata a zoom 1: sempre quella dell'area di lettura
   searchTerm: '',
   matches: [], // numeri di pagina (in ordine) che contengono il termine cercato
   matchIndex: -1,
@@ -165,6 +176,21 @@ export function initManuals() {
   });
 
   els.canvasWrap?.addEventListener('scroll', scheduleVisiblePageUpdate, { passive: true });
+  els.canvasWrap?.addEventListener('scroll', noteScrollSpeed, { passive: true });
+  // Con la pagina adattata nessuno spostamento laterale è ammesso (nemmeno quello causato dalla selezione del testo).
+  els.canvasWrap?.addEventListener(
+    'scroll',
+    () => {
+      if (state.zoom <= 1.001 && els.canvasWrap.scrollLeft !== 0) els.canvasWrap.scrollLeft = 0;
+    },
+    { passive: true }
+  );
+  // Il browser non deve correggere da solo lo scroll quando i segnaposto cambiano altezza: lo facciamo già noi.
+  if (els.canvasWrap) els.canvasWrap.style.overflowAnchor = 'none';
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') recoverVisiblePages();
+  });
+  initAutoRefit();
   initPinchZoom();
   initCustomScrollbar();
 }
@@ -183,6 +209,7 @@ function teardownPages() {
   els.pagesWrap.innerHTML = '';
   els.pagesWrap.style.transform = 'none';
   state.pages = [];
+  renderQueue.clear();
 }
 
 // --- API PUBBLICA: apertura del visualizzatore --------------------------
@@ -319,7 +346,132 @@ async function computeFitScale(token) {
   if (token !== state.loadToken) return;
   const base = page1.getViewport({ scale: 1 });
   state.fitScale = containerWidth / base.width;
+  state.fitWidth = containerWidth;
   state.zoom = containerWidth >= DESKTOP_MIN_WIDTH ? DESKTOP_INITIAL_ZOOM : 1;
+  updateAxisLock();
+}
+
+/**
+ * Scala di una singola pagina: la sua larghezza viene adattata a quella dell'area di lettura
+ * (poi moltiplicata per lo zoom). Prima la scala era calcolata solo sulla pagina 1: una pagina
+ * orizzontale o di formato diverso risultava più larga dello schermo e l'intero elenco
+ * iniziava a scorrere di lato.
+ */
+function entryScale(entry) {
+  return (state.fitWidth / entry.baseW) * state.zoom;
+}
+
+/**
+ * A zoom 1 (pagina adattata) lo scorrimento laterale è bloccato: si scorre solo su/giù, quindi le
+ * pagine non possono più traslare di lato. Con lo zoom sopra 1 il movimento laterale si riattiva.
+ */
+function updateAxisLock() {
+  const wrap = els.canvasWrap;
+  if (!wrap) return;
+  const locked = state.zoom <= 1.001;
+  wrap.style.overflowX = locked ? 'hidden' : 'auto';
+  wrap.style.touchAction = locked ? 'pan-y' : 'pan-x pan-y';
+  if (locked && wrap.scrollLeft !== 0) wrap.scrollLeft = 0;
+}
+
+/** Ri-adatta le pagine quando cambia la larghezza dell'area (rotazione, tastiera, finestra ridimensionata) tenendo ferma la posizione di lettura. */
+async function refitToWidth() {
+  const wrap = els.canvasWrap;
+  if (!wrap || !state.pdfDoc || !state.pages.length) return;
+  const newWidth = Math.max(wrap.clientWidth - 16, 240);
+  if (Math.abs(newWidth - state.fitWidth) < 1) return;
+  const entry = findPageEntry(state.visiblePage);
+  let frac = 0;
+  if (entry) {
+    const r = entry.wrapper.getBoundingClientRect();
+    if (r.height) frac = (wrap.getBoundingClientRect().top - r.top) / r.height;
+  }
+  state.fitWidth = newWidth;
+  state.pages.forEach(sizeEntry);
+  if (entry) {
+    const r2 = entry.wrapper.getBoundingClientRect();
+    wrap.scrollTop += r2.top - wrap.getBoundingClientRect().top + frac * r2.height;
+  }
+  updateAxisLock();
+  updateCustomScrollbar();
+  await renderAllRenderedPages();
+}
+
+function initAutoRefit() {
+  const wrap = els.canvasWrap;
+  if (!wrap || !window.ResizeObserver) return;
+  let lastWidth = wrap.clientWidth;
+  let timer = 0;
+  new ResizeObserver(() => {
+    const w = wrap.clientWidth;
+    if (!w || Math.abs(w - lastWidth) < 2) return;
+    lastWidth = w;
+    clearTimeout(timer);
+    timer = setTimeout(refitToWidth, 150);
+  }).observe(wrap);
+}
+
+// --- CODA DI RENDERING (niente disegno durante lo scroll veloce) ---------
+
+const renderQueue = new Set();
+let activeRenders = 0;
+let fastScroll = false;
+let settleTimer = 0;
+let lastScrollTop = 0;
+let lastScrollTime = 0;
+
+function noteScrollSpeed() {
+  const now = performance.now();
+  const top = els.canvasWrap.scrollTop;
+  const dt = now - lastScrollTime;
+  if (dt > 0 && Math.abs(top - lastScrollTop) / dt > FAST_SCROLL_PX_PER_MS) fastScroll = true;
+  lastScrollTop = top;
+  lastScrollTime = now;
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(() => {
+    fastScroll = false;
+    pumpRenderQueue();
+  }, SCROLL_SETTLE_MS);
+}
+
+/** Disegna, poche alla volta e partendo da quelle più vicine al centro dello schermo, le pagine in attesa. */
+function pumpRenderQueue() {
+  const wrap = els.canvasWrap;
+  if (fastScroll || !wrap) return;
+  while (activeRenders < MAX_PARALLEL_RENDERS && renderQueue.size) {
+    const center = wrap.scrollTop + wrap.clientHeight / 2;
+    let best = null;
+    let bestDist = Infinity;
+    for (const e of renderQueue) {
+      const dist = Math.abs(e.wrapper.offsetTop + e.wrapper.offsetHeight / 2 - center);
+      if (dist < bestDist) {
+        best = e;
+        bestDist = dist;
+      }
+    }
+    renderQueue.delete(best);
+    if (!best.wrapper.isConnected || best.rendered || best.rendering) continue;
+    activeRenders++;
+    renderPageEntry(best)
+      .catch(() => {})
+      .finally(() => {
+        activeRenders--;
+        pumpRenderQueue();
+      });
+  }
+}
+
+/** Dopo che l'app torna in primo piano i browser mobili possono aver svuotato i canvas: si ridisegnano le pagine a schermo. */
+function recoverVisiblePages() {
+  const wrap = els.canvasWrap;
+  if (!wrap || !state.pdfDoc || !state.pages.length) return;
+  const top = wrap.scrollTop;
+  const bottom = top + wrap.clientHeight;
+  state.pages.forEach((e) => {
+    if (!e.rendered) return;
+    const t = e.wrapper.offsetTop;
+    if (t + e.wrapper.offsetHeight >= top && t <= bottom) renderPageEntry(e, { force: true });
+  });
 }
 
 function updatePageIndicator() {
@@ -423,7 +575,7 @@ function updateCustomScrollbar() {
 function setupWindowObservers() {
   state.observer = new IntersectionObserver(onPagesIntersect, {
     root: els.canvasWrap,
-    rootMargin: '600px 0px 600px 0px', // pre-carica circa uno schermo prima/dopo
+    rootMargin: '500px 0px 500px 0px', // pre-carica circa uno schermo prima/dopo
     threshold: [0],
   });
 
@@ -433,14 +585,14 @@ function setupWindowObservers() {
   // poi ri-renderizzata a ogni minimo scroll avanti/indietro.
   state.freeObserver = new IntersectionObserver(onPagesLeaveFreeZone, {
     root: els.canvasWrap,
-    rootMargin: '2400px 0px 2400px 0px',
+    rootMargin: '1400px 0px 1400px 0px',
     threshold: [0],
   });
 }
 
 /** Applica al segnaposto la dimensione della pagina alla scala corrente. */
 function sizeEntry(entry) {
-  const scale = state.fitScale * state.zoom;
+  const scale = entryScale(entry);
   entry.wrapper.style.width = `${Math.round(entry.baseW * scale)}px`;
   entry.wrapper.style.height = `${Math.round(entry.baseH * scale)}px`;
 }
@@ -505,10 +657,16 @@ function onPagesIntersect(entries) {
     const entry = findPageEntry(Number(e.target.dataset.page));
     if (!entry) return;
     if (e.isIntersecting) {
-      renderPageEntry(entry);
+      if (!entry.rendered && !entry.rendering) {
+        renderQueue.add(entry);
+        pumpRenderQueue();
+      }
     } else if (entry.rendering && !entry.rendered) {
       // Scroll veloce: una pagina ormai superata smette di lavorare invece di intasare la coda.
+      renderQueue.delete(entry);
       freePageCanvas(entry);
+    } else {
+      renderQueue.delete(entry);
     }
   });
 }
@@ -614,7 +772,7 @@ async function renderPageEntryInner(entry, myToken) {
     resizeEntryKeepingView(entry, realBase.width, realBase.height);
   }
 
-  const scale = state.fitScale * state.zoom;
+  const scale = entryScale(entry);
   const viewport = entry.page.getViewport({ scale });
 
   if (!entry.canvas) {
@@ -632,7 +790,7 @@ async function renderPageEntryInner(entry, myToken) {
   // Risoluzione di rendering più alta della resa a schermo, per un testo nitido anche
   // quando si aumenta lo zoom (non solo pixel-perfect al 100%) — ma mai oltre il budget
   // di sicurezza MAX_CANVAS_PIXELS, altrimenti il canvas rischia di apparire nero.
-  const desiredOutputScale = (window.devicePixelRatio || 1) * 1.5;
+  const desiredOutputScale = Math.min(window.devicePixelRatio || 1, MAX_OUTPUT_DENSITY) * OUTPUT_EXTRA_SHARPNESS;
   const viewportArea = viewport.width * viewport.height;
   const outputScale =
     viewportArea * desiredOutputScale * desiredOutputScale > MAX_CANVAS_PIXELS
@@ -751,6 +909,7 @@ async function applyZoom(newZoom, anchor) {
     wrap.scrollLeft += targetClientX - anchorClientX;
     wrap.scrollTop += targetClientY - anchorClientY;
   }
+  updateAxisLock();
   await renderAllRenderedPages();
 }
 
