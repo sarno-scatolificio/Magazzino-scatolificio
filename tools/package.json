@@ -1,0 +1,12 @@
+{
+  "name": "magazzino-scatolificio-tools",
+  "private": true,
+  "type": "module",
+  "description": "Strumenti per sviluppo: controlli automatici sul codice (non fanno parte dell'app)",
+  "scripts": {
+    "check": "node check.mjs"
+  },
+  "devDependencies": {
+    "acorn": "^8.14.0"
+  }
+}
