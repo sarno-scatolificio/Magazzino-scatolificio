@@ -15,6 +15,7 @@ import { defaultDay, loadDay, paintFilters, paintTabs, renderList, selectDay, st
 import feedback from './feedback.js';
 import { initDetailSheet, openDetail, resetDetail } from './interventi-detail.js';
 import { initNewSheet, openNew } from './interventi-new.js';
+import { initRicambiSheet } from './interventi-ricambi.js';
 import { initPdfSheet, onExportPdf } from './interventi-pdf-sheet.js';
 import { initPhotoViewer } from './interventi-photo.js';
 import { listDistinctMacchine } from './supabase.js';
@@ -90,6 +91,7 @@ export function initInterventi() {
   // Nuovo intervento
   els.fab.addEventListener('click', openNew);
   initNewSheet();
+  initRicambiSheet();
   initDetailSheet();
   initPhotoViewer();
   initPdfSheet();
@@ -126,6 +128,7 @@ export function resetInterventi() {
   draft.linea = draft.macchina = draft.desc = '';
   draft.foto = null;
   draft.fotoUrl = '';
+  draft.fatto = false;
   resetDetail();
   els.list && (els.list.innerHTML = '');
   paintTabs();

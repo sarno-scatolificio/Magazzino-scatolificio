@@ -3,8 +3,8 @@
 // =============================================================
 // Parte di quello che prima era un unico interventi.js (vedi interventi.js).
 
-import { $, STATO_CHIP, els, state } from './interventi-shared.js';
-import { LINEE, STATI, dayKey, formatOperatore, keyToDate, lineaLabel, listEffettuatiDays, listEffettuatiRange, listOperatori, listRapidi, operatoriDi, signedUrls, sortOperatori } from './interventi-data.js';
+import { $, CHIP_RICAMBI, STATO_CHIP, els, state } from './interventi-shared.js';
+import { LINEE, STATI, dayKey, formatOperatore, keyToDate, lineaLabel, listEffettuatiDays, listEffettuatiRange, listOperatori, listRapidi, operatoriDi, ricambiDi, ricambiLabel, signedUrls, sortOperatori } from './interventi-data.js';
 import { emptyStateHtml, staggerIndex, syncSegIndicator } from './ui-utils.js';
 import { escapeHtml } from './products-shared.js';
 import feedback from './feedback.js';
@@ -135,6 +135,23 @@ export function fmtDateTime(iso) {
   return sameDay ? `oggi ${hm}` : `${d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} ${hm}`;
 }
 
+/** Avviso negli Effettuati: interventi segnati "Ricambi da indicare" (di qualunque giorno recente). Toccandolo si va al giorno più recente. */
+function ricambiBanner() {
+  if (state.tab !== 'done') return null;
+  const pending = state.doneRecent.filter((r) => r.ricambi_mancanti);
+  if (!pending.length) return null;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = `w-full text-left rounded-lg px-3.5 py-2.5 text-xs font-medium leading-snug flex items-center gap-2 ${CHIP_RICAMBI}`;
+  btn.innerHTML = '<i data-lucide="triangle-alert" class="w-4 h-4 shrink-0"></i><span data-text></span>';
+  btn.querySelector('[data-text]').textContent = `${pending.length} ${pending.length === 1 ? 'intervento effettuato senza ricambi indicati' : 'interventi effettuati senza ricambi indicati'}. Tocca per vederli.`;
+  btn.addEventListener('click', () => {
+    feedback.tap();
+    selectDay(dayKey(new Date(pending[0].esito_at))); // doneRecent è dal più recente: si va al giorno dell'ultimo
+  });
+  return btn;
+}
+
 export function renderList() {
   els.notice.classList.toggle('hidden', !state.tableMissing);
   // Il pulsante PDF è bianco e toccabile solo se esiste almeno un intervento effettuato
@@ -155,9 +172,14 @@ export function renderList() {
       filtered ? 'Nessun intervento con questi filtri' : state.tab === 'open' ? 'Nessun intervento da fare' : 'Nessun intervento effettuato in questo giorno',
       filtered ? 'Cambia o togli i filtri di linea e macchina.' : state.tab === 'open' ? 'Tocca + per annotarne uno nuovo.' : 'Scegli un giorno con il pallino blu nel calendario.'
     );
+    const emptyBanner = ricambiBanner();
+    if (emptyBanner) els.list.prepend(emptyBanner);
     window.lucide?.createIcons();
     return;
   }
+
+  const banner = ricambiBanner();
+  if (banner) els.list.appendChild(banner);
 
   // Ordine: prima per linea, poi per macchina (ordine scelto dall'admin). Una scheda per macchina
   // con dentro tutti i suoi interventi, così l'elenco resta ordinato e si legge a colpo d'occhio.
@@ -204,9 +226,11 @@ export function renderList() {
         const when = r.stato === 'effettuato' ? `Fatto ${fmtDateTime(r.esito_at)}${who ? ` · ${who}` : ''}` : `${fmtDateTime(r.created_at)}${who ? ` · ${who}` : ''}`;
         row.innerHTML = `
           <div class="min-w-0 flex-1">
-            ${r.stato === 'sospeso' ? `<span class="inline-block ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 ${STATO_CHIP.sospeso}">${STATI.sospeso}</span>` : ''}
+            ${r.stato === 'sospeso' ? `<span class="inline-block ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 mr-1 ${STATO_CHIP.sospeso}">${STATI.sospeso}</span>` : ''}
+            ${r.ricambi_mancanti ? `<span class="inline-block ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 ${CHIP_RICAMBI}">Ricambi da indicare</span>` : ''}
             <p class="text-sm font-medium text-graphite-100 leading-snug line-clamp-3">${escapeHtml(r.descrizione)}</p>
             ${r.note_esito ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-1">Esito: ${escapeHtml(r.note_esito)}</p>` : ''}
+            ${ricambiDi(r).length ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-1">Ricambi: ${escapeHtml(ricambiDi(r).map(ricambiLabel).join(', '))}</p>` : ''}
             <p class="ui-note text-graphite-500 mt-1">${escapeHtml(when)}</p>
           </div>
           <img class="int-thumb hidden" alt="" data-thumb>`;

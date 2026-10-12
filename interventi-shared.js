@@ -29,7 +29,8 @@ export const state = {
 
 // Bozza del nuovo intervento: resta in memoria se si chiude il foglio, così non si perde
 // quanto già scritto (si azzera col salvataggio o col pulsante "Azzera").
-export const draft = { linea: '', macchina: '', desc: '', foto: null, fotoUrl: '' };
+// `fatto`: l'intervento è già stato effettuato (inserimento rapido, non preventivato).
+export const draft = { linea: '', macchina: '', desc: '', foto: null, fotoUrl: '', fatto: false };
 
 
 export const STATO_CHIP = {
@@ -37,5 +38,8 @@ export const STATO_CHIP = {
   sospeso: 'bg-orange-100 text-orange-800',
   effettuato: 'bg-emerald-100 text-emerald-800',
 };
+
+// Segnalazione "Ricambi da indicare" (intervento effettuato senza ricambi registrati)
+export const CHIP_RICAMBI = 'bg-orange-100 text-orange-800';
 
 export const authorName = () => authState.profile?.full_name || authState.profile?.email || '';

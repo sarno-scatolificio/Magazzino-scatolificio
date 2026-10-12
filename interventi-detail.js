@@ -4,7 +4,8 @@
 // Parte di quello che prima era un unico interventi.js (vedi interventi.js).
 
 import { $, STATO_CHIP, authorName, els, state } from './interventi-shared.js';
-import { STATI, dayKey, deleteIntervento, formatOperatore, lineaLabel, operatoriDi, signedUrls, sortOperatori, updateEsito } from './interventi-data.js';
+import { STATI, dayKey, deleteIntervento, formatOperatore, lineaLabel, operatoriDi, ricambiDi, signedUrls, sortOperatori, updateEsito, updateRicambi } from './interventi-data.js';
+import { applyRicambi, pickRicambi } from './interventi-ricambi.js';
 import { authState, isAdmin } from './auth.js';
 import { closeOverlay, enableSheetDrag, openOverlay, setButtonBusy, syncSegIndicator } from './ui-utils.js';
 import { confirmDialog } from './ui-modal.js';
@@ -93,6 +94,7 @@ export function initDetailSheet() {
     feedback.tap();
     paintOperatore();
   });
+  $('int-detail-ricambi-btn').addEventListener('click', indicaRicambi);
   els.detSave.addEventListener('click', saveDetail);
   $('int-detail-delete').addEventListener('click', removeDetail);
 }
@@ -153,6 +155,75 @@ function paintDetail() {
   wirePhotoDetail?.show(detail.fotoUrl);
   paintQuando();
   paintOperatore();
+  paintRicambi();
+}
+
+/** Ricambi prelevati dal magazzino: elenco (interventi effettuati) e, se non indicati, avviso + pulsante per indicarli ora */
+function paintRicambi() {
+  const row = detail.row;
+  const list = ricambiDi(row);
+  const missing = !!row.ricambi_mancanti;
+  const show = row.stato === 'effettuato' && (list.length > 0 || missing);
+  $('int-detail-ricambi').classList.toggle('hidden', !show);
+  $('int-detail-ricambi-warn').classList.toggle('hidden', !missing);
+  $('int-detail-ricambi-btn').classList.toggle('hidden', !missing);
+  const ul = $('int-detail-ricambi-list');
+  ul.innerHTML = '';
+  list.forEach((x) => {
+    const li = document.createElement('li');
+    li.className = 'text-sm leading-snug';
+    li.innerHTML = '<span class="font-mono font-semibold text-graphite-100 break-all" data-code></span> <span class="font-mono text-graphite-300" data-qty></span><span class="block ui-note text-graphite-500" data-more></span>';
+    li.querySelector('[data-code]').textContent = x.codice;
+    li.querySelector('[data-qty]').textContent = `×${x.quantita}`;
+    li.querySelector('[data-more]').textContent = [x.descrizione, x.locazione ? `Scaffale ${x.locazione}` : ''].filter(Boolean).join(' · ');
+    li.querySelector('[data-more]').classList.toggle('hidden', !li.querySelector('[data-more]').textContent);
+    ul.appendChild(li);
+  });
+  window.lucide?.createIcons();
+}
+
+/** Sostituisce l'intervento aggiornato in tutti gli elenchi in memoria */
+function replaceRow(updated) {
+  const swap = (arr) => arr.map((r) => (r.id === updated.id ? updated : r));
+  state.open = swap(state.open);
+  state.done = swap(state.done);
+  state.doneRecent = swap(state.doneRecent);
+}
+
+/** "Indica ricambi": sceglie ora i ricambi di un intervento rimasto senza, li scala dal magazzino e toglie l'avviso */
+async function indicaRicambi() {
+  if (!detail) return;
+  const row = detail.row;
+  feedback.tap();
+  const picked = await pickRicambi({
+    context: `${lineaLabel(row.linea)} · ${row.macchina}`,
+    emptyLabel: 'Nessun ricambio è stato usato',
+    emptyNote: 'Toccando il pulsante l\'avviso "Ricambi da indicare" viene tolto.',
+  });
+  if (!picked || detail?.row !== row) return;
+  const btn = $('int-detail-ricambi-btn');
+  setButtonBusy(btn, true, 'Salvataggio…');
+  try {
+    const applied = picked.length ? await applyRicambi(picked, { linea: row.linea, macchina: row.macchina, descrizione: row.descrizione }) : { done: [], failed: [] };
+    const updated = await updateRicambi(row, { ricambi: [...ricambiDi(row), ...applied.done], ricambiMancanti: picked.length ? applied.failed.length > 0 : false });
+    replaceRow(updated);
+    detail.row = updated;
+    paintDetail();
+    renderList();
+    if (applied.failed.length) {
+      feedback.errorAction();
+      toastError(`Ricambi NON scalati: ${applied.failed.map((f) => `${f.sel.product.codice_articolo} (${f.message})`).join(', ')}. Riprova.`, 8000);
+    } else {
+      feedback.confirmAction();
+      toastSuccess(picked.length ? 'Ricambi registrati e scalati dal magazzino.' : 'Avviso tolto: nessun ricambio usato.', 3000);
+    }
+  } catch (err) {
+    console.error(err);
+    feedback.errorAction();
+    toastError('Aggiornamento non riuscito. Se i ricambi risultano già scalati, controlla in Movimenti prima di riprovare.', 8000);
+  } finally {
+    setButtonBusy(btn, false);
+  }
 }
 
 /** Giorno e ora di esecuzione: visibili solo con esito "Effettuato" */

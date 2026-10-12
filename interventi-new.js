@@ -6,8 +6,9 @@
 import { $, authorName, draft, els, state } from './interventi-shared.js';
 import { closeOverlay, enableSheetDrag, openOverlay, setButtonBusy, syncSegIndicator } from './ui-utils.js';
 import { confirmDialog } from './ui-modal.js';
-import { createIntervento, lineaLabel, rapidoMatches } from './interventi-data.js';
-import { ensureRapidi, paintTabs, renderList } from './interventi-list.js';
+import { createIntervento, dayKey, deleteIntervento, lineaLabel, rapidoMatches, updateEsito } from './interventi-data.js';
+import { ensureRapidi, loadDay, paintTabs, renderList } from './interventi-list.js';
+import { applyRicambi, askRicambi, pickRicambi } from './interventi-ricambi.js';
 import feedback from './feedback.js';
 import { listDistinctMacchine } from './supabase.js';
 import { openPicker } from './picker.js';
@@ -19,6 +20,7 @@ import { wirePhoto } from './interventi-photo.js';
 // ---------------------------------------------------------------
 export function initNewSheet() {
   els.newModal = $('int-new-modal');
+  els.newModeSeg = $('int-new-mode-seg');
   els.newSeg = $('int-new-linea-seg');
   els.newMacchinaBtn = $('int-new-macchina-btn');
   els.newMacchinaValue = $('int-new-macchina-value');
@@ -31,6 +33,15 @@ export function initNewSheet() {
   $('int-new-close').addEventListener('click', close);
   els.newModal.addEventListener('click', (e) => e.target === els.newModal && close());
   enableSheetDrag(els.newModal.querySelector('.modal-panel'), close);
+
+  // Tipo: da effettuare (promemoria) oppure già effettuato (inserimento rapido, non preventivato)
+  els.newModeSeg.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-fatto]');
+    if (!btn) return;
+    draft.fatto = btn.dataset.fatto === '1';
+    feedback.modeSelect();
+    paintNew({ keepText: true });
+  });
 
   // 1 · Linea (controllo blu a scorrimento)
   els.newSeg.addEventListener('click', async (e) => {
@@ -80,6 +91,7 @@ function clearDraft() {
   draft.linea = draft.macchina = draft.desc = '';
   draft.foto = null;
   draft.fotoUrl = '';
+  draft.fatto = false;
 }
 
 export async function openNew() {
@@ -114,6 +126,17 @@ async function pickNewMacchina() {
 const rapidiFor = (linea, macchina) => state.rapidi.filter((r) => rapidoMatches(r, linea, macchina));
 
 function paintNew({ keepText = false } = {}) {
+  // Tipo (da effettuare / già effettuato) e testi che cambiano di conseguenza
+  els.newModeSeg.querySelectorAll('[data-fatto]').forEach((b) => b.classList.toggle('category-tab-active', (b.dataset.fatto === '1') === draft.fatto));
+  syncSegIndicator(els.newModeSeg);
+  requestAnimationFrame(() => syncSegIndicator(els.newModeSeg));
+  $('int-new-title').textContent = draft.fatto ? 'Intervento effettuato' : 'Nuovo intervento';
+  $('int-new-desc-label').textContent = draft.fatto ? '3 · Cosa è stato fatto' : '3 · Intervento';
+  els.newDesc.placeholder = draft.fatto ? 'Cosa hai fatto?' : 'Cosa va fatto?';
+  $('int-new-photo-label').textContent = draft.fatto ? 'Foto del lavoro svolto' : 'Foto promemoria';
+  const saveLabel = $('int-new-save-label'); // letto ogni volta: setButtonBusy rifà il contenuto del pulsante
+  if (saveLabel) saveLabel.textContent = draft.fatto ? 'Salva intervento effettuato' : 'Salva intervento';
+
   // Linea
   els.newSeg.querySelectorAll('[data-linea]').forEach((b) => b.classList.toggle('category-tab-active', b.dataset.linea === draft.linea));
   syncSegIndicator(els.newSeg);
@@ -164,6 +187,7 @@ async function saveNew() {
     toastWarning('Servono linea, macchina e descrizione.');
     return;
   }
+  if (draft.fatto) return saveFatto();
   setButtonBusy(els.newSave, true, 'Salvataggio…');
   try {
     const row = await createIntervento({
@@ -186,6 +210,92 @@ async function saveNew() {
     console.error(err);
     feedback.errorAction();
     toastError(err?.message?.includes('fetch') ? 'Connessione assente: l\'intervento NON è stato salvato. Riprova.' : 'Salvataggio non riuscito. Riprova.', 6000);
+  } finally {
+    setButtonBusy(els.newSave, false);
+  }
+}
+
+// ---------------------------------------------------------------
+// INTERVENTO GIÀ EFFETTUATO (rapido, non preventivato) + ricambi dal magazzino
+// ---------------------------------------------------------------
+async function saveFatto() {
+  // 1 · Hai prelevato ricambi dal magazzino? (Indietro = non si salva nulla, il modulo resta com'è)
+  const answer = await askRicambi();
+  if (!answer) return;
+  let selections = [];
+  if (answer === 'si') {
+    const picked = await pickRicambi({
+      context: `${lineaLabel(draft.linea)} · ${draft.macchina}`,
+      emptyLabel: 'Salva senza ricambi',
+      emptyNote: 'Nessun ricambio selezionato: l\'intervento si salva comunque e resta segnalato come "Ricambi da indicare" tra gli effettuati.',
+    });
+    if (!picked) return; // foglio chiuso: si torna al modulo
+    selections = picked;
+  }
+  // "Sì" ma nessun ricambio scelto: si salva e resta il promemoria
+  let mancanti = answer === 'si' && !selections.length;
+  const { linea, macchina } = draft;
+  const descrizione = draft.desc.trim();
+
+  setButtonBusy(els.newSave, true, 'Salvataggio…');
+  let created = null;
+  let applied = { done: [], failed: [] };
+  try {
+    // 2 · L'intervento nasce come riga normale (stessa strada già collaudata), poi passa a "Effettuato"
+    created = await createIntervento({ linea, macchina, descrizione, authorName: authorName() });
+    // 3 · Scalo dei ricambi dal magazzino (un prelievo per ricambio, con linea e nota dell'intervento)
+    if (selections.length) {
+      applied = await applyRicambi(selections, { linea, macchina, descrizione });
+      mancanti = applied.failed.length > 0;
+    }
+    // 4 · Esito: effettuato adesso, con foto del lavoro e ricambi registrati
+    const row = await updateEsito(created, {
+      stato: 'effettuato',
+      note: '',
+      esitoAt: new Date(),
+      foto: draft.foto,
+      authorName: authorName(),
+      extra: { ricambi: applied.done, ricambi_mancanti: mancanti },
+    });
+    clearDraft();
+    const key = dayKey(new Date(row.esito_at));
+    state.doneRecent.unshift(row);
+    state.doneDays.add(key);
+    state.doneDay = key;
+    try {
+      await loadDay();
+    } catch (err) {
+      state.done = [row];
+    }
+    feedback.interventoDone();
+    closeOverlay(els.newModal);
+    state.tab = 'done';
+    paintTabs();
+    renderList();
+    if (applied.failed.length) {
+      toastError(`Intervento salvato, ma ricambi NON scalati: ${applied.failed.map((f) => `${f.sel.product.codice_articolo} (${f.message})`).join(', ')}. Aprilo e tocca "Indica ricambi".`, 9000);
+    } else if (mancanti) {
+      toastWarning('Intervento salvato: ricambi da indicare.', 4000);
+    } else {
+      toastSuccess(applied.done.length ? `Intervento effettuato registrato, ${applied.done.length} ${applied.done.length === 1 ? 'ricambio scalato' : 'ricambi scalati'} dal magazzino.` : 'Intervento effettuato registrato.', 3500);
+    }
+  } catch (err) {
+    console.error(err);
+    feedback.errorAction();
+    if (created && applied.done.length) {
+      // Ricambi già scalati ma esito non salvato: la riga resta tra i "Da effettuare" e il modulo si chiude,
+      // così non si può ripetere (e scalare due volte) lo stesso prelievo.
+      clearDraft();
+      state.open.unshift(created);
+      closeOverlay(els.newModal);
+      state.tab = 'open';
+      paintTabs();
+      renderList();
+      toastError('Ricambi scalati dal magazzino, ma l\'esito non è stato salvato: l\'intervento è tra i "Da effettuare". Aprilo e segnalo come effettuato.', 9000);
+    } else {
+      if (created) await deleteIntervento(created).catch(() => {}); // nulla è stato scalato: si toglie la riga rimasta a metà
+      toastError(err?.message?.includes('fetch') ? 'Connessione assente: l\'intervento NON è stato salvato. Riprova.' : 'Salvataggio non riuscito. Riprova.', 6000);
+    }
   } finally {
     setButtonBusy(els.newSave, false);
   }

@@ -21,6 +21,10 @@ export const STATI = {
 /** Operatori di un intervento: elenco nuovo, con ripiego sul vecchio campo a nome singolo */
 export const operatoriDi = (r) => (Array.isArray(r?.operatori) && r.operatori.length ? r.operatori : r?.operatore_nome ? [r.operatore_nome] : []);
 
+/** Ricambi prelevati dal magazzino per un intervento: [{ product_id, codice, categoria, descrizione, quantita, locazione }] */
+export const ricambiDi = (r) => (Array.isArray(r?.ricambi) ? r.ricambi : []);
+export const ricambiLabel = (x) => `${x.codice} ×${x.quantita}`;
+
 export const lineaLabel = (v) => LINEE.find((l) => l.value === v)?.label || v || '';
 
 /** Un intervento rapido vale per la stessa linea e la stessa macchina (senza distinzione di maiuscole) */
@@ -35,7 +39,7 @@ function isMissingTable(error) {
 }
 
 const COLS =
-  'id, linea, macchina, descrizione, stato, foto_promemoria_path, note_esito, foto_esito_path, created_by, created_by_name, created_at, esito_by, esito_by_name, esito_at, operatore_nome, operatori';
+  'id, linea, macchina, descrizione, stato, foto_promemoria_path, note_esito, foto_esito_path, created_by, created_by_name, created_at, esito_by, esito_by_name, esito_at, operatore_nome, operatori, ricambi, ricambi_mancanti';
 
 /** Interventi aperti (da effettuare + da completare) e ultimi effettuati */
 export async function listInterventi() {
@@ -102,7 +106,7 @@ export async function createIntervento({ linea, macchina, descrizione, foto = nu
 /**
  * Aggiorna l'esito. `foto`: Blob nuovo | null (nessun cambio); `rimuoviFoto`: true per toglierla.
  */
-export async function updateEsito(row, { stato, note, descrizione = null, operatori = [], esitoAt = null, foto = null, rimuoviFoto = false, authorName = '' }) {
+export async function updateEsito(row, { stato, note, descrizione = null, operatori = [], esitoAt = null, foto = null, rimuoviFoto = false, authorName = '', extra = {} }) {
   let fotoPath = row.foto_esito_path || null;
   let newPath = null;
   if (foto) {
@@ -122,6 +126,7 @@ export async function updateEsito(row, { stato, note, descrizione = null, operat
     esito_at: stato === 'da_effettuare' ? null : stato === 'effettuato' && esitoAt ? esitoAt.toISOString() : stato === row.stato && row.esito_at ? row.esito_at : new Date().toISOString(),
   };
   if (descrizione && descrizione !== row.descrizione) patch.descrizione = descrizione; // titolo modificato
+  Object.assign(patch, extra); // campi in più (es. ricambi dell'inserimento rapido)
   if (stato === 'da_effettuare') patch.esito_by = null;
   else {
     const { data: u } = await supabase.auth.getUser();
@@ -133,6 +138,13 @@ export async function updateEsito(row, { stato, note, descrizione = null, operat
     throw error;
   }
   if ((foto || rimuoviFoto) && row.foto_esito_path && row.foto_esito_path !== fotoPath) await removeFoto([row.foto_esito_path]);
+  return data;
+}
+
+/** Ricambi di un intervento effettuato: elenco completo e segnalazione "da indicare" */
+export async function updateRicambi(row, { ricambi, ricambiMancanti }) {
+  const { data, error } = await supabase.from('manutenzioni_soste').update({ ricambi, ricambi_mancanti: ricambiMancanti }).eq('id', row.id).select(COLS).single();
+  if (error) throw error;
   return data;
 }
 
