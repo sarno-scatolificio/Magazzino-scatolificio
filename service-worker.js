@@ -18,7 +18,7 @@
 // non succede nulla di grave: semplicemente niente copia offline.
 // =============================================================
 
-const CACHE_NAME = 'magazzino-shell-v180';
+const CACHE_NAME = 'magazzino-shell-v181';
 const APP_SHELL = [
   './',
   './index.html',
@@ -29,6 +29,13 @@ const APP_SHELL = [
   './auth.js',
   './camera.js',
   './scanner.js',
+  './scanner-shared.js',
+  './scanner-camera.js',
+  './scanner-search.js',
+  './scanner-result.js',
+  './scanner-punti.js',
+  './scanner-transaction.js',
+  './scanner-idle.js',
   './products.js',
   './products-shared.js',
   './login-gear.js',
@@ -63,6 +70,12 @@ const APP_SHELL = [
   './pdf-cache.js',
   './history-admin.js',
   './interventi.js',
+  './interventi-shared.js',
+  './interventi-photo.js',
+  './interventi-list.js',
+  './interventi-new.js',
+  './interventi-detail.js',
+  './interventi-pdf-sheet.js',
   './interventi-data.js',
   './interventi-pdf.js',
   './interventi-rapidi.js',
@@ -70,6 +83,14 @@ const APP_SHELL = [
   './time-picker.js',
   './manuals.js',
   './manuals-browser.js',
+  './manuals-shared.js',
+  './manuals-list.js',
+  './manuals-icon.js',
+  './manuals-detail.js',
+  './manuals-groups.js',
+  './manuals-spare.js',
+  './manuals-reorder.js',
+  './manuals-section-modal.js',
   './manuals-data.js',
   './manuals-search.js',
   './login-carousel.js',
