@@ -76,6 +76,7 @@ export function initRicambiSheet() {
   els.empty = $('int-parts-empty');
   els.note = $('int-parts-note');
   els.save = $('int-parts-save');
+  els.footer = $('int-parts-footer');
 
   $('int-parts-close').addEventListener('click', () => finish(null));
   els.modal.addEventListener('click', (e) => e.target === els.modal && finish(null));
@@ -94,6 +95,14 @@ export function initRicambiSheet() {
     searchTimer = setTimeout(() => runSearch(term), 250);
   });
   els.save.addEventListener('click', confirmSheet);
+
+  // Mentre si scrive (tastiera aperta) l'avviso e il pulsante di conferma spariscono: altrimenti salirebbero
+  // insieme alla tastiera e toglierebbero spazio ai risultati. Tornano appena il campo perde il focus.
+  els.search.addEventListener('focus', () => els.footer.classList.add('hidden'));
+  els.search.addEventListener('blur', () => els.footer.classList.remove('hidden'));
+  els.search.addEventListener('keydown', (e) => e.key === 'Enter' && els.search.blur()); // "Fine" sulla tastiera
+  // Toccare un risultato non deve togliere il focus al campo prima del tocco (il layout cambierebbe e il tocco andrebbe a vuoto)
+  els.results.addEventListener('mousedown', (e) => e.preventDefault());
 }
 
 /**
@@ -105,6 +114,7 @@ export function pickRicambi({ context = '', emptyLabel = 'Continua senza ricambi
     if (sheet) finish(null);
     sheet = { resolve, items: [], emptyLabel, emptyNote };
     els.search.value = '';
+    els.footer.classList.remove('hidden');
     els.results.classList.add('hidden');
     els.results.innerHTML = '';
     els.context.textContent = context;
@@ -204,6 +214,7 @@ function addItem(product) {
   sheet.items.push({ product, qty: 1, locationId: locs.length > 1 ? null : locs[0]?.id ?? null });
   feedback.presetPick();
   els.search.value = '';
+  els.search.blur(); // chiude la tastiera e fa tornare il pulsante di conferma
   els.results.classList.add('hidden');
   searchSeq += 1;
   paintSelected();

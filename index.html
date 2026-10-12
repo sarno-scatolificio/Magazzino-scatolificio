@@ -1503,7 +1503,7 @@
         <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="int-parts-search">Cerca nel magazzino <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(cuscinetti, cinghie e ricambi tecnici)</span></label>
         <div class="relative">
           <i data-lucide="search" class="w-4 h-4 text-graphite-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" stroke-width="1.8"></i>
-          <input id="int-parts-search" type="text" autocomplete="off" placeholder="Codice, descrizione, scaffale, macchina…" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 pl-9 pr-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors">
+          <input id="int-parts-search" type="text" autocomplete="off" enterkeyhint="done" placeholder="Codice, descrizione, scaffale, macchina…" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 pl-9 pr-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors">
         </div>
         <div id="int-parts-results" class="hidden mt-2 card-plate rounded-lg border border-graphite-700 max-h-72 overflow-y-auto"></div>
       </div>
@@ -1513,7 +1513,7 @@
         <p id="int-parts-empty" class="text-xs text-graphite-500">Cerca un ricambio e toccalo per aggiungerlo.</p>
       </div>
     </div>
-    <div class="shrink-0 px-5 py-3 border-t border-graphite-800 space-y-2">
+    <div id="int-parts-footer" class="shrink-0 px-5 py-3 border-t border-graphite-800 space-y-2">
       <p id="int-parts-note" class="hidden text-xs leading-snug rounded-lg px-3 py-2 bg-orange-100 text-orange-800"></p>
       <button id="int-parts-save" type="button" class="press-spring w-full rounded-lg bg-amber-400 hover:bg-amber-300 text-white font-display font-semibold uppercase tracking-wide text-sm min-h-[48px] flex items-center justify-center gap-2">
         <i data-lucide="check" class="w-5 h-5" stroke-width="2.5"></i><span data-label>Continua senza ricambi</span>
