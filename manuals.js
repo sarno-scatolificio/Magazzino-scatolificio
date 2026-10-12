@@ -64,9 +64,9 @@ const MAX_OUTPUT_DENSITY = 2;
 const OUTPUT_EXTRA_SHARPNESS = 1.25;
 // Scroll "da lancio": sopra questa velocità (px/ms) le pagine che sfilano non vengono disegnate;
 // si disegnano solo quelle su cui ci si ferma, al massimo MAX_PARALLEL_RENDERS alla volta.
-const FAST_SCROLL_PX_PER_MS = 1.2;
-const SCROLL_SETTLE_MS = 110;
-const MAX_PARALLEL_RENDERS = 2;
+const FAST_SCROLL_PX_PER_MS = 0.6;
+const SCROLL_SETTLE_MS = 140;
+const MAX_PARALLEL_RENDERS = 1;
 // Ogni pagina dell'intervallo aperto (l'intera sezione, o tutto il manuale) ha da subito il
 // suo segnaposto, senza chiamare getPage: la dimensione arriva dalla pagina di riferimento
 // e si corregge da sola quando la pagina viene davvero renderizzata. Così la lunghezza dello
@@ -424,13 +424,14 @@ function noteScrollSpeed() {
   const now = performance.now();
   const top = els.canvasWrap.scrollTop;
   const dt = now - lastScrollTime;
-  if (dt > 0 && Math.abs(top - lastScrollTop) / dt > FAST_SCROLL_PX_PER_MS) fastScroll = true;
+  if (scrollbarState.dragging || (dt > 0 && Math.abs(top - lastScrollTop) / dt > FAST_SCROLL_PX_PER_MS)) fastScroll = true;
   lastScrollTop = top;
   lastScrollTime = now;
   clearTimeout(settleTimer);
   settleTimer = setTimeout(() => {
     fastScroll = false;
     pumpRenderQueue();
+    pumpTextQueue();
   }, SCROLL_SETTLE_MS);
 }
 
@@ -452,13 +453,63 @@ function pumpRenderQueue() {
     renderQueue.delete(best);
     if (!best.wrapper.isConnected || best.rendered || best.rendering) continue;
     activeRenders++;
-    renderPageEntry(best)
+    renderPageEntry(best, { deferText: true })
       .catch(() => {})
       .finally(() => {
         activeRenders--;
         pumpRenderQueue();
       });
   }
+}
+
+// Il text layer (testo selezionabile) è la parte più pesante per il browser: migliaia di elementi
+// per pagina. Si costruisce DOPO il disegno, una pagina alla volta, quando l'app è ferma.
+const textQueue = [];
+let textBusy = false;
+
+function whenIdle(cb) {
+  if (window.requestIdleCallback) window.requestIdleCallback(cb, { timeout: 500 });
+  else setTimeout(cb, 60);
+}
+
+function scheduleTextLayer(entry, myToken, viewport) {
+  entry.textJob = { myToken, viewport };
+  if (!textQueue.includes(entry)) textQueue.push(entry);
+  pumpTextQueue();
+}
+
+function pumpTextQueue() {
+  const wrap = els.canvasWrap;
+  if (textBusy || fastScroll || !wrap || !textQueue.length) return;
+  const center = wrap.scrollTop + wrap.clientHeight / 2;
+  let bestIdx = 0;
+  let bestDist = Infinity;
+  textQueue.forEach((e, i) => {
+    const dist = Math.abs(e.wrapper.offsetTop + e.wrapper.offsetHeight / 2 - center);
+    if (dist < bestDist) {
+      bestIdx = i;
+      bestDist = dist;
+    }
+  });
+  const entry = textQueue.splice(bestIdx, 1)[0];
+  const job = entry.textJob;
+  entry.textJob = null;
+  if (!job || job.myToken !== entry.renderToken || !entry.rendered) {
+    pumpTextQueue();
+    return;
+  }
+  textBusy = true;
+  whenIdle(async () => {
+    try {
+      if (job.myToken === entry.renderToken && entry.rendered && !fastScroll) await buildTextLayer(entry, job.myToken, job.viewport);
+      else if (job.myToken === entry.renderToken && entry.rendered) scheduleTextLayer(entry, job.myToken, job.viewport);
+    } catch (err) {
+      console.warn('Text layer non costruito.', err);
+    } finally {
+      textBusy = false;
+      pumpTextQueue();
+    }
+  });
 }
 
 /** Dopo che l'app torna in primo piano i browser mobili possono aver svuotato i canvas: si ridisegnano le pagine a schermo. */
@@ -470,7 +521,7 @@ function recoverVisiblePages() {
   state.pages.forEach((e) => {
     if (!e.rendered) return;
     const t = e.wrapper.offsetTop;
-    if (t + e.wrapper.offsetHeight >= top && t <= bottom) renderPageEntry(e, { force: true });
+    if (t + e.wrapper.offsetHeight >= top && t <= bottom) renderPageEntry(e, { force: true, deferText: true });
   });
 }
 
@@ -604,8 +655,8 @@ function sizeEntry(entry) {
  */
 function resizeEntryKeepingView(entry, baseW, baseH) {
   const wrap = els.canvasWrap;
-  const above = entry.wrapper.getBoundingClientRect().bottom <= wrap.getBoundingClientRect().top;
   const oldHeight = entry.wrapper.offsetHeight;
+  const above = entry.wrapper.offsetTop + oldHeight <= wrap.scrollTop;
   entry.baseW = baseW;
   entry.baseH = baseH;
   sizeEntry(entry);
@@ -728,10 +779,20 @@ function freePageCanvas(entry) {
   if (entry.textLayerEl) entry.textLayerEl.innerHTML = '';
   if (entry.highlightEl) entry.highlightEl.innerHTML = '';
   entry.spinner?.classList.remove('hidden');
+  entry.textJob = null;
+  const qi = textQueue.indexOf(entry);
+  if (qi >= 0) textQueue.splice(qi, 1);
+  // Libera la memoria che pdf.js tiene per questa pagina (immagini, font, istruzioni di disegno):
+  // senza, scorrendo molte pagine il telefono accumula memoria fino a rallentare tutto.
+  try {
+    entry.page?.cleanup();
+  } catch {
+    /* già libera */
+  }
 }
 
 /** Rende (o ri-rende, es. dopo uno zoom) il canvas + text layer + evidenziazioni di una pagina. */
-async function renderPageEntry(entry, { force = false } = {}) {
+async function renderPageEntry(entry, { force = false, deferText = false } = {}) {
   if (!entry || !state.pdfDoc) return;
   // Una pagina già renderizzata, o in corso di rendering, non va rifatta a ogni passaggio
   // nell'observer (azzerare il canvas la farebbe lampeggiare in bianco): solo con force (zoom, evidenziazioni).
@@ -740,13 +801,13 @@ async function renderPageEntry(entry, { force = false } = {}) {
   entry.renderToken = myToken;
   entry.rendering = true;
   try {
-    await renderPageEntryInner(entry, myToken);
+    await renderPageEntryInner(entry, myToken, deferText);
   } finally {
     if (entry.renderToken === myToken) entry.rendering = false;
   }
 }
 
-async function renderPageEntryInner(entry, myToken) {
+async function renderPageEntryInner(entry, myToken, deferText = false) {
 
   // Se questa stessa pagina ha già un render in corso (es. richiesta due volte di fila
   // durante uno scroll veloce), annullalo prima di riusare il canvas: lasciare che
@@ -819,6 +880,23 @@ async function renderPageEntryInner(entry, myToken) {
   entry.textLayerEl.innerHTML = '';
   entry.textLayerEl.style.width = `${Math.floor(viewport.width)}px`;
   entry.textLayerEl.style.height = `${Math.floor(viewport.height)}px`;
+  entry.highlightEl.innerHTML = '';
+  entry.highlightEl.style.width = `${Math.floor(viewport.width)}px`;
+  entry.highlightEl.style.height = `${Math.floor(viewport.height)}px`;
+
+  if (deferText) {
+    // Pagina già visibile: il testo selezionabile e le evidenziazioni arrivano subito dopo, a browser libero.
+    entry.rendered = true;
+    scheduleTextLayer(entry, myToken, viewport);
+    return;
+  }
+  await buildTextLayer(entry, myToken, viewport);
+  if (myToken !== entry.renderToken) return;
+  entry.rendered = true;
+}
+
+/** Testo selezionabile (text layer di pdf.js) ed eventuali evidenziazioni della ricerca. */
+async function buildTextLayer(entry, myToken, viewport) {
   const content = await entry.page.getTextContent();
   if (myToken !== entry.renderToken) return;
 
@@ -836,9 +914,7 @@ async function renderPageEntryInner(entry, myToken) {
     console.warn('Text layer non disponibile per questa pagina (selezione testo disattivata).', err);
   }
 
-  entry.highlightEl.innerHTML = '';
-  entry.highlightEl.style.width = `${Math.floor(viewport.width)}px`;
-  entry.highlightEl.style.height = `${Math.floor(viewport.height)}px`;
+  if (myToken !== entry.renderToken) return;
   if (state.searchTerm) {
     // Per l'evidenziazione serve la larghezza VERA di ogni singolo frammento di testo:
     // il `content` qui sopra ha combineTextItems attivo (il default, utile per la
@@ -850,9 +926,6 @@ async function renderPageEntryInner(entry, myToken) {
     if (myToken !== entry.renderToken) return;
     drawHighlights(entry, preciseContent, viewport, state.searchTerm);
   }
-
-  entry.rendered = true;
-  window.lucide?.createIcons();
 }
 
 export async function renderAllRenderedPages() {
