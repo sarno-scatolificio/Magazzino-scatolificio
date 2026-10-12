@@ -198,6 +198,18 @@ function normalizeProduct(row) {
   return p;
 }
 
+/**
+ * Rende sicuro il testo cercato dall'utente dentro un filtro ilike.
+ *  - `\`, `%` e `_` valgono come caratteri normali (non come jolly di LIKE);
+ *  - con `quoted` il valore è tra virgolette: dentro un filtro `.or()` virgole, punti e parentesi
+ *    non vengono più scambiati per la sintassi del filtro (es. "6204,2RS" prima dava errore).
+ */
+function ilikeContains(text, { quoted = false } = {}) {
+  const literal = String(text).replace(/[\\%_]/g, '\\$&');
+  if (!quoted) return `%${literal}%`;
+  return `"%${literal.replace(/[\\"]/g, '\\$&')}%"`;
+}
+
 export async function listProducts({ search = '', onlyLowStock = false, categoria = null } = {}) {
   let query = supabase.from('products').select(PRODUCT_SELECT).order('codice_articolo', { ascending: true });
 
@@ -206,16 +218,16 @@ export async function listProducts({ search = '', onlyLowStock = false, categori
     // I codici a barre secondari stanno in un'altra tabella: si cercano prima lì e gli articoli trovati si aggiungono al filtro
     let extraIds = [];
     try {
-      const { data: hits } = await supabase.from('product_barcodes').select('product_id').ilike('codice_barre', `%${search}%`);
+      const { data: hits } = await supabase.from('product_barcodes').select('product_id').ilike('codice_barre', ilikeContains(search));
       extraIds = [...new Set((hits || []).map((h) => h.product_id))];
     } catch (err) {
       console.warn('Ricerca nei codici a barre secondari non riuscita.', err);
     }
     // `locazione` è il riepilogo testuale degli scaffali: cercare "SB002" trova anche gli articoli che ci stanno insieme ad altri scaffali
+    const like = ilikeContains(search, { quoted: true });
+    const campi = ['codice_articolo', 'codice_barre', 'locazione', 'punto_utilizzo_standard', 'descrizione', 'macchina'];
     query = query.or(
-      `codice_articolo.ilike.%${search}%,codice_barre.ilike.%${search}%,locazione.ilike.%${search}%,punto_utilizzo_standard.ilike.%${search}%,descrizione.ilike.%${search}%,macchina.ilike.%${search}%${
-        extraIds.length ? `,id.in.(${extraIds.join(',')})` : ''
-      }`
+      campi.map((c) => `${c}.ilike.${like}`).join(',') + (extraIds.length ? `,id.in.(${extraIds.join(',')})` : '')
     );
   }
   const { data, error } = await query;
