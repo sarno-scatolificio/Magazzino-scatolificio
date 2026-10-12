@@ -1,0 +1,22 @@
+name: Controllo del codice
+
+# Gira a ogni push e a ogni pull request: se un import è sbagliato, manca un nome o un file
+# nella lista del service worker, il controllo risulta fallito (croce rossa su GitHub).
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Installa gli strumenti
+        working-directory: tools
+        run: npm install --no-audit --no-fund
+      - name: Controlla il codice
+        working-directory: tools
+        run: npm run check
