@@ -2667,7 +2667,7 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
 }
 .nav-item .nav-icon-wrap { position: relative; }
 .unseen-badge {
-  position: absolute; top: 0; right: -0.7rem;
+  position: absolute; top: 0.35rem; right: -1.2rem;
   min-width: 1rem; height: 1rem; padding: 0 0.25rem;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 9999px;
