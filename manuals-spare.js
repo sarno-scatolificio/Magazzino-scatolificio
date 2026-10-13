@@ -5,7 +5,8 @@
 
 import { els, ms } from './manuals-shared.js';
 import { escapeHtml } from './html-utils.js';
-import { getAnyManualForMachine, getManualsForMachine, openManualViewer } from './manuals.js';
+import { getAnyManualForMachine, getManualsForMachine } from './manuals.js';
+import { openManualExternal } from './manuals-external.js';
 import { toastWarning } from './toast.js';
 
 // ---------------------------------------------------------------- Spare Parts --
@@ -15,7 +16,7 @@ const SPARE_GROUP_CLASS =
 const SPARE_MAIN_CLASS =
   'press-spring inline-flex items-center justify-center gap-1.5 hover:bg-amber-300 text-white font-display font-bold uppercase tracking-wide text-xs px-3.5 py-2.5';
 const SPARE_ROW_CLASS =
-  'press-spring flex items-center gap-1.5 text-left hover:bg-amber-300 text-white font-display font-bold uppercase tracking-wide text-xs px-3.5 py-2.5 border-t border-white/25';
+  'press-spring flex w-full items-center gap-1.5 text-left hover:bg-amber-300 text-white font-display font-bold uppercase tracking-wide text-xs px-3.5 py-2.5 border-t border-white/25';
 
 function spareLineLabel(linea) {
   if (!linea) return 'Generale';
@@ -28,7 +29,20 @@ function openSpareManual(machine, manual, title) {
     toastWarning(`Nessun manuale ricambi caricato per "${machine.nome}". Puoi caricarlo da Impostazioni → Gestione macchine.`);
     return;
   }
-  openManualViewer(manual, { title });
+  // Dal pulsante Spare parts della sezione Manuali il PDF si apre con un'app esterna a scelta
+  // dell'utente (la ricerca di un codice dalla scheda articolo usa invece il visualizzatore interno).
+  openManualExternal(manual, { title });
+}
+
+/**
+ * Se esistono sia il manuale della Linea 1 sia quello della Linea 2, la voce combinata
+ * (es. "L1-L2") è superflua e non viene mostrata.
+ */
+function visibleSpareEntries(manuals) {
+  const norm = (k) => String(k || '').replace(/\s+/g, '').toLowerCase();
+  const keys = [...manuals.keys()].map(norm);
+  const hasBoth = keys.includes('l1') && keys.includes('l2');
+  return [...manuals.entries()].filter(([linea]) => !(hasBoth && /^l1[-\u2013/&+]l2$/.test(norm(linea))));
 }
 
 /**
@@ -45,7 +59,8 @@ export function renderSpareButtons(machine) {
   wrap.innerHTML = '';
 
   const manuals = getManualsForMachine(machine.id);
-  const multi = manuals.size > 1;
+  const entries = visibleSpareEntries(manuals);
+  const multi = entries.length > 1;
 
   const group = document.createElement('div');
   group.className = SPARE_GROUP_CLASS;
@@ -70,7 +85,7 @@ export function renderSpareButtons(machine) {
   const list = document.createElement('div');
   list.className = 'spare-group-list';
   listTrack.appendChild(list);
-  manuals.forEach((manual, linea) => {
+  entries.forEach(([linea, manual]) => {
     const label = spareLineLabel(linea);
     const row = document.createElement('button');
     row.type = 'button';
