@@ -7,7 +7,8 @@ import { attachLongPress, els, ms } from './manuals-shared.js';
 import { buildGroupBar, computeGroupView } from './manuals-groups.js';
 import { enterReorderMode, exitReorderMode, makeTileDraggable, updateReorderToggleVisibility } from './manuals-reorder.js';
 import { escapeHtml } from './html-utils.js';
-import { getOperatorManualsForMachine, getSectionsForOperatorManual, openManualViewer } from './manuals.js';
+import { getOperatorManualsForMachine, getSectionsForOperatorManual } from './manuals.js';
+import { openManualExternal } from './manuals-external.js';
 import { getSectionIconUrl } from './supabase.js';
 import { isAdmin } from './auth.js';
 import { machineIconUrl } from './manuals-list.js';
@@ -130,7 +131,7 @@ export function renderDetailGrid({ keepBar = false, opening = false } = {}) {
     } else {
       // Admin: tenendo premuto sull'icona si entra in modalità modifica.
       if (isAdmin()) attachLongPress(tile, () => enterReorderMode());
-      tile.addEventListener('click', () => openManualViewer(manual, { startPage: section.page_start, endPage: section.page_end, title: section.label }));
+      tile.addEventListener('click', () => openManualExternal(manual, { startPage: section.page_start, endPage: section.page_end, title: section.label }));
     }
     els.detailGrid.appendChild(tile);
   });
