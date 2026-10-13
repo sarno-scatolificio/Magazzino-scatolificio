@@ -12,6 +12,7 @@ import { confirmDialog } from './ui-modal.js';
 import { dayLabel, ensureOperatori, fmtDateTime, refreshDays, renderList } from './interventi-list.js';
 import feedback from './feedback.js';
 import { openPhotoViewer, wirePhoto } from './interventi-photo.js';
+import { markSeen } from './interventi-unseen.js';
 import { pickDateRange } from './date-range-modal.js';
 import { pickTime } from './time-picker.js';
 import { toastError, toastSuccess, toastWarning } from './toast.js';
@@ -101,6 +102,7 @@ export function initDetailSheet() {
 let wirePhotoDetail = null;
 
 export async function openDetail(row) {
+  markSeen(row); // aperto da qualunque percorso: non è più «nuovo»
   detail = { row, stato: row.stato, operatori: operatoriDi(row), opOpen: false, esitoAt: row.stato === 'effettuato' && row.esito_at ? new Date(row.esito_at) : null, foto: null, fotoUrl: '', rimuovi: false, promemoriaUrl: '' };
   ensureOperatori().then(() => detail?.row === row && paintDetail());
   els.detNote.value = row.note_esito || '';

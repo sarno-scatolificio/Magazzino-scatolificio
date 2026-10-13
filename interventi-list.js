@@ -10,6 +10,7 @@ import { escapeHtml } from './products-shared.js';
 import feedback from './feedback.js';
 import { openDetail } from './interventi-detail.js';
 import { openPhotoViewer } from './interventi-photo.js';
+import { UNSEEN_DOT_HTML, UNSEEN_LEGEND_HTML, isUnseen, markSeen } from './interventi-unseen.js';
 import { toastError } from './toast.js';
 
 export function defaultDay() {
@@ -180,6 +181,7 @@ export function renderList() {
 
   const banner = ricambiBanner();
   if (banner) els.list.appendChild(banner);
+  if (rows.some(isUnseen)) els.list.insertAdjacentHTML('beforeend', UNSEEN_LEGEND_HTML);
 
   // Ordine: prima per linea, poi per macchina (ordine scelto dall'admin). Una scheda per macchina
   // con dentro tutti i suoi interventi, così l'elenco resta ordinato e si legge a colpo d'occhio.
@@ -220,7 +222,8 @@ export function renderList() {
         const row = document.createElement('button');
         row.type = 'button';
         row.dataset.id = r.id;
-        row.className = 'int-row w-full text-left px-3.5 py-3 flex items-start gap-3 border-t border-graphite-700/70';
+        row.className = 'int-row relative w-full text-left px-3.5 py-3 flex items-start gap-3 border-t border-graphite-700/70';
+        const unseen = isUnseen(r);
         const ops = operatoriDi(r);
         const who = r.stato === 'effettuato' ? (ops.length ? ops.map(formatOperatore).join(', ') : r.esito_by_name) : r.created_by_name;
         const when = r.stato === 'effettuato' ? `Fatto ${fmtDateTime(r.esito_at)}${who ? ` · ${who}` : ''}` : `${fmtDateTime(r.created_at)}${who ? ` · ${who}` : ''}`;
@@ -233,8 +236,14 @@ export function renderList() {
             ${ricambiDi(r).length ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-1">Ricambi: ${escapeHtml(ricambiDi(r).map(ricambiLabel).join(', '))}</p>` : ''}
             <p class="ui-note text-graphite-500 mt-1">${escapeHtml(when)}</p>
           </div>
-          <img class="int-thumb hidden" alt="" data-thumb>`;
-        row.addEventListener('click', () => openDetail(r));
+          <img class="int-thumb hidden" alt="" data-thumb>${unseen ? UNSEEN_DOT_HTML : ''}`;
+        row.addEventListener('click', () => {
+          if (unseen) {
+            markSeen(r);
+            row.querySelector('[data-unseen-dot]')?.remove();
+          }
+          openDetail(r);
+        });
         card.appendChild(row);
       });
       section.appendChild(card);
