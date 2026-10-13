@@ -56,7 +56,10 @@ const MAX_ZOOM = 3;
 // Limite di pixel (larghezza × altezza) per il canvas di una singola pagina. Oltre questa
 // soglia, soprattutto con più pagine ad alta risoluzione tenute in memoria insieme, iOS/Safari
 // può svuotare silenziosamente il canvas (appare tutto nero): meglio restare ben al di sotto.
-const MAX_CANVAS_PIXELS = 2_500_000;
+const MAX_CANVAS_PIXELS = 2_000_000;
+// Pagine con il disegno in memoria: quelle a schermo + queste in più (mai meno di MIN_LIVE_PAGES).
+const LIVE_PAGES_EXTRA = 2;
+const MIN_LIVE_PAGES = 4;
 // Risoluzione di disegno: densità dello schermo (al massimo 2) con un piccolo extra di nitidezza.
 // Prima era densità × 1,5 senza tetto: su un telefono a densità 3 ogni pagina pesava ~15 MB e con
 // una decina di pagine tenute in memoria il browser svuotava i canvas (schermo nero) o chiudeva la scheda.
@@ -512,6 +515,29 @@ function pumpTextQueue() {
   });
 }
 
+/**
+ * Tetto rigido sulle pagine con il disegno in memoria: oltre quelle a schermo se ne tengono
+ * poche in più; le più lontane vengono liberate subito. Con lo zoom ogni pagina pesa molto,
+ * e tenerne troppe fa chiudere la scheda del browser ("Uffa!").
+ */
+function enforceLiveCap(keep) {
+  const wrap = els.canvasWrap;
+  if (!wrap) return;
+  const top = wrap.scrollTop;
+  const bottom = top + wrap.clientHeight;
+  const center = (top + bottom) / 2;
+  const live = state.pages.filter((e) => e.canvas && e.canvas.width > 0 && (e.rendered || e.rendering));
+  const isVisible = (e) => e.wrapper.offsetTop + e.wrapper.offsetHeight >= top && e.wrapper.offsetTop <= bottom;
+  const cap = Math.max(MIN_LIVE_PAGES, live.filter(isVisible).length + LIVE_PAGES_EXTRA);
+  if (live.length <= cap) return;
+  const dist = (e) => Math.abs(e.wrapper.offsetTop + e.wrapper.offsetHeight / 2 - center);
+  live
+    .filter((e) => e !== keep && !isVisible(e))
+    .sort((a, b) => dist(b) - dist(a))
+    .slice(0, live.length - cap)
+    .forEach(freePageCanvas);
+}
+
 /** Dopo che l'app torna in primo piano i browser mobili possono aver svuotato i canvas: si ridisegnano le pagine a schermo. */
 function recoverVisiblePages() {
   const wrap = els.canvasWrap;
@@ -855,7 +881,7 @@ async function renderPageEntryInner(entry, myToken, deferText = false) {
   const viewportArea = viewport.width * viewport.height;
   const outputScale =
     viewportArea * desiredOutputScale * desiredOutputScale > MAX_CANVAS_PIXELS
-      ? Math.max(1, Math.sqrt(MAX_CANVAS_PIXELS / viewportArea))
+      ? Math.max(0.6, Math.sqrt(MAX_CANVAS_PIXELS / viewportArea))
       : desiredOutputScale;
   entry.canvas.width = Math.floor(viewport.width * outputScale);
   entry.canvas.height = Math.floor(viewport.height * outputScale);
@@ -876,6 +902,7 @@ async function renderPageEntryInner(entry, myToken, deferText = false) {
   }
   if (myToken !== entry.renderToken) return; // superata da un render più recente (es. altro zoom)
   entry.spinner?.classList.add('hidden'); // il canvas ha già del contenuto valido da qui in poi
+  enforceLiveCap(entry);
 
   entry.textLayerEl.innerHTML = '';
   entry.textLayerEl.style.width = `${Math.floor(viewport.width)}px`;
@@ -929,7 +956,23 @@ async function buildTextLayer(entry, myToken, viewport) {
 }
 
 export async function renderAllRenderedPages() {
-  await Promise.all(state.pages.filter((p) => p.rendered).map((p) => renderPageEntry(p, { force: true })));
+  const wrap = els.canvasWrap;
+  if (!wrap) return;
+  // Solo le pagine nella zona di precarico vengono ridisegnate (una alla volta, la più vicina per prima);
+  // le altre vengono liberate e si ridisegnano quando ci si avvicina. Ridisegnarle TUTTE insieme alla
+  // nuova scala (zoom) faceva schizzare la memoria e il browser chiudeva la scheda.
+  const top = wrap.scrollTop - 500;
+  const bottom = wrap.scrollTop + wrap.clientHeight + 500;
+  const center = wrap.scrollTop + wrap.clientHeight / 2;
+  const near = [];
+  state.pages.forEach((p) => {
+    if (!p.rendered) return;
+    const t = p.wrapper.offsetTop;
+    if (t + p.wrapper.offsetHeight >= top && t <= bottom) near.push(p);
+    else freePageCanvas(p);
+  });
+  near.sort((a, b) => Math.abs(a.wrapper.offsetTop - center) - Math.abs(b.wrapper.offsetTop - center));
+  for (const p of near) await renderPageEntry(p, { force: true, deferText: true });
 }
 
 // --- ZOOM (pulsanti +/- e pinch a due dita isolato al solo PDF) ---------
