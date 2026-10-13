@@ -2667,7 +2667,7 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
 }
 .nav-item .nav-icon-wrap { position: relative; }
 .unseen-badge {
-  position: absolute; top: -0.35rem; right: -0.75rem;
+  position: absolute; top: 0; right: -0.7rem;
   min-width: 1rem; height: 1rem; padding: 0 0.25rem;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 9999px;
@@ -2679,7 +2679,12 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
 .unseen-badge::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit;
   background: var(--accent); z-index: -1;
-  animation: unseen-pulse 1.8s ease-out infinite;
+  animation: unseen-pulse-badge 1.8s ease-out infinite;
+}
+/* Sul pulsante l'alone è più contenuto: deve restare dentro il pulsante, senza sbordare sulla barra */
+@keyframes unseen-pulse-badge {
+  0%   { transform: scale(1); opacity: 0.5; }
+  70%, 100% { transform: scale(1.55); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .unseen-dot::after, .unseen-badge::after { animation: none; opacity: 0; }
