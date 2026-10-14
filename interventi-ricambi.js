@@ -13,6 +13,7 @@ import { CATEGORY_BADGE_CLASSES } from './scanner-shared.js';
 import { adjustCachedProductQuantity, bumpProductsVersion, getProductLocations, listProducts, processTransaction, searchCachedProducts } from './supabase.js';
 import { enqueueTransaction, isNetworkError } from './offline-queue.js';
 import { closeOverlay, enableSheetDrag, modalCloseMs, openOverlay } from './ui-utils.js';
+import { listPuntiSuggeriti, normPunto } from './punti-utilizzo.js';
 import feedback from './feedback.js';
 import { toastError, toastWarning } from './toast.js';
 
@@ -109,10 +110,11 @@ export function initRicambiSheet() {
  * Apre il foglio e risolve con l'elenco scelto: [{ product, quantita, locationId }] (anche vuoto),
  * oppure null se si chiude senza confermare.
  */
-export function pickRicambi({ context = '', emptyLabel = 'Continua senza ricambi', emptyNote = '' } = {}) {
+export function pickRicambi({ context = '', emptyLabel = 'Continua senza ricambi', emptyNote = '', linea = null, macchina = null, titolo = '' } = {}) {
   return new Promise((resolve) => {
     if (sheet) finish(null);
-    sheet = { resolve, items: [], emptyLabel, emptyNote };
+    // linea, macchina e titolo dell'intervento servono ai cuscinetti per proporre il punto di utilizzo
+    sheet = { resolve, items: [], emptyLabel, emptyNote, linea, macchina, titolo };
     els.search.value = '';
     els.footer.classList.remove('hidden');
     els.results.classList.add('hidden');
@@ -208,10 +210,38 @@ function paintResults(results, offline) {
   });
 }
 
+// Parole che possono seguire l'azione nel titolo ("sostituzione DELLA cinghia", "revisione DEL motore")
+const PAROLE_VUOTE = new Set(['di', 'del', 'dello', 'della', 'dei', 'degli', 'delle', 'dell', 'il', 'lo', 'la', 'i', 'gli', 'le', 'l', 'un', 'uno', 'una', 'su', 'sul', 'sulla', 'sui', 'sulle', 'al', 'alla', 'allo', 'ai', 'alle', 'a', 'in', 'nel', 'nella']);
+
+/**
+ * Punto di utilizzo ricavato dal titolo dell'intervento: via la prima parola (l'azione: "revisione",
+ * "sostituzione", "sostituire"…) e le parole vuote che la seguono; il resto resta com'è, nome della macchina
+ * compreso. "Revisione trasmissione banco OHC" → "trasmissione banco OHC". Se nel titolo c'è solo l'azione
+ * non propone nulla. È solo una proposta: nel foglio si può sempre correggere.
+ */
+export function puntoDaTitolo(titolo) {
+  const words = String(titolo || '').trim().split(/\s+/).filter(Boolean);
+  if (words.length < 2) return '';
+  let i = 1; // la prima parola è l'azione
+  while (i < words.length - 1 && PAROLE_VUOTE.has(normPunto(words[i].replace(/'/g, ' ')))) i += 1;
+  words[i] = words[i].replace(/^(dell|dall|nell|sull|all|l|un)['’]/i, ''); // "dell'albero" → "albero"
+  return words
+    .slice(i)
+    .join(' ')
+    .replace(/^[\s.,;:\-–]+|[\s.,;:\-–]+$/g, '');
+}
+
 function addItem(product) {
   if (!sheet || sheet.items.some((it) => it.product.id === product.id)) return;
   const locs = getProductLocations(product);
-  sheet.items.push({ product, qty: 1, locationId: locs.length > 1 ? null : locs[0]?.id ?? null });
+  sheet.items.push({
+    product,
+    qty: 1,
+    locationId: locs.length > 1 ? null : locs[0]?.id ?? null,
+    punto: product.categoria === 'cuscinetti' ? puntoDaTitolo(sheet.titolo) : '', // solo cuscinetti: proposto dal titolo, modificabile
+    puntoTouched: false,
+    puntiSuggeriti: [],
+  });
   feedback.presetPick();
   els.search.value = '';
   els.search.blur(); // chiude la tastiera e fa tornare il pulsante di conferma
@@ -276,6 +306,12 @@ function buildCard(it, idx) {
       <button type="button" data-remove aria-label="Togli il ricambio" class="press-spring shrink-0 w-10 h-10 -mt-1.5 -mr-1.5 rounded-lg text-graphite-400 hover:text-rose-700 flex items-center justify-center transition-colors"><i data-lucide="trash-2" class="w-5 h-5" stroke-width="2"></i></button>
     </div>
     ${multiple ? '<p class="text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mt-3 mb-1.5">Da quale scaffale?</p><div data-shelves class="grid grid-cols-2 gap-2"></div>' : ''}
+    ${p.categoria === 'cuscinetti' ? `
+    <div data-punto-box class="mt-3">
+      <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Punto di utilizzo</label>
+      <input data-punto type="text" maxlength="120" autocomplete="off" placeholder="Dove viene montato" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors" />
+      <div data-punto-chips class="flex flex-wrap gap-2 mt-2"></div>
+    </div>` : ''}
     <div class="mt-3 flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <button type="button" data-step="-1" aria-label="Meno" class="press-spring w-11 h-11 rounded-lg border border-graphite-700 bg-graphite-800 text-graphite-100 text-xl font-semibold flex items-center justify-center">−</button>
@@ -308,6 +344,7 @@ function buildCard(it, idx) {
       wrap.appendChild(b);
     });
   }
+  if (p.categoria === 'cuscinetti') wirePunto(card, it);
   card.querySelectorAll('[data-step]').forEach((b) =>
     b.addEventListener('click', () => {
       feedback.focusTap();
@@ -325,6 +362,65 @@ function buildCard(it, idx) {
   return card;
 }
 
+/** Campo "Punto di utilizzo" di un cuscinetto: proposta dal titolo + punti già usati per lo stesso cuscinetto su quella linea e macchina */
+function wirePunto(card, it) {
+  const input = card.querySelector('[data-punto]');
+  const chips = card.querySelector('[data-punto-chips]');
+  input.value = it.punto || '';
+
+  const paintChips = () => {
+    const typed = normPunto(input.value);
+    chips.replaceChildren(
+      ...it.puntiSuggeriti
+        .filter((x) => normPunto(x.punto) !== typed)
+        .slice(0, 4)
+        .map((x) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'int-chip';
+          b.textContent = x.punto; // testo, mai HTML
+          b.addEventListener('click', () => {
+            feedback.presetPick();
+            it.punto = x.punto;
+            it.puntoTouched = true;
+            input.value = x.punto;
+            paintChips();
+          });
+          return b;
+        })
+    );
+  };
+
+  input.addEventListener('input', () => {
+    it.punto = input.value;
+    it.puntoTouched = true;
+    paintChips();
+  });
+  // Con la tastiera aperta l'avviso e il pulsante di conferma spariscono, come nella ricerca
+  input.addEventListener('focus', () => els.footer.classList.add('hidden'));
+  input.addEventListener('blur', () => els.footer.classList.remove('hidden'));
+  input.addEventListener('keydown', (e) => e.key === 'Enter' && input.blur());
+
+  // Punti già usati per questo cuscinetto su questa linea e macchina (se non c'è rete restano solo la proposta e la scrittura a mano)
+  if (it.puntiCaricati) {
+    paintChips();
+    return;
+  }
+  it.puntiCaricati = true;
+  listPuntiSuggeriti({ productId: it.product.id, linea: sheet?.linea, macchinario: sheet?.macchina })
+    .then((list) => {
+      it.puntiSuggeriti = list;
+      // Se la proposta dal titolo è lo stesso punto già usato, si adotta la grafia già in uso (così il confronto della vita utile non si spezza)
+      const same = it.punto && list.find((x) => normPunto(x.punto) === normPunto(it.punto));
+      if (same && !it.puntoTouched) {
+        it.punto = same.punto;
+        if (input.isConnected) input.value = same.punto;
+      }
+      if (input.isConnected) paintChips();
+    })
+    .catch(() => {});
+}
+
 /** Aggiorna quantità, giacenza dopo e scaffale scelto senza ridisegnare la scheda (lo scorrimento non salta) */
 function refreshCard(card, it) {
   card.querySelector('[data-qty]').textContent = it.qty;
@@ -340,6 +436,14 @@ function confirmSheet() {
   if (!sheet) return;
   const cards = [...els.selected.children];
   for (const [i, it] of sheet.items.entries()) {
+    if (it.product.categoria === 'cuscinetti' && !String(it.punto || '').trim()) {
+      feedback.errorAction();
+      cards[i]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      cards[i]?.querySelector('[data-punto-box]')?.classList.add('field-missing');
+      setTimeout(() => cards[i]?.querySelector('[data-punto-box]')?.classList.remove('field-missing'), 1800);
+      toastError(`Indica il punto di utilizzo di ${it.product.codice_articolo}.`);
+      return;
+    }
     const stock = stockFor(it);
     if (stock === null || it.qty > stock) {
       feedback.errorAction();
@@ -350,7 +454,14 @@ function confirmSheet() {
       return;
     }
   }
-  finish(sheet.items.map((it) => ({ product: it.product, quantita: it.qty, locationId: it.locationId })));
+  finish(
+    sheet.items.map((it) => ({
+      product: it.product,
+      quantita: it.qty,
+      locationId: it.locationId,
+      punto: it.product.categoria === 'cuscinetti' ? String(it.punto || '').trim().replace(/\s+/g, ' ') : null,
+    }))
+  );
 }
 
 // ---------------------------------------------------------------
@@ -367,6 +478,7 @@ const toStored = (sel) => {
     descrizione: descOf(p) || null,
     quantita: sel.quantita,
     locazione: loc?.locazione || null,
+    ...(sel.punto ? { punto: sel.punto } : {}), // solo cuscinetti: dove è stato montato
   };
 };
 
@@ -385,7 +497,8 @@ export async function applyRicambi(selections, { linea, macchina, descrizione })
       productId: p.id,
       tipo: 'prelievo',
       quantita: sel.quantita,
-      puntoUtilizzo: (p.punto_utilizzo_standard || '').trim() || null, // come nel Prelievo: il punto standard dell'articolo
+      // Cuscinetti: il punto indicato nel foglio (serve alla vita utile). Cinghie e ricambi: il punto standard dell'articolo, come nel Prelievo
+      puntoUtilizzo: (p.categoria === 'cuscinetti' && sel.punto) || (p.punto_utilizzo_standard || '').trim() || null,
       linea,
       macchinario: p.categoria === 'cuscinetti' ? macchina : null, // il macchinario si registra solo per i cuscinetti, come nel Prelievo
       locationId: sel.locationId,

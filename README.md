@@ -1,204 +1,293 @@
-# MATE - Magazzino Tecnico
+# MATE — Magazzino Tecnico
 
-App mobile-first per la gestione di un magazzino ricambi, con scanner barcode da fotocamera, deposito/prelievo in tempo reale, anagrafica articoli con stampa etichette PDF e reportistica consumi per l'admin.
+**MATE** è l'app del reparto manutenzione dello scatolificio per gestire **il magazzino dei ricambi**, **i manuali delle macchine** e **il blocco note degli interventi**, tutto in un unico posto, dal telefono.
 
-Backend: **Supabase** (già configurato: tabelle, RLS, funzioni SQL).
-Frontend: HTML/CSS/JS vanilla (nessuna build necessaria), Tailwind via CDN.
+Si usa come una normale app (si installa sulla schermata Home), si apre in un secondo e funziona anche quando la rete è debole: i movimenti di magazzino registrati senza connessione vengono inviati da soli appena torna il segnale.
 
-## Struttura file
+---
 
-```
-index.html            Shell dell'app, tutte le viste (login, scanner, magazzino, dashboard, impostazioni)
-style.css              Tema chiaro (blu del logo), marchio MATE animato nel login, animazioni, transizioni glass, skeleton loading
-tailwind.config.js     Palette/font del tema (script esterno, caricato dopo il CDN Tailwind)
-manifest.json           Web App Manifest per l'installazione PWA
-service-worker.js        Service worker minimo (cache della shell statica, installabilità)
-icons/                    Icone PWA in tutte le dimensioni (favicon, 192, 512, maskable, apple-touch-icon)
-supabase.js            Client Supabase + tutte le query (auth, prodotti, transazioni, import Excel, profili utente)
-auth.js                 Login/logout, gestione sessione e ruolo utente
-camera.js                Gestione fotocamera condivisa (scanner deposito/prelievo + assegnazione barcode articolo)
-scanner.js                Flusso deposito/prelievo: selezione modalità, lettura barcode, conferma
-products.js                Magazzino: 3 categorie, CRUD, import Excel, etichette PDF, undo/redo, generazione barcode
-picker.js                   Modale di selezione personalizzato (combobox Linea/Macchina)
-users.js                     Gestione nome e cognome degli utenti registrati (vista Impostazioni)
-dashboard.js               Reportistica consumi + drill-down storico per articolo (solo Admin)
-toast.js                    Notifiche toast
-app.js                       Entry point: routing tra viste, transizioni glass, registrazione service worker
-```
+## Indice
 
-## Più scaffali per lo stesso articolo
+1. [A cosa serve](#1-a-cosa-serve)
+2. [Chi la usa: Operatore e Admin](#2-chi-la-usa-operatore-e-admin)
+3. [Accesso e sicurezza](#3-accesso-e-sicurezza)
+4. [Come è organizzata](#4-come-è-organizzata)
+5. [Movimenti: depositi e prelievi](#5-movimenti-depositi-e-prelievi)
+6. [Magazzino: l'anagrafica degli articoli](#6-magazzino-lanagrafica-degli-articoli)
+7. [Manuali delle macchine](#7-manuali-delle-macchine)
+8. [Interventi: il blocco note della manutenzione](#8-interventi-il-blocco-note-della-manutenzione)
+9. [Report (solo Admin)](#9-report-solo-admin)
+10. [Impostazioni](#10-impostazioni)
+11. [Funzioni che si trovano ovunque](#11-funzioni-che-si-trovano-ovunque)
+12. [Informazioni tecniche](#12-informazioni-tecniche)
 
-Lo stesso codice (cuscinetto, cinghia o ricambio) può stare su **più scaffali, ognuno con la sua quantità**. Sul database c'è la tabella `product_locations` (una riga per articolo e scaffale, RLS: lettura a tutti, scrittura solo admin); `products.quantita_disponibile` resta il **totale** e `products.locazione` un riepilogo testuale degli scaffali, entrambi aggiornati da trigger (non si scrivono più a mano).
+---
 
-- **Scheda articolo**: elenca tutte le locazioni con la quantità di ciascuna e il totale.
-- **Modifica articolo (Admin)**: sezione "Scaffali e quantità" con una riga per scaffale e il pulsante "Aggiungi scaffale".
-- **Deposito/Prelievo**: se l'articolo sta su più scaffali l'app chiede lo scaffale (mostrando la quantità di ciascuno); il prelievo è limitato alla quantità di quello scaffale. Lo scaffale viene registrato nello storico movimenti.
-- **Scorta minima**: vale sul totale di tutti gli scaffali.
-- **Liste per scaffale e scorta minima**: lo stesso codice compare in ciascuno scaffale con la sua quantità.
-- **Import Excel**: più righe con lo stesso codice = più scaffali. Un articolo con un solo scaffale si comporta come prima (la riga sostituisce lo scaffale); se ne ha già più di uno, la riga aggiunge/aggiorna solo quello scaffale.
-- **Rimozione di uno scaffale** (Impostazioni): le quantità restano all'articolo, senza scaffale.
-- Migrazione: `sql/product_locations_multi_scaffale.sql` (già applicata su Supabase).
+## 1. A cosa serve
 
-## Più codici a barre per lo stesso articolo
+| Problema di tutti i giorni | Cosa fa MATE |
+|---|---|
+| «Quanti cuscinetti di quel tipo abbiamo e dove sono?» | Anagrafica con giacenza, scaffale e ricerca immediata, anche da codice a barre. |
+| «Chi ha preso quel ricambio e per quale macchina?» | Ogni deposito e prelievo viene registrato con utente, data, linea, macchina e punto di utilizzo. |
+| «Stiamo finendo qualcosa?» | Elenco automatico degli articoli sotto scorta minima, raggruppati per scaffale. |
+| «Dove trovo il manuale della Saldatrice, pagina 120?» | Manuali PDF organizzati per macchina, con pulsanti che aprono direttamente la sezione giusta. |
+| «Cosa abbiamo fatto durante la sosta di ieri?» | Blocco note interventi con foto, esito, operatori e PDF giornaliero da condividere. |
+| «Questo cuscinetto dura meno del solito?» | Report sulla vita utile dei ricambi, con segnalazione delle sostituzioni anticipate. |
 
-Ogni articolo può avere **più codici a barre**, ciascuno con il **produttore** (facoltativo). `products.codice_barre` resta il codice **principale** (quello delle etichette e della generazione per cinghie e ricambi tecnici) e `products.produttore_barcode` è il suo produttore; gli altri codici stanno nella tabella `product_barcodes` (una riga per codice, RLS: lettura a tutti, scrittura solo admin). Un codice identifica un solo articolo: il database rifiuta i duplicati, anche tra principale e secondari.
+Gli articoli sono divisi in tre categorie: **Cuscinetti**, **Cinghie** e **Ricambi tecnici**.
 
-- **Modifica articolo (Admin)**: sotto il codice principale c'è il campo "Produttore" e il pulsante "Aggiungi codice a barre"; ogni codice aggiuntivo ha scansione da fotocamera, produttore e cestino.
-- **Scheda articolo**: elenca tutti i codici con il produttore sotto e una stampante per ognuno.
-- **Scanner e ricerca**: l'articolo si trova da qualsiasi suo codice (anche offline, dalla cache).
-- **Salvataggio**: avviene con la funzione `set_product_barcodes` (atomica), così scambiare principale e secondario non genera conflitti.
-- Migrazione: `sql/product_barcodes_multipli.sql` (già applicata su Supabase).
-- Aree degli scaffali (Magazzino / Ufficio tecnico): `sql/add_shelves_area.sql` (da eseguire una volta su Supabase; tutti gli scaffali esistenti restano in Magazzino).
+---
 
-## Novità di questa sessione
+## 2. Chi la usa: Operatore e Admin
 
-**Magazzino senza vista a elenco + scheda articolo in sola lettura** — la vista "Elenco" è stata eliminata. I **Cuscinetti** mostrano sempre la scaffalatura (nessun selettore; la ricerca resta per codice o scaffale); **Cinghie** e **Ricambi tecnici** hanno il selettore Scaffalatura / Macchina, con la scaffalatura di default. Toccando un articolo non si apre più il modulo di modifica ma una **scheda di sola lettura** (categoria, codice, locazione, quantità disponibile, linea, macchina, punto di utilizzo, codice a barre; la scorta minima non compare). Per i Ricambi tecnici con manuale caricato c'è un pulsante con sola icona per aprirlo. Solo l'Admin vede in basso il **pulsante tondo a matita** che apre il modulo di modifica completo; annullando si torna alla scheda.
+L'app ha due tipi di utente. I permessi sono applicati sia nell'app sia sul database: un Operatore non può modificare i dati nemmeno aggirando l'interfaccia.
 
-**Campo "Descrizione" rimosso completamente** — era causa di doppioni nell'elenco articoli (mostrava il codice due volte quando la descrizione era vuota). Rimosso da form, ricerca, database e dagli output PDF/report.
+| | **Operatore** (tutti i conduttori e i manutentori) | **Admin** |
+|---|---|---|
+| Cercare articoli e consultare le schede | ✅ | ✅ |
+| Registrare depositi e prelievi | ✅ | ✅ |
+| Vedere gli articoli sotto scorta e gli ultimi movimenti | ✅ | ✅ |
+| Consultare i manuali delle macchine | ✅ | ✅ |
+| Usare gli Interventi (inserire, aggiornare l'esito) | ✅ | ✅ |
+| Creare, modificare, eliminare articoli | — sola lettura | ✅ |
+| Importare l'inventario da Excel | — | ✅ |
+| Gestire manuali, pulsanti, gruppi e icone | — | ✅ |
+| Gestire utenti, macchine, scaffali, operatori, interventi rapidi | — | ✅ |
+| Consultare il Report | — | ✅ |
+| Eliminare movimenti dallo storico | — | ✅ |
 
-**Elenco Magazzino senza doppioni** — ogni riga mostra il **codice articolo in grassetto** in alto, e sotto in piccolo locazione, macchina, punto di utilizzo e linea (solo i campi effettivamente valorizzati).
+Gli account non si creano da soli: li crea l'Admin, così l'accesso resta controllato.
 
-**Ricerca rapida estesa** — ora cerca anche per punto di utilizzo e macchina, oltre a codice, locazione e barcode.
+---
 
-**Linea e Macchina: combobox personalizzate** — sostituiti lo `<select>` nativo e il `<datalist>` (che su alcuni telefoni apriva la tastiera senza mostrare l'elenco) con un modale di selezione disegnato ad hoc: tocchi il campo, si apre un elenco a scorrimento con ricerca in tempo reale, nessun placeholder fuorviante. La combobox "Macchina" propone solo i valori già registrati ma permette comunque di digitarne uno nuovo (comparirà un'opzione "Aggiungi ..."); "Linea" mostra solo le tre opzioni fisse L1/L2/L1-L2.
+## 3. Accesso e sicurezza
 
-**Barcode per Cinghie e Ricambi tecnici** — dato che cinghie e ricambi tecnici non hanno un codice a barre fisico stampato come i cuscinetti, è stato aggiunto un pulsante dedicato "Genera" (icona +) che crea un codice deterministico (prefisso di categoria + codice articolo, es. `CIN-B123` per le cinghie, `PZR-12345` per i ricambi tecnici): è stabile per sempre, rigenerarlo per lo stesso articolo produce sempre lo stesso valore.
+- **Accesso** con email e password. La schermata di ingresso mostra il logo MATE, un carosello di foto e il modulo di accesso.
+- **Disconnessione automatica**: dopo 60 minuti senza utilizzo l'app esce da sola, avvisando un minuto prima. È pensata per i tablet condivisi in reparto.
+- **Protezione dei dati**: l'accesso ai dati è regolato direttamente dal database (permessi per riga). I movimenti si registrano solo tramite una funzione unica che aggiorna la giacenza e lo storico insieme, in modo atomico: la giacenza non può scendere sotto zero nemmeno se due persone prelevano nello stesso istante.
+- Maggiori dettagli tecnici nel file `SECURITY.md`.
 
-**Etichetta PDF rifatta da zero**:
-- Contiene ora **solo il barcode e il numero sotto** (nessun testo aggiuntivo).
-- Corretto il bug che tagliava il codice a barre fuori pagina: jsPDF, senza l'orientamento esplicito, interpretava male un formato personalizzato più largo che alto. Ora l'immagine viene anche scalata mantenendo le proporzioni reali del barcode generato, centrata nell'etichetta, senza mai deformarsi o uscire dal bordo.
-- Il pulsante "Stampa etichetta PDF" (testuale) è stato sostituito da un **pulsante piccolo con sola icona** (stampante).
+---
 
-**Login e topbar**: rimossa la visualizzazione dell'email sotto "Magazzino" nella barra in alto dopo il login; il testo è ora "Magazzino Scatolificio".
+## 4. Come è organizzata
 
-**Gestione utenti (Impostazioni, solo Admin)** — nuova sezione che elenca tutti gli utenti registrati con email e ruolo, e permette di impostare Nome e Cognome per ciascuno: da questo momento lo storico transazioni e i report mostrano il nome invece dell'email (richiede che un admin compili il nome per ogni utente la prima volta).
+**Barra in basso** — quattro sezioni:
 
-**Consumi per articolo → drill-down** — nella dashboard, toccando un articolo nella lista "Consumi per articolo" si apre un modale con lo storico completo dei suoi movimenti, filtrabile con le tab Tutti / Depositi / Prelievi.
+| Icona | Sezione | A cosa serve |
+|---|---|---|
+| ⇄ | **Movimenti** | Deposito, prelievo, articoli sotto scorta, ultimi movimenti |
+| 📦 | **Magazzino** | Elenco degli articoli per scaffale o per macchina |
+| 📖 | **Manuali** | Manuali PDF delle macchine |
+| 📝 | **Interventi** | Blocco note della manutenzione |
 
-**Transizioni "glass" tra le sezioni** — passando da una vista all'altra tramite il menu in basso, il contenuto sfuma con un leggero effetto sfocato (blur + fade), e il tab attivo nella barra inferiore ha un effetto vetro smerigliato (sfondo semi-trasparente con `backdrop-filter: blur`) che appare/scompare con un'animazione morbida.
+**Barra in alto**:
+- il campo **Cerca articolo…** e il pulsante **fotocamera** per scansionare un codice a barre da qualsiasi sezione;
+- l'ingranaggio delle **Impostazioni**.
 
-**Undo/Redo, tema chiaro col blu del logo, icone PWA, riquadro scanner più compatto** — vedi le sezioni dedicate più sotto (introdotte nella sessione precedente, ancora tutte attive).
+Il **Report** (solo Admin) si apre dalle Impostazioni.
 
-Nessun bundler richiesto: tutti i moduli sono `<script type="module">` con import ES nativi; le librerie esterne (Supabase JS, JsBarcode, jsPDF, html5-qrcode, SheetJS/xlsx) sono caricate da CDN.
+Il tasto **indietro del telefono** chiude sempre il livello aperto (una finestra, il dettaglio di una macchina, una modifica…) invece di far uscire dall'app.
 
-## PWA: installazione con icona dedicata
+---
 
-L'app è una Progressive Web App installabile da Chrome (desktop e Android) e da Safari (iOS, tramite "Aggiungi a Home"):
+## 5. Movimenti: depositi e prelievi
 
-- **`manifest.json`** definisce nome, colori del tema e tutte le icone (16, 32, 192, 512, più le varianti 192/512 **maskable** con margine di sicurezza per le mascherature circolari/arrotondate di Android).
-- **`icons/`** contiene tutte le dimensioni generate dal logo (scatola con cuscinetti, cinghie e ricambi su sfondo blu). Il blu di sfondo del logo (`#13223f`/`#2f4f92`) è anche il colore del tema (`theme-color`) e dell'accento principale dell'interfaccia.
-- **`service-worker.js`** mette in cache solo l'involucro statico dell'app (HTML/CSS/JS/icone), necessario perché Chrome consideri l'app installabile. Le chiamate a Supabase e alle CDN esterne passano sempre dalla rete, senza essere intercettate.
+### 5.1 La schermata iniziale
 
-Per installarla: apri il sito da Chrome su Android → menu (⋮) → "Installa app" (o la icona di installazione nella barra indirizzi su desktop). L'icona apparirà come qualunque altra app, con il logo dedicato.
+Prima di scegliere cosa fare, la sezione mostra due riquadri utili a colpo d'occhio.
 
-> Nota tecnica: alcuni store di icone dei browser mantengono in cache la vecchia icona per un po' — se dopo l'installazione vedi ancora l'icona generica, disinstalla e reinstalla la PWA, oppure svuota la cache del sito.
+**Articoli sotto scorta**
+- Una scheda che si espande con **una piastrella per ogni serie di scaffale** (SA, SB, SC…).
+- Toccando una piastrella si apre, proprio sotto la riga toccata, l'elenco degli articoli in scorta minima di quella serie con **lo scaffale preciso** di ciascuno e la quantità. Toccandone un'altra, la precedente si chiude.
+- Una barra di filtro **Tutti / Cuscinetti / Cinghie / Ricambi** permette di guardare una sola categoria.
+- Se un articolo sta su più scaffali, la scorta minima è controllata sul **totale**.
 
-> Nota sugli aggiornamenti: il service worker mette in cache la shell dell'app con il nome `magazzino-shell-v1`. Ai prossimi aggiornamenti sostanziali del frontend, incrementa quel nome (es. `v2`) in cima a `service-worker.js`, altrimenti gli utenti che hanno già installato l'app potrebbero continuare a vedere file vecchi dalla cache per un po'.
+**Ultimi movimenti**
+- Gli ultimi depositi e prelievi registrati.
+- **Vedi tutti** apre l'elenco completo con le schede **Tutti / Depositi / Prelievi**: si vede chi ha fatto cosa e, toccando una riga, si espande il dettaglio (articolo, quantità, linea, macchina, punto di utilizzo, data e ora). È in sola lettura per tutti.
 
-## Tema chiaro e colore del brand
+### 5.2 Registrare un deposito o un prelievo
 
-Il tema è stato convertito da scuro ad **chiaro**, e il colore di accento (bottoni, tab attive, focus, badge) è passato dall'arancione al **blu dello sfondo del logo** (`#2f4f92`, con sfumature più chiare/scure per hover e badge). Le uniche eccezioni volute sono i colori semantici invariati: verde per "deposito"/successo, rosso per errori/eliminazioni/sotto-scorta.
+Si sceglie **Deposito** (merce che entra) o **Prelievo** (merce che esce); si apre un cassetto dal basso, con la stessa animazione ovunque nell'app. Il deposito ha intestazione verde, il prelievo blu.
 
-> Nota: per semplicità, il badge di avviso "sotto scorta minima" e la modalità "Prelievo" dello scanner ora usano lo stesso blu del brand invece di un arancione distintivo. Se preferisci che gli avvisi di sotto-scorta restino in una tonalità diversa (es. giallo/arancione) per distinguerli a colpo d'occhio dal blu dei pulsanti, fammelo sapere e aggiungo un colore "warning" separato.
+1. **Trovare l'articolo**
+   - **Scansione**: si inquadra il codice a barre con la fotocamera (si tocca lo schermo per mettere a fuoco, c'è il pulsante per cambiare fotocamera e quello per la **torcia**). Si riconosce qualunque codice a barre associato all'articolo, anche se ne ha più di uno.
+   - **Ricerca manuale**: si scrive il codice, la descrizione, lo scaffale o la macchina.
+   - Dalla ricerca in alto, ogni risultato offre anche i pulsanti **Deposito** e **Prelievo** che aprono il cassetto con l'articolo già scelto.
+2. **Scegliere lo scaffale**: se l'articolo è su più scaffali, l'app li elenca con la quantità di ciascuno. Un prelievo non può superare la quantità presente su quello scaffale.
+3. **Indicare la quantità**: l'app mostra la **giacenza attuale** e la **giacenza dopo** il movimento prima della conferma.
+4. **Solo per il prelievo, dove viene usato il pezzo**:
+   - **Cuscinetti**: linea (Linea 1 / Linea 2), macchinario e **punto di utilizzo**. Il punto si scrive a mano, ma l'app propone quelli già usati per lo stesso cuscinetto sulla stessa linea e macchina e riconosce lo stesso posto scritto in modi diversi (maiuscole, accenti, punteggiatura).
+   - **Cinghie e Ricambi tecnici**: basta la linea (quando l'articolo ne ha una sola, è già impostata).
+5. **Conferma**: il movimento viene registrato con il nome dell'utente, la data e l'ora.
 
-## Undo / Redo sul Magazzino
+Se il prelievo porta l'articolo sotto scorta minima, compare subito un avviso.
 
-Nella vista Magazzino, accanto al pulsante "+ Nuovo", ci sono due pulsanti **↶ Annulla** e **↷ Ripeti** (visibili solo per l'Admin). Coprono le tre operazioni sugli articoli:
+### 5.3 Senza connessione
 
-- **Creazione** di un nuovo articolo → annullare lo elimina di nuovo.
-- **Modifica** di un articolo esistente → annullare ripristina tutti i campi al valore precedente.
-- **Eliminazione** di un articolo → annullare lo ricrea con lo stesso ID e tutti i dati originali.
+Se manca la rete, il movimento viene **salvato sul telefono e messo in coda**: un avviso «in attesa di sincronizzazione» indica quanti ne mancano. Appena torna la connessione vengono inviati in automatico, nell'ordine in cui sono stati fatti. Gli articoli già visti almeno una volta si trovano anche offline.
 
-La cronologia è tenuta in memoria (si azzera ricaricando la pagina) e tiene fino a 20 operazioni; una nuova modifica dopo un "Annulla" cancella le operazioni "Ripeti" pendenti, come nei normali editor. L'import massivo da Excel **non** è coperto da undo/redo (agisce su molte righe contemporaneamente): in caso di import errato, va corretto manualmente o ricaricando un file corretto.
+---
 
-## Fotocamera: riquadro di scansione più compatto
+## 6. Magazzino: l'anagrafica degli articoli
 
-Il riquadro di scansione (sia nello scanner deposito/prelievo sia nell'acquisizione barcode dal form articolo) è stato ridotto e reso meno allungato in larghezza, per un'inquadratura più mirata sul codice a barre.
+### 6.1 Come si sfoglia
 
+Tre schede: **Cuscinetti**, **Cinghie**, **Ricambi tecnici**.
 
+- **Cuscinetti**: si vedono per **scaffalatura**, con ricerca per codice o per scaffale.
+- **Cinghie e Ricambi tecnici**: un selettore a scorrimento permette di passare tra **Scaffalatura** e **Macchina**.
+- Gli scaffali sono **raggruppati per sigla**: una scheda «Scaffale SA» che si espande e mostra tutti gli scaffali SA, poi «Scaffale SB» e così via. I gruppi sono indipendenti, dentro un gruppo si apre un solo scaffale alla volta. Uscendo dalla sezione, al rientro tutto è richiuso.
+- Una **barra di ricerca rapida** cerca per codice, scaffale, macchina, punto di utilizzo e codice a barre; ha un pulsante X per cancellare il testo senza tastiera (lo stesso vale per quasi tutti i campi di testo dell'app).
+- **Filtri**: per linea, per macchina, per area (Magazzino o Ufficio tecnico) e «solo articoli sotto scorta minima».
+- Negli elenchi dei Ricambi tecnici la riga mostra la **descrizione in grassetto** e, sotto, il codice, la macchina e la linea.
 
-## Il Magazzino: 3 categorie
+### 6.2 La scheda articolo (sola lettura)
 
-La vista "Magazzino" è divisa in tre tab e mostra la lista/ricerca degli articoli. L'**import da Excel è stato spostato in Impostazioni** (icona ingranaggio in alto a destra, al posto del vecchio tasto Esci — il logout ora si trova dentro Impostazioni insieme all'import).
+Toccando un articolo si apre una scheda pulita, senza campi modificabili:
+- codice, descrizione (dove presente) e categoria;
+- **quantità disponibile** e **tutte le locazioni** con la quantità di ciascuna (lo stesso codice può stare su più scaffali);
+- macchina, linea e punto di utilizzo, dove previsti;
+- **tutti i codici a barre** con il produttore di ciascuno, ognuno con il pulsante per **stampare l'etichetta**;
+- il pulsante per aprire il **manuale** corrispondente.
 
-- **Cuscinetti** — import Excel su 3 colonne (A→C): `Codice`, `Locazione`, `Quantità`. La scorta minima non è ancora definita, quindi viene impostata automaticamente a **5** per ogni articolo importato. Per assegnare il barcode a un cuscinetto (quello già stampato sulla scatola, senza generarne uno nuovo), apri l'articolo e premi l'icona di scansione accanto al campo "Codice a barre": si apre la fotocamera, inquadri il codice e viene inserito automaticamente nel campo.
-- **Cinghie** — import Excel su 7 colonne (A→G): `Codice`, `Locazione`, `Quantità`, `Linea`, `Macchina`, `Punto di utilizzo`, `Scorta minima`. Nella vista Magazzino, quando questa categoria è attiva, compare un **filtro Linea** (Tutte / L1 / L2 / L1-L2): selezionando L1 vedi anche gli articoli L1-L2 (e viceversa per L2), perché quegli articoli servono entrambe le linee; selezionando "Solo L1-L2" vedi solo quelli esclusivi di entrambe.
-- **Pezzi di ricambio** — in sospeso: l'inventario non è stato ancora popolato, quindi l'import Excel non è configurato per questa categoria (i formati non sono stati definiti). Restano comunque disponibili la creazione manuale dell'articolo e tutte le altre funzionalità (barcode, deposito/prelievo, report). Quando sarà pronto l'elenco/formato del file, si potrà aggiungere l'import allo stesso modo delle altre due categorie.
+L'Operatore si ferma qui. L'Admin ha in più un **pulsante tondo a matita** in basso che apre il modulo di modifica.
 
-**Formato dei file Excel**: la prima riga può contenere le intestazioni (vengono riconosciute automaticamente e saltate se la prima cella contiene "codice") oppure i dati possono partire direttamente dalla riga 1 — le colonne vengono lette per **posizione** (A, B, C…), non per nome. Il codice articolo è univoco all'interno della stessa categoria: ricaricando un file con codici già presenti, gli articoli vengono **aggiornati** (locazione, quantità, scorta minima, linea/macchina, punto di utilizzo) invece che duplicati.
+### 6.3 Gestione degli articoli (Admin)
 
-L'import è disponibile solo per l'Admin, dalla vista **Impostazioni** → tab della categoria → "Carica da Excel".
+- **+ Nuovo** crea un articolo; la matita nella scheda lo modifica; si può anche eliminare.
+- **Più scaffali per lo stesso articolo**: nella modifica c'è la sezione «Scaffali e quantità», con una riga per scaffale e il pulsante «Aggiungi scaffale». La giacenza totale è la somma.
+- **Più codici a barre per lo stesso articolo**, ciascuno con il produttore (facoltativo); si possono acquisire con la fotocamera. Per cinghie e ricambi tecnici, che non hanno un codice stampato, c'è il pulsante **Genera** che ne crea uno.
+- **Etichetta PDF**: contiene solo il codice a barre e il numero sotto, pronta da stampare.
+- **Annulla / Ripeti**: i pulsanti ↶ e ↷ annullano e ripristinano creazione, modifica ed eliminazione di articoli (fino a 20 operazioni, finché la pagina resta aperta).
+- **Linea e Macchina**: la linea ha tre valori fissi (L1, L2, L1-L2); la macchina si sceglie da un elenco (che si gestisce in Impostazioni) con una finestra di selezione disegnata apposta per il telefono.
+- **Descrizione facoltativa** per ogni cuscinetto, per spiegare a cosa serve quel codice; per i Ricambi tecnici la descrizione è il dato principale mostrato nell'elenco.
+- **Scorta minima** impostabile per ogni articolo.
+- **Import da Excel** dell'inventario: vedi [Impostazioni](#10-impostazioni).
 
-### Nuovo articolo: Linea e Macchina
+---
 
-Nel form articolo (categoria Cinghie):
-- **Linea** è un menu a tendina fisso con solo tre valori possibili: `L1`, `L2`, `L1-L2`.
-- **Macchina** è una combobox (campo di testo con suggerimenti): propone solo i valori di macchina già presenti tra gli articoli registrati, senza duplicati, ma resta possibile digitarne uno nuovo se serve censire una macchina non ancora vista.
+## 7. Manuali delle macchine
 
-## Database Supabase (già configurato)
+Una raccolta dei manuali PDF, organizzata per macchina.
 
-Progetto: `ffbwazuikbqkikuybcyp` (regione eu-central-1).
+- **Elenco macchine**: ogni macchina ha la sua riga con icona; toccandola si apre il dettaglio con un'animazione di «navigazione» (il dettaglio scorre da destra).
+- **Pulsanti**: dentro la macchina compaiono banner con icona a sinistra e dettaglio a destra. Ogni pulsante porta a **una sezione precisa del manuale** (per esempio «Monitor energia», pagine da 100 a 120) oppure al manuale intero.
+- **Apertura con la tua app PDF** (Android): toccando un pulsante di sezione o lo Spare parts, Android mostra il menu «Apri con» e si sceglie il lettore PDF preferito tra quelli installati (Drive, Acrobat, Xodo…). Per una sezione l'app estrae sul telefono solo quelle pagine in un piccolo PDF temporaneo, che si cancella da solo dopo un'ora. Fuori da Android, o se qualcosa non funziona, si apre il lettore integrato già alla pagina giusta.
+- **Gruppi**: i pulsanti si possono organizzare in gruppi (schede in alto, scorrevoli col dito), per esempio per una macchina con molte sezioni.
+- **Spare parts**: un pulsante in alto apre il manuale ricambi. Se una macchina ha un manuale per ogni linea, compaiono «Spare parts — Linea 1» e «Spare parts — Linea 2». Dalla scheda di un articolo si può aprire lo stesso manuale e cercare il codice al suo interno.
+- **Lettore PDF integrato** (usato anche quando si apre il manuale dalla scheda di un articolo, per poterne cercare il codice):
+  - scorrimento col dito e **zoom**;
+  - **campo per scrivere il numero di pagina** e saltarci;
+  - **scrollbar laterale** trascinabile per spostarsi rapidamente;
+  - **ricerca per parola chiave** dentro il documento (se il PDF è una scansione senza testo, l'app lo segnala);
+  - i manuali già aperti vengono **salvati sul telefono**: si riaprono subito e funzionano anche senza rete.
+- **Per l'Admin**:
+  - aggiungere, modificare ed eliminare pulsanti e gruppi, scegliendo la sezione per pagina iniziale e finale e un'icona (anche scegliendo il file dalla memoria del telefono);
+  - **modalità Riordina** dedicata: si tiene premuto e si trascina un banner per cambiarne la posizione, con animazione fluida; lo stesso vale per le macchine nell'elenco;
+  - caricare i manuali e le icone delle macchine da Impostazioni → Gestione macchine.
+- Per l'Operatore tutta la sezione è in sola lettura.
 
-Sono state applicate le seguenti migrazioni:
+---
 
-1. **`profiles`** — estende `auth.users` con un ruolo (`admin` / `user`). Un trigger su `auth.users` crea automaticamente il profilo (ruolo `user` di default) ad ogni nuova registrazione.
-2. **`products`** — anagrafica articoli: codice, descrizione (opzionale), **categoria** (`cuscinetti`/`cinghie`/`pezzi_ricambio`), locazione, giacenza, scorta minima, barcode, e i campi `linea`/`macchina` (usati principalmente dalle cinghie). Il codice articolo è univoco per categoria (stesso codice può teoricamente esistere in categorie diverse).
-3. **`transactions`** — log immutabile di ogni deposito/prelievo (prodotto, utente, tipo, quantità, data/ora, punto di utilizzo specifico).
-4. **RLS**: tutti gli utenti autenticati leggono l'anagrafica articoli; solo gli admin possono creare/modificare/eliminare articoli e importare da Excel; lo storico transazioni è visibile per intero solo agli admin (gli operatori vedono le proprie transazioni e quelle fatte dagli admin, non quelle degli altri operatori — vedi `sql/operatori-vedono-movimenti-admin.sql`); l'inserimento diretto in `transactions` è bloccato — passa solo dalla funzione RPC.
-5. **Funzione `process_transaction`** — aggiorna la giacenza e registra la transazione in un'unica operazione atomica (con lock di riga), impedendo giacenze negative e race condition su richieste concorrenti. Ritorna anche un flag `sotto_scorta` usato per il toast di avviso.
-6. **Funzione `bulk_upsert_products`** — riceve la categoria e un array di righe (dal file Excel) e fa upsert su `(categoria, codice_articolo)`: inserisce i nuovi articoli e aggiorna quelli già presenti. Solo un admin può eseguirla.
+## 8. Interventi: il blocco note della manutenzione
 
-### Creare il primo utente Admin
+Il quaderno digitale delle soste e dei lavori di manutenzione.
 
-1. In Supabase → **Authentication → Users**, crea un utente (email + password), oppure fallo registrare dall'app se hai abilitato la sign-up.
-2. Il trigger crea automaticamente una riga in `profiles` con ruolo `user`. Promuovilo ad admin da **SQL Editor**:
+### 8.1 L'elenco
 
-```sql
-update public.profiles set role = 'admin' where id = (
-  select id from auth.users where email = 'nome@azienda.it'
-);
-```
+- Due schede: **Da fare** ed **Effettuati**.
+- Raggruppato per **giorno** (con possibilità di scegliere il giorno) e filtrabile per **linea** e per **macchina**.
+- Un **pallino** accanto agli interventi inseriti da altri e non ancora aperti, che sparisce all'apertura; un **badge con il numero** sul pulsante Interventi della barra segnala quanti sono nuovi. Il controllo avviene all'avvio, ogni minuto e quando si torna nell'app.
 
-Da quel momento l'utente vedrà anche le viste **Magazzino (gestione/import)** e **Report**.
+### 8.2 Inserire un nuovo intervento
 
-> Nota: questa app non include una pagina di registrazione self-service — gli account vanno creati da Supabase Auth (dashboard o API admin), coerentemente con un magazzino ad accesso controllato.
+In **tre passi obbligatori**:
+1. **Linea** (Linea 1 / Linea 2);
+2. **Macchina**;
+3. **Intervento**: si scrive il lavoro oppure si sceglie una **scelta rapida** (i lavori ricorrenti già associati a quella combinazione di linea e macchina, gestiti dall'Admin in Impostazioni).
 
-## Deploy su Cloudflare Pages via GitHub
+Si può aggiungere una **foto** (ridotta automaticamente dal telefono prima del caricamento). Un intervento si può inserire come «da fare» o come «già effettuato».
 
-1. **Crea il repository GitHub** e carica tutti i file di questa cartella nella root del repo (nessuna sottocartella `src`/`dist`):
+### 8.3 Aggiornare l'esito
 
-   ```bash
-   git init
-   git add .
-   git commit -m "Prima versione app magazzino"
-   git branch -M main
-   git remote add origin https://github.com/<tuo-utente>/<tuo-repo>.git
-   git push -u origin main
-   ```
+Aprendo un intervento si può:
+- cambiarne lo **stato** (da fare / effettuato) e modificare il testo;
+- indicare **l'orario** del lavoro;
+- scegliere gli **operatori** che l'hanno eseguito (l'elenco si gestisce in Impostazioni);
+- aggiungere **note** sull'esito e sostituire o rimuovere la foto (la foto si apre a tutto schermo con zoom);
+- registrare i **ricambi prelevati dal magazzino**: l'app chiede «Hai prelevato ricambi dal magazzino?», si cercano gli articoli con un unico campo (cuscinetti, cinghie e ricambi tecnici insieme), si sceglie quantità e scaffale e i **prelievi vengono scalati dalle giacenze** come un normale prelievo.
 
-2. **Collega Cloudflare Pages al repo**:
-   - Cloudflare Dashboard → *Workers & Pages* → *Create* → *Pages* → *Connect to Git*.
-   - Seleziona il repository appena creato.
-   - Configurazione build:
-     - **Framework preset**: `None`
-     - **Build command**: *(lascia vuoto)*
-     - **Build output directory**: `/`
-   - Deploy.
+### 8.4 PDF degli interventi effettuati
 
-3. Ad ogni `git push` su `main`, Cloudflare Pages ridistribuisce automaticamente la nuova versione.
+Si genera il PDF di una giornata (o di un periodo):
+- organizzato **per linea e, dentro ogni linea, per macchina**, nello stesso ordine dell'app;
+- per ogni intervento compare solo il **lavoro effettuato** (niente orari, nomi o note);
+- si **sceglie quali interventi includere** e, per ognuno, si vede **l'anteprima della foto** con accanto la scelta di inserirla o no;
+- sui telefoni che lo permettono si apre il foglio di condivisione (mail, WhatsApp…), altrimenti il file viene scaricato.
 
-4. **Camera e HTTPS**: lo scanner richiede l'accesso alla fotocamera, disponibile solo su origini sicure. Cloudflare Pages serve tutto in HTTPS di default, quindi funziona subito sul dominio `*.pages.dev` o su un dominio custom collegato.
+---
 
-5. **Chiave Supabase**: `supabase.js` contiene già l'URL del progetto e la chiave `anon`/pubblica (sicura da esporre pubblicamente: l'accesso ai dati è comunque filtrato dalle policy RLS lato database). Non serve alcuna variabile d'ambiente per il deploy statico.
+## 9. Report (solo Admin)
 
-## Sviluppo locale
+Si apre dalle Impostazioni. Un unico filtro di periodo vale per tutta la pagina: **ultimi 7 giorni, 30 giorni, 3, 6, 12 mesi, Totale** oppure **Personalizzato**, con un calendario disegnato nello stile dell'app dove si scelgono le date.
 
-Basta un server statico qualsiasi (serve solo per gli import ES module, che non funzionano da `file://`):
+**Vita utile dei ricambi**
+- Ogni prelievo conta come **una sostituzione**, qualunque sia la quantità. Prelievi dello stesso ricambio a meno di un'ora l'uno dall'altro contano come una sola.
+- Si confronta lo stesso ricambio **nello stesso posto**: per i cuscinetti articolo + linea + macchinario + punto di utilizzo, per cinghie e ricambi tecnici articolo + linea.
+- La **durata** è il numero di giorni tra una sostituzione e la successiva; la **vita media** è la media delle durate precedenti.
+- Se una sostituzione arriva **prima della media** (con una tolleranza del 10%), viene segnalata come **anticipata**: è il segnale che qualcosa nella macchina o nel pezzo non va.
+- Servono almeno 3 prelievi dello stesso ricambio nello stesso posto per avere un confronto sensato.
 
-```bash
-npx serve .
-# oppure
-python3 -m http.server 8080
-```
+**Elenco dei movimenti**
+- Due schede, **Depositi** e **Prelievi**, con lo stesso selettore scorrevole del Magazzino.
+- Toccando una voce si espande la scheda con tutte le informazioni: articolo, quantità, chi, quando, linea, macchina e punto di utilizzo.
 
-Poi apri `http://localhost:8080` (per testare la fotocamera da smartphone in rete locale, alcuni browser richiedono comunque HTTPS: usa `npx serve . --ssl` o un tunnel come `ngrok`/`cloudflared`).
+---
+
+## 10. Impostazioni
+
+Si aprono dall'ingranaggio in alto. Le voci di gestione sono riservate all'Admin.
+
+**Gestione (Admin)**
+- **Report**: vedi sopra.
+- **Gestione utenti**: elenco degli utenti registrati con email e ruolo; si imposta nome e cognome di ciascuno, che compaiono nei report e nello storico al posto dell'email.
+- **Gestione macchine**: aggiungere e rimuovere macchine (compaiono nel form articolo, nei filtri e nei Manuali) e caricare i manuali operatore, i manuali ricambi per linea e le icone.
+- **Gestione scaffali**: aggiungere e rimuovere scaffali, ciascuno assegnato a un'area (**Magazzino** o **Ufficio tecnico**); si vede quanti articoli contiene ognuno. Rimuovendo uno scaffale, le quantità restano all'articolo, semplicemente senza scaffale.
+- **Interventi rapidi**: i lavori ricorrenti per linea e macchina che compaiono come scelte rapide negli Interventi.
+- **Operatori**: l'elenco delle persone assegnabili agli interventi.
+- **Carica da Excel**: import dell'inventario per categoria (Cuscinetti, Cinghie, Ricambi tecnici). Le colonne sono lette per posizione; la riga di intestazione è facoltativa. Più righe con lo stesso codice significano più scaffali per lo stesso articolo. Gli articoli già presenti vengono aggiornati, quelli nuovi creati.
+
+**Impostazioni dell'app (tutti)**
+- **Suoni** e **Vibrazione**: ogni azione ha un feedback sonoro e aptico leggero (attivabili e disattivabili).
+- **Aggiornamenti**: ricarica i dati e controlla se esiste una nuova versione dell'app.
+- **Cache PDF**: i manuali già aperti restano sul telefono; da qui si può svuotare la cache per liberare spazio.
+
+**Zona pericolosa (Admin)**
+- **Gestione cronologia movimenti**: permette di rivedere ed **eliminare singoli movimenti** (anche più di uno alla volta, filtrando per Depositi o Prelievi) di uno o più articoli. La giacenza attuale non cambia: si tocca solo lo storico.
+
+**Esci**: disconnessione dall'account.
+
+---
+
+## 11. Funzioni che si trovano ovunque
+
+- **Ricerca globale**: il campo «Cerca articolo…» in alto è disponibile in ogni sezione e mostra i risultati mentre si scrive; il pulsante fotocamera accanto permette di scansionare un codice e poi aprirne la scheda o fare subito un deposito o un prelievo.
+- **Installabile come app**: da Chrome (Android e desktop) o Safari (iPhone, «Aggiungi a Home») compare con la sua icona, a tutto schermo.
+- **Pensata per il telefono**: pulsanti grandi, cassetti che salgono dal basso e si chiudono trascinandoli verso il basso, margini che si adattano a notch e indicatore home, e una versione più compatta per il computer.
+- **Animazioni coerenti**: tutte le finestre usano la stessa struttura e gli stessi tempi di apertura e chiusura; i selettori hanno un riempimento blu che scorre, le schede si adattano in altezza con una transizione.
+- **Tasto indietro** gestito su ogni livello aperto.
+- **Funziona anche con poca rete**: guscio dell'app, articoli già visti, manuali già aperti e movimenti in coda restano disponibili.
+- **Curiosità**: una pressione prolungata di tre secondi sul logo della schermata di accesso fa comparire la mascotte. L'ingranaggio del logo si può anche lanciare col dito.
+
+---
+
+## 12. Informazioni tecniche
+
+- **Frontend**: HTML, CSS e JavaScript puri (moduli ES nativi), senza bisogno di compilazione. Tailwind e le librerie esterne (Supabase JS, JsBarcode, Lucide per le icone, jsPDF, html5-qrcode, SheetJS, pdf.js, pdf-lib) sono caricate da CDN, quelle più pesanti solo al momento del bisogno.
+- **Backend**: [Supabase](https://supabase.com) — autenticazione, database PostgreSQL con permessi per riga (RLS), funzioni SQL per i movimenti e gli import, archiviazione dei manuali e delle foto.
+- **Pubblicazione**: sito statico su Cloudflare Pages collegato a GitHub; ogni modifica sul ramo principale viene pubblicata in automatico. Serve HTTPS (la fotocamera funziona solo su connessioni sicure).
+- **Aggiornamenti**: il service worker conserva in cache i file dell'app per l'uso rapido e offline; a ogni modifica se ne incrementa la versione, così i telefoni scaricano i file nuovi.
+- **Sviluppo locale**: basta un server statico, ad esempio `python3 -m http.server 8080` o `npx serve .`, e poi `http://localhost:8080`.
+- **Primo utente Admin**: si crea l'utente da Supabase (Authentication → Users) e lo si promuove da SQL impostando il ruolo `admin` nella tabella `profiles`.
+- **Sicurezza**: vedi `SECURITY.md`.

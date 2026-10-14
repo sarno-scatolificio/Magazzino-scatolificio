@@ -15,7 +15,8 @@ import { openPhotoViewer, wirePhoto } from './interventi-photo.js';
 import { markSeen } from './interventi-unseen.js';
 import { pickDateRange } from './date-range-modal.js';
 import { pickTime } from './time-picker.js';
-import { toastError, toastSuccess, toastWarning } from './toast.js';
+import { toastError, toastInfo, toastSuccess, toastWarning } from './toast.js';
+import { infinitoAPassato } from './verbi-passato.js';
 
 let detail = null; // intervento aperto nel foglio dell'esito: { row, stato, foto, fotoUrl, rimuovi }
 
@@ -48,9 +49,11 @@ export function initDetailSheet() {
   els.detSeg.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-stato]');
     if (!btn || !detail) return;
+    const prevStato = detail.stato;
     detail.stato = btn.dataset.stato;
     // Appena si sceglie "Effettuato" il giorno e l'ora partono da adesso (modificabili)
     if (detail.stato === 'effettuato' && !detail.esitoAt) detail.esitoAt = new Date();
+    if (detail.stato !== prevStato) adattaTitoloAlloStato(prevStato);
     feedback.modeSelect();
     paintDetail();
   });
@@ -139,6 +142,29 @@ export async function openDetail(row) {
   }
 }
 
+/**
+ * Passando a "Effettuato" i verbi all'infinito del titolo diventano participi ("Sostituire cuscinetto" →
+ * "Sostituito cuscinetto"). Il nuovo titolo si vede subito e si può correggere con la matita prima di salvare;
+ * tornando a "Da fare" senza averlo toccato, si ripristina quello di prima.
+ */
+function adattaTitoloAlloStato(prevStato) {
+  const input = $('int-detail-desc-input');
+  if (detail.stato === 'effettuato' && prevStato !== 'effettuato') {
+    const { testo, cambiato } = infinitoAPassato(input.value);
+    if (!cambiato) return;
+    detail.titoloPrima = input.value;
+    detail.titoloConvertito = testo;
+    input.value = testo;
+    $('int-detail-desc').textContent = testo;
+    toastInfo('Titolo scritto al passato. Per correggerlo tocca la matita.', 3500);
+  } else if (prevStato === 'effettuato' && detail.stato !== 'effettuato' && detail.titoloConvertito && input.value === detail.titoloConvertito) {
+    input.value = detail.titoloPrima;
+    $('int-detail-desc').textContent = detail.titoloPrima;
+    detail.titoloPrima = null;
+    detail.titoloConvertito = null;
+  }
+}
+
 /** Mostra il titolo come testo oppure come campo modificabile */
 function setDescEditing(on) {
   $('int-detail-desc').classList.toggle('hidden', on);
@@ -199,6 +225,9 @@ async function indicaRicambi() {
   feedback.tap();
   const picked = await pickRicambi({
     context: `${lineaLabel(row.linea)} · ${row.macchina}`,
+    linea: row.linea,
+    macchina: row.macchina,
+    titolo: row.descrizione,
     emptyLabel: 'Nessun ricambio è stato usato',
     emptyNote: 'Toccando il pulsante l\'avviso "Ricambi da indicare" viene tolto.',
   });

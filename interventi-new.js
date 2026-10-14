@@ -226,6 +226,9 @@ async function saveFatto() {
   if (answer === 'si') {
     const picked = await pickRicambi({
       context: `${lineaLabel(draft.linea)} · ${draft.macchina}`,
+      linea: draft.linea,
+      macchina: draft.macchina,
+      titolo: draft.desc,
       emptyLabel: 'Salva senza ricambi',
       emptyNote: 'Nessun ricambio selezionato: l\'intervento si salva comunque e resta segnalato come "Ricambi da indicare" tra gli effettuati.',
     });
