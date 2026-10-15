@@ -8,6 +8,7 @@
 export const ss = {
   currentMode: null, // 'deposito' | 'prelievo'
   currentProduct: null,
+  prestito: false, // prelievo registrato come prestito (da reintegrare)
   currentLocationId: null, // scaffale scelto per il movimento (obbligatorio se l'articolo sta su più scaffali)
   machinesCache: null, // macchine (con linee) per il campo Macchinario del prelievo cuscinetti
   codeSearchDebounce: null,

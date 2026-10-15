@@ -212,9 +212,9 @@ function renderResult(product) {
   renderShelfChoices(product);
   els.puntoInput.value = product.punto_utilizzo_standard || '';
   setupPrelievoFields(product);
+  setPrestito(false); // ogni articolo riparte come prelievo normale
   setQty(1);
 
-  els.confirmBtn.textContent = ss.currentMode === 'deposito' ? 'Conferma deposito' : 'Conferma prelievo';
   // Il colore del pulsante segue la modalità (variabili di data-mode sul pannello)
   els.confirmBtn.className = 'btn-mode press-spring flex-1 rounded-lg py-3 font-display font-semibold uppercase tracking-wide';
   updateAfterPreview();
@@ -259,6 +259,18 @@ function renderShelfChoices(product) {
     });
     els.shelfGroup.appendChild(btn);
   });
+}
+
+/** Prelievo a prestito: con "Prestito" attivo si chiede solo a chi viene dato (niente linea/macchinario/punto di utilizzo) */
+export function setPrestito(on, { focus = false } = {}) {
+  ss.prestito = !!on && ss.currentMode === 'prelievo';
+  els.prelievoFields.classList.toggle('is-prestito', ss.prestito);
+  els.prestitoToggle.setAttribute('aria-checked', String(ss.prestito));
+  els.prestitoState.textContent = ss.prestito ? 'sì' : 'no';
+  els.prestitoDestWrap.classList.toggle('hidden', !ss.prestito);
+  if (!ss.prestito) els.prestitoDest.value = '';
+  els.confirmBtn.textContent = ss.currentMode === 'deposito' ? 'Conferma deposito' : ss.prestito ? 'Conferma prestito' : 'Conferma prelievo';
+  if (ss.prestito && focus) els.prestitoDest.focus();
 }
 
 /** Evidenzia la linea scelta (L1/L2) e la salva nel campo nascosto. '' = nessuna scelta. */

@@ -7,6 +7,7 @@ import { animateNumber, emptyStateHtml } from '../../shared/ui-utils.js';
 import { els } from './scanner-shared.js';
 import { escapeHtml } from '../../shared/html-utils.js';
 import { listProducts, listTransactions } from '../../data/supabase.js';
+import { refreshPrestitiCount } from './prestiti.js';
 
 /**
  * Riempie il pannello mostrato prima di scegliere Deposito/Prelievo, cosí
@@ -19,6 +20,7 @@ export async function loadIdlePanel() {
     const [lowStock, recent] = await Promise.all([listProducts({ onlyLowStock: true }), listTransactions({ limit: 5 })]);
     animateNumber(els.lowStockCountEl, lowStock.length, { duration: 500 });
     renderRecent(recent);
+    refreshPrestitiCount();
   } catch (err) {
     console.error(err);
   }

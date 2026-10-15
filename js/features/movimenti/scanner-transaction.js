@@ -3,7 +3,7 @@
 // =============================================================
 // Parte di quello che prima era un unico scanner.js (vedi scanner.js).
 
-import { adjustCachedProductQuantity, bumpProductsVersion, getProductLocations, processTransaction } from '../../data/supabase.js';
+import { adjustCachedProductQuantity, bumpProductsVersion, getProductLocations, processPrestito, processTransaction } from '../../data/supabase.js';
 import { animateNumber, replayAnimation, setButtonBusy } from '../../shared/ui-utils.js';
 import { closeScanModal, showFindMethods } from './scanner-camera.js';
 import { els, ss } from './scanner-shared.js';
@@ -12,6 +12,7 @@ import feedback from '../../shared/feedback.js';
 import { loadIdlePanel } from './scanner-idle.js';
 import { normPunto } from '../magazzino/punti-utilizzo.js';
 import { paintPunti } from './scanner-punti.js';
+import { refreshPrestitiCount } from './prestiti.js';
 import { toastError, toastSuccess, toastWarning } from '../../shared/toast.js';
 
 export function resetResult() {
@@ -92,6 +93,27 @@ async function runTransaction({ product, quantita, puntoUtilizzo, linea, macchin
   }
 }
 
+/** Prelievo registrato come prestito: serve la connessione (non passa dalla coda offline) */
+async function runPrestito({ product, quantita, destinatario, locationId }) {
+  try {
+    const result = await processPrestito({ productId: product.id, quantita, destinatario, locationId });
+    feedback.transactionPrelievo();
+    toastSuccess(`Prestito registrato: ${result.codice_articolo} a ${destinatario} → nuova giacenza ${result.nuova_giacenza}`);
+    if (result.sotto_scorta) {
+      setTimeout(() => feedback.lowStockAlert(), 350);
+      toastWarning(`⚠️ Scorta minima raggiunta per ${result.codice_articolo}.`, 6000);
+    }
+    refreshPrestitiCount();
+    return { ok: true, nuovaGiacenza: result.nuova_giacenza };
+  } catch (err) {
+    console.error(err);
+    feedback.errorAction();
+    if (isNetworkError(err)) toastError('Per registrare un prestito serve la connessione: il prestito NON è stato registrato.', 6000);
+    else toastError(err.message?.includes('Giacenza insufficiente') ? err.message : 'Errore durante la registrazione del prestito.');
+    return { ok: false };
+  }
+}
+
 export async function confirmTransaction() {
   if (!ss.currentProduct || !ss.currentMode) return;
   const quantita = parseInt(els.qtyInput.value, 10);
@@ -105,6 +127,31 @@ export async function confirmTransaction() {
   if (getProductLocations(ss.currentProduct).length > 1 && !ss.currentLocationId) {
     feedback.errorAction();
     toastError('Scegli lo scaffale.');
+    return;
+  }
+
+  // Prestito: si indica solo a chi viene dato; niente linea, macchinario o punto di utilizzo
+  if (ss.currentMode === 'prelievo' && ss.prestito) {
+    const destinatario = els.prestitoDest.value.trim();
+    if (!destinatario) {
+      feedback.errorAction();
+      flagMissing(els.prestitoDest);
+      toastError('Indica a chi viene dato in prestito.');
+      return;
+    }
+    setButtonBusy(els.confirmBtn, true, 'Registrazione…');
+    const prod = ss.currentProduct;
+    const res = await runPrestito({ product: prod, quantita, destinatario, locationId: ss.currentLocationId });
+    setButtonBusy(els.confirmBtn, false);
+    if (res.ok) {
+      bumpProductsVersion();
+      animateNumber(els.productStock, res.nuovaGiacenza, { from: prod.quantita_disponibile, duration: 550 });
+      replayAnimation(els.productStock, 'stock-pulse');
+      setTimeout(() => {
+        resetResult();
+        loadIdlePanel();
+      }, 550);
+    }
     return;
   }
 

@@ -4,7 +4,7 @@
 // Questo file tiene l'avvio dello scanner e le funzioni usate dal resto dell'app; il resto è diviso in
 // scanner-shared / -camera / -search / -result / -punti / -transaction / -idle.
 
-import { bindHoldRepeat, handleDetectedCode, onProductMatched, setLinea } from './scanner-result.js';
+import { bindHoldRepeat, handleDetectedCode, onProductMatched, setLinea, setPrestito } from './scanner-result.js';
 import { bindScanModalBack, closeScanModal, collapseCamera, expandCamera, selectMode, toggleScanCameraSection, updateOfflineBadge } from './scanner-camera.js';
 import { confirmTransaction, resetAll, resetResult } from './scanner-transaction.js';
 import { els, ss } from './scanner-shared.js';
@@ -59,6 +59,10 @@ els.macchinarioValue = document.getElementById('scan-macchinario-value');
   els.lineaFixedName = document.getElementById('scan-linea-fixed-name');
   els.macchinarioWrap = document.getElementById('scan-macchinario-wrap');
   els.macchinarioSelect = document.getElementById('scan-macchinario-input');
+  els.prestitoToggle = document.getElementById('scan-prestito-toggle');
+  els.prestitoState = document.getElementById('scan-prestito-state');
+  els.prestitoDestWrap = document.getElementById('scan-prestito-dest-wrap');
+  els.prestitoDest = document.getElementById('scan-prestito-dest');
   els.confirmBtn = document.getElementById('scan-confirm-btn');
   els.cancelBtn = document.getElementById('scan-cancel-btn');
   els.modeBanner = document.getElementById('scan-mode-banner');
@@ -124,6 +128,10 @@ els.macchinarioValue = document.getElementById('scan-macchinario-value');
   els.cancelBtn.addEventListener('click', () => {
     feedback.cancelAction();
     resetResult();
+  });
+  els.prestitoToggle?.addEventListener('click', () => {
+    feedback.focusTap();
+    setPrestito(!ss.prestito, { focus: true });
   });
   els.confirmBtn.addEventListener('click', confirmTransaction);
   bindHoldRepeat(els.qtyMinusBtn, -1);
