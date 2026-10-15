@@ -1,0 +1,105 @@
+// =============================================================
+// users.js — Gestione utenti registrati (vista Impostazioni, solo Admin)
+// Permette di associare Nome e Cognome a ogni utente, usato al posto
+// dell'email nello storico transazioni e nei report.
+// =============================================================
+
+import { listProfiles, updateProfileName } from '../../data/supabase.js';
+import { toastSuccess, toastError, toastWarning } from '../../shared/toast.js';
+import { staggerIndex, replayAnimation, emptyStateHtml, setButtonBusy, openOverlay, closeOverlay } from '../../shared/ui-utils.js';
+import feedback from '../../shared/feedback.js';
+import { escapeHtml } from '../../shared/html-utils.js';
+
+const els = {};
+let profiles = [];
+
+export function initUsers() {
+  els.modal = document.getElementById('users-modal');
+  els.openBtn = document.getElementById('users-manage-btn');
+  els.closeBtn = document.getElementById('users-modal-close');
+  els.list = document.getElementById('users-list');
+  els.skeleton = document.getElementById('users-list-skeleton');
+
+  els.openBtn?.addEventListener('click', () => {
+    openOverlay(els.modal);
+    refreshUsers(); // sempre aggiornato all'apertura: la lista non è più visibile di striscio in Impostazioni
+  });
+  els.closeBtn?.addEventListener('click', () => closeOverlay(els.modal));
+  els.modal?.addEventListener('click', (e) => {
+    if (e.target === els.modal) closeOverlay(els.modal);
+  });
+}
+
+export async function refreshUsers() {
+  if (!els.list) return;
+  els.skeleton.classList.remove('hidden');
+  els.list.classList.add('hidden');
+  try {
+    profiles = await listProfiles();
+    renderUsers();
+  } catch (err) {
+    console.error(err);
+    if (profiles.length > 0) {
+      renderUsers();
+      toastWarning('Connessione assente: mostro gli ultimi dati caricati.');
+    } else {
+      els.list.innerHTML = emptyStateHtml('wifi-off', 'Connessione assente', 'Controlla la rete e riprova.');
+      toastError('Errore nel caricamento degli utenti.');
+    }
+  } finally {
+    els.skeleton.classList.add('hidden');
+    els.list.classList.remove('hidden');
+  }
+}
+
+function renderUsers() {
+  els.list.innerHTML = '';
+  profiles.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'list-item-in card-plate rounded-xl p-3 flex items-center gap-3';
+    row.style.setProperty('--i', staggerIndex(i));
+    row.innerHTML = `
+      <div class="min-w-0 flex-1">
+        <p class="text-xs text-graphite-500 truncate">${escapeHtml(p.email)}</p>
+        <input type="text" value="${escapeHtml(p.full_name || '')}" placeholder="Nome e Cognome"
+          class="user-name-input w-full mt-1 rounded-lg bg-graphite-800 border border-graphite-700 px-3 py-2 text-sm focus:border-amber-400 outline-none transition-colors">
+      </div>
+      <span class="shrink-0 ui-label whitespace-nowrap font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+        p.role === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-sky-500/20 text-sky-700'
+      }">${p.role === 'admin' ? 'Admin' : 'Operatore'}</span>
+      <button type="button" class="user-save-btn shrink-0 w-11 h-11 rounded-lg border border-graphite-700 hover:border-amber-400 text-graphite-400 hover:text-amber-400 flex items-center justify-center transition-colors" aria-label="Salva nome" title="Salva">
+        <i data-lucide="check" class="w-4 h-4" stroke-width="2.25"></i>
+      </button>
+    `;
+    const input = row.querySelector('.user-name-input');
+    const saveBtn = row.querySelector('.user-save-btn');
+    saveBtn.addEventListener('click', () => saveName(p.id, input.value.trim(), saveBtn));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') saveName(p.id, input.value.trim(), saveBtn);
+    });
+    els.list.appendChild(row);
+  });
+  window.lucide?.createIcons();
+}
+
+async function saveName(id, name, btn) {
+  if (!name) {
+    toastError('Il nome non può essere vuoto.');
+    return;
+  }
+  setButtonBusy(btn, true);
+  try {
+    await updateProfileName(id, name);
+    feedback.confirmAction();
+    toastSuccess('Nome aggiornato.');
+    replayAnimation(btn, 'stock-pulse');
+    const p = profiles.find((x) => x.id === id);
+    if (p) p.full_name = name;
+  } catch (err) {
+    console.error(err);
+    feedback.errorAction();
+    toastError('Errore nel salvataggio del nome.');
+  } finally {
+    setButtonBusy(btn, false);
+  }
+}

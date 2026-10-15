@@ -9,5 +9,6 @@ npm run check
 ```
 
 `check.mjs` verifica che gli import siano corretti, che non ci siano nomi usati senza essere definiti,
-che il service worker elenchi tutti i file usati dall'app e che gli id cercati nel codice esistano in
-`index.html`. Gira anche da solo su GitHub a ogni push (scheda **Actions**).
+che il service worker elenchi tutti i file usati dall'app, che gli id cercati nel codice esistano in
+`index.html` e che immagini, icone, stile e manifest richiamati da `index.html`, `manifest.json`, dai CSS e dai moduli esistano davvero
+(segnala anche i file in `assets/` che nessuno usa). Gira anche da solo su GitHub a ogni push (scheda **Actions**).

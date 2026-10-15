@@ -8,6 +8,9 @@
 //   2. nessun nome usato senza essere definito (variabili dimenticate dopo uno spostamento di codice);
 //   3. il service worker: i file dell'elenco esistono e nessun modulo usato dall'app manca all'elenco;
 //   4. gli id letti con getElementById / $('...') esistono in index.html (o nei modelli HTML dei file JS).
+//   5. immagini, icone, stile e manifest: ogni file richiamato da index.html, manifest.json, CSS e JS esiste
+//      (i percorsi dei CSS e dei moduli sono letti rispetto al file che li contiene) e, se serve offline, è nell'elenco
+//      del service worker; i file in assets/ che nessuno richiama vengono segnalati.
 // Esce con codice 1 se trova errori, così GitHub segna il controllo come fallito.
 
 import fs from 'node:fs';
@@ -166,7 +169,7 @@ const block = sw.slice(sw.indexOf('const APP_SHELL = ['), sw.indexOf('];', sw.in
 const shell = new Set([...block.matchAll(/'\.\/([^']*)'/g)].map((m) => m[1]).filter(Boolean));
 for (const f of shell) if (!exists(f)) err(`service-worker.js: «${f}» è nell'elenco ma il file non esiste`);
 for (const f of info.keys()) if (!shell.has(f)) err(`service-worker.js: il modulo «${f}» è usato dall'app ma manca nell'elenco dei file in cache (offline non funzionerebbe)`);
-for (const f of ['style.css', 'tailwind.config.js', 'manifest.json']) if (exists(f) && !shell.has(f)) err(`service-worker.js: manca «${f}» nell'elenco`);
+for (const f of ['css/style.css', 'config/tailwind.config.js', 'manifest.json']) { if (!exists(f)) err(`manca il file «${f}»`); else if (!shell.has(f)) err(`service-worker.js: manca «${f}» nell'elenco`); }
 if (!/CACHE_NAME\s*=\s*'[^']+'/.test(sw)) err('service-worker.js: non trovo CACHE_NAME');
 
 // ---------- 4. id del DOM ----------
@@ -177,6 +180,42 @@ for (const [f, m] of info) {
     if (!known.has(x[1])) warn(`${f}: cerca l'elemento con id «${x[1]}», che non esiste in index.html`);
   }
 }
+
+// ---------- 5. risorse (immagini, icone, stile, manifest) ----------
+const walkFiles = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((d) =>
+  d.isDirectory() ? walkFiles(path.posix.join(dir, d.name)) : [path.posix.join(dir, d.name)]);
+const refs = new Map(); // file risolto dalla radice -> [dove è citato]
+const addRef = (target, where) => { const t = path.posix.normalize(target.split(/[?#]/)[0]); if (!refs.has(t)) refs.set(t, []); refs.get(t).push(where); };
+const isLocal = (u) => u && !/^(https?:|data:|blob:|mailto:|tel:|#|\/\/)/.test(u);
+// index.html (src / href locali)
+for (const m of html.matchAll(/\b(?:src|href)="(\.\/[^"]+)"/g)) addRef(path.posix.join('.', m[1]), 'index.html');
+// manifest.json (icone, scorciatoie, start_url)
+try {
+  const man = JSON.parse(read('manifest.json'));
+  for (const i of man.icons || []) if (isLocal(i.src)) addRef(i.src, 'manifest.json');
+  for (const sc of man.shortcuts || []) for (const i of sc.icons || []) if (isLocal(i.src)) addRef(i.src, 'manifest.json (scorciatoie)');
+  if (man.start_url && isLocal(man.start_url) && !man.start_url.includes('?')) addRef(man.start_url, 'manifest.json (start_url)');
+} catch (e) { err('manifest.json: JSON non valido — ' + e.message); }
+// CSS: url() relativi al file CSS
+for (const css of walkFiles('css').filter((f) => f.endsWith('.css'))) {
+  for (const m of read(css).matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)) {
+    if (isLocal(m[1])) addRef(path.posix.join(path.posix.dirname(css), m[1]), css);
+  }
+}
+// JS: percorsi di immagini (relativi al documento) e new URL('...', import.meta.url) (relativi al modulo)
+for (const [f, m] of info) {
+  for (const x of m.src.matchAll(/new URL\(\s*['"]([^'"]+)['"]\s*,\s*import\.meta\.url/g)) if (isLocal(x[1])) addRef(path.posix.join(path.posix.dirname(f), x[1]), f);
+  for (const x of m.src.matchAll(/['"](\.\/assets\/[^'"]+)['"]/g)) addRef(x[1], f);
+}
+for (const [target, where] of refs) if (!exists(target)) err(`«${target}» è richiamato da ${[...new Set(where)].join(', ')}, ma il file non esiste`);
+// offline: le immagini usate dall'interfaccia devono stare nell'elenco del service worker
+for (const [target, where] of refs) {
+  if (!exists(target) || !target.startsWith('assets/')) continue;
+  if (where.every((w) => w === 'manifest.json (scorciatoie)')) continue; // le usa solo il sistema operativo
+  if (!shell.has(target)) warn(`service-worker.js: «${target}» (usato da ${[...new Set(where)].join(', ')}) non è nell'elenco dei file in cache`);
+}
+// file in assets/ che nessuno richiama
+for (const f of walkFiles('assets')) if (!refs.has(f)) warn(`«${f}» non è richiamato da nessun file (inutilizzato?)`);
 
 // ---------- esito ----------
 const files = info.size;

@@ -11,37 +11,37 @@
   "lang": "it",
   "icons": [
     {
-      "src": "icons/favicon-16.png",
+      "src": "assets/icons/favicon-16.png",
       "sizes": "16x16",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/favicon-32.png",
+      "src": "assets/icons/favicon-32.png",
       "sizes": "32x32",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-192.png",
+      "src": "assets/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "assets/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-192-maskable.png",
+      "src": "assets/icons/icon-192-maskable.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "icons/icon-512-maskable.png",
+      "src": "assets/icons/icon-512-maskable.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -55,13 +55,13 @@
       "url": "./index.html?mode=deposito",
       "icons": [
         {
-          "src": "icons/shortcut-deposito.png",
+          "src": "assets/icons/shortcut-deposito.png",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"
         },
         {
-          "src": "icons/shortcut-deposito-maskable.png",
+          "src": "assets/icons/shortcut-deposito-maskable.png",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "maskable"
@@ -75,13 +75,13 @@
       "url": "./index.html?mode=prelievo",
       "icons": [
         {
-          "src": "icons/shortcut-prelievo.png",
+          "src": "assets/icons/shortcut-prelievo.png",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"
         },
         {
-          "src": "icons/shortcut-prelievo-maskable.png",
+          "src": "assets/icons/shortcut-prelievo-maskable.png",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "maskable"

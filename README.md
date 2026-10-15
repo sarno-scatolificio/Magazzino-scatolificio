@@ -20,6 +20,7 @@ Si usa come una normale app (si installa sulla schermata Home), si apre in un se
 10. [Impostazioni](#10-impostazioni)
 11. [Funzioni che si trovano ovunque](#11-funzioni-che-si-trovano-ovunque)
 12. [Informazioni tecniche](#12-informazioni-tecniche)
+13. [Struttura del repository](#13-struttura-del-repository)
 
 ---
 
@@ -316,4 +317,45 @@ Il conteggio si salva da solo sul telefono: si può chiudere l'app e riprendere 
 - **Aggiornamenti**: il service worker conserva in cache i file dell'app per l'uso rapido e offline; a ogni modifica se ne incrementa la versione, così i telefoni scaricano i file nuovi.
 - **Sviluppo locale**: basta un server statico, ad esempio `python3 -m http.server 8080` o `npx serve .`, e poi `http://localhost:8080`.
 - **Primo utente Admin**: si crea l'utente da Supabase (Authentication → Users) e lo si promuove da SQL impostando il ruolo `admin` nella tabella `profiles`.
-- **Sicurezza**: vedi `SECURITY.md`.
+- **Sicurezza**: vedi `docs/SECURITY.md`.
+- **Database**: la struttura (tabelle, funzioni, regole di sicurezza, storage) è descritta in `database/`; la consegna ad altra azienda è spiegata in `docs/CONSEGNA.md`.
+
+---
+
+## 13. Struttura del repository
+
+```
+index.html            pagina unica dell'app
+manifest.json         dati per l'installazione come app (nome, icone, scorciatoie)
+service-worker.js     cache e funzionamento offline (resta in radice: ne definisce l'ambito)
+_headers              intestazioni di sicurezza per Cloudflare Pages
+css/                  style.css — stile dell'app
+config/               tailwind.config.js — configurazione dei colori e dei temi
+assets/
+  icons/              logo, icone dell'app, favicon, mascotte
+  carousel/           foto del carosello nella schermata di accesso
+js/
+  core/               avvio, accesso e sessione, tasto indietro, coda offline
+  data/               collegamento a Supabase (un file per area: articoli, movimenti, manuali…)
+  shared/             componenti e utilità condivise (finestre, selettori, feedback, ricerca)
+  features/
+    magazzino/        anagrafica articoli, scorta minima, punti di utilizzo
+    movimenti/        scanner, depositi e prelievi, elenco movimenti
+    manuali/          manuali PDF, sezioni, gruppi, cache dei PDF
+    interventi/       blocco note interventi e PDF giornaliero
+    login/            carosello, ingranaggio e mascotte della schermata di accesso
+    report/           Report (vita utile dei ricambi, movimenti)
+    impostazioni/     utenti, macchine, scaffali, inventario, cronologia
+database/             struttura del database Supabase (SQL di riferimento, vedi database/README.md)
+docs/                 sicurezza, consegna, registro delle immagini, modelli legali
+tools/                controlli automatici sul codice (non fanno parte dell'app)
+.github/workflows/    controllo automatico a ogni push
+NOTICE.md             librerie e font di terzi, con le rispettive licenze
+```
+
+**Regole per chi aggiunge file**
+
+- Un nuovo modulo JavaScript va nella cartella della sua area; se serve a più aree va in `js/shared/`.
+- Ogni nuovo file `.js` usato dall'app va aggiunto all'elenco del service worker (`service-worker.js`) e, a ogni modifica ai file dell'app, si incrementa il numero di versione della cache.
+- Immagini e icone vanno in `assets/`; i percorsi nei file CSS sono relativi al file CSS (`../assets/...`).
+- Prima di pubblicare si lancia `npm run check` dalla cartella `tools/`: segnala percorsi sbagliati, nomi non definiti, file mancanti nella cache offline e immagini non trovate.

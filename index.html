@@ -9,11 +9,11 @@
 
 <!-- PWA: manifest e icone -->
 <link rel="manifest" href="./manifest.json">
-<link rel="icon" type="image/x-icon" href="./icons/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16.png">
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
-<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="./assets/icons/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="./assets/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./assets/icons/favicon-16.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./assets/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MATE">
@@ -34,7 +34,7 @@
      rende preferibile, in futuro, una build Tailwind reale (CLI/PostCSS),
      che risolverebbe sia questo che il problema del pinning. -->
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="./tailwind.config.js"></script>
+<script src="./config/tailwind.config.js"></script>
 
 <!-- Librerie: generazione barcode, PDF, scanner fotocamera — tutte a
      versione fissa. Gli hash "integrity" (SRI) NON sono inclusi qui
@@ -49,7 +49,7 @@
      Caricata qui staticamente come le altre librerie; il worker viene puntato
      alla stessa versione da manuals.js dopo il caricamento. -->
 
-<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./css/style.css">
 </head>
 <body class="bg-graphite-900 text-graphite-100 font-body min-h-screen">
 
@@ -68,13 +68,13 @@
         <span class="mate-logo-wrap">
           <!-- Ingranaggio: immagine metallica unica, dietro alla M. Due finestre identiche (parte superiore = "corona",
                parte inferiore = arco sotto la V) mostrano le porzioni non coperte dalla M: ruotano insieme. -->
-          <span class="mate-gear-win mate-gear-win-t" aria-hidden="true"><span class="mate-gear-pop"><span class="mate-gear-shadow"></span><img class="mate-gear" src="./icons/logo-gear.png" alt="" width="560" height="560" decoding="async"></span></span>
-          <span class="mate-gear-win mate-gear-win-b" aria-hidden="true"><span class="mate-gear-pop"><span class="mate-gear-shadow"></span><img class="mate-gear" src="./icons/logo-gear.png" alt="" width="560" height="560" decoding="async"></span></span>
-          <img class="mate-layer mate-m" src="./icons/logo-m.png" alt="" width="743" height="839" decoding="async">
-          <img class="mate-layer mate-text" src="./icons/logo-text.png" alt="" width="743" height="839" decoding="async">
+          <span class="mate-gear-win mate-gear-win-t" aria-hidden="true"><span class="mate-gear-pop"><span class="mate-gear-shadow"></span><img class="mate-gear" src="./assets/icons/logo-gear.png" alt="" width="560" height="560" decoding="async"></span></span>
+          <span class="mate-gear-win mate-gear-win-b" aria-hidden="true"><span class="mate-gear-pop"><span class="mate-gear-shadow"></span><img class="mate-gear" src="./assets/icons/logo-gear.png" alt="" width="560" height="560" decoding="async"></span></span>
+          <img class="mate-layer mate-m" src="./assets/icons/logo-m.png" alt="" width="743" height="839" decoding="async">
+          <img class="mate-layer mate-text" src="./assets/icons/logo-text.png" alt="" width="743" height="839" decoding="async">
           <!-- "Magazzino" e "Tecnico": stessa immagine due volte, ognuna ritagliata su una parola (taglio nello spazio tra le due) -->
-          <img class="mate-layer mate-sub mate-sub-l" src="./icons/logo-sub.png" alt="" width="743" height="839" decoding="async">
-          <img class="mate-layer mate-sub mate-sub-r" src="./icons/logo-sub.png" alt="" width="743" height="839" decoding="async">
+          <img class="mate-layer mate-sub mate-sub-l" src="./assets/icons/logo-sub.png" alt="" width="743" height="839" decoding="async">
+          <img class="mate-layer mate-sub mate-sub-r" src="./assets/icons/logo-sub.png" alt="" width="743" height="839" decoding="async">
           <!-- Luce che scorre: ritagliata con la sagoma dell'intero logo, non tocca lo sfondo -->
           <span class="mate-shine" aria-hidden="true"><span class="mate-beam"></span></span>
         </span>
@@ -1755,7 +1755,7 @@
        lascia il pan nativo con un dito in ENTRAMBE le direzioni ma disattiva il pinch-zoom
        nativo del browser qui dentro: il pinch a due dita è gestito da manuals.js e scala
        SOLO il PDF, mai il resto dell'interfaccia. La scrollbar nativa resta nascosta
-       (style.css) a favore di quella personalizzata qui sotto, sempre visibile e
+       (css/style.css) a favore di quella personalizzata qui sotto, sempre visibile e
        trascinabile anche col dito. -->
   <div class="relative flex-1 overflow-hidden">
     <div id="manual-viewer-canvas-wrap" class="absolute inset-0 overflow-auto bg-graphite-950 px-2 py-3" style="touch-action: pan-x pan-y;">
@@ -1824,8 +1824,8 @@
   </div>
 </div>
 
-<script type="module" src="./login-carousel.js"></script>
-<script type="module" src="./login-mascotte.js"></script>
-<script type="module" src="./app.js"></script>
+<script type="module" src="./js/features/login/login-carousel.js"></script>
+<script type="module" src="./js/features/login/login-mascotte.js"></script>
+<script type="module" src="./js/core/app.js"></script>
 </body>
 </html>
