@@ -30,7 +30,7 @@ export const state = {
 // Bozza del nuovo intervento: resta in memoria se si chiude il foglio, così non si perde
 // quanto già scritto (si azzera col salvataggio o col pulsante "Azzera").
 // `fatto`: l'intervento è già stato effettuato (inserimento rapido, non preventivato).
-export const draft = { linea: '', macchina: '', desc: '', foto: null, fotoUrl: '', fatto: false };
+export const draft = { linea: '', macchina: '', desc: '', dettagli: '', foto: null, fotoUrl: '', fatto: false };
 
 
 export const STATO_CHIP = {

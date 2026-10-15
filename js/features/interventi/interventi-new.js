@@ -62,6 +62,13 @@ export function initNewSheet() {
   // 2 · Macchina
   els.newMacchinaBtn.addEventListener('click', pickNewMacchina);
 
+  // Dettagli (facoltativi, solo per gli interventi da effettuare)
+  els.newDettagli = $('int-new-dettagli');
+  els.newDettagli.addEventListener('input', () => {
+    draft.dettagli = els.newDettagli.value;
+    paintNew({ keepText: true });
+  });
+
   // 3 · Descrizione
   els.newDesc.addEventListener('input', () => {
     draft.desc = els.newDesc.value;
@@ -88,7 +95,7 @@ let wirePhotoNew = null;
 
 function clearDraft() {
   if (draft.fotoUrl) URL.revokeObjectURL(draft.fotoUrl);
-  draft.linea = draft.macchina = draft.desc = '';
+  draft.linea = draft.macchina = draft.desc = draft.dettagli = '';
   draft.foto = null;
   draft.fotoUrl = '';
   draft.fatto = false;
@@ -146,6 +153,10 @@ function paintNew({ keepText = false } = {}) {
   const hasMacc = !!draft.linea && !!draft.macchina;
   $('int-step-desc').dataset.locked = String(!hasMacc);
   $('int-step-photo').dataset.locked = String(!hasMacc);
+  // I dettagli servono a chi farà il lavoro: si chiedono solo per gli interventi da effettuare
+  $('int-step-dettagli').classList.toggle('hidden', draft.fatto);
+  $('int-step-dettagli').dataset.locked = String(!hasMacc);
+  if (document.activeElement !== els.newDettagli) els.newDettagli.value = draft.dettagli;
 
   els.newMacchinaValue.textContent = draft.macchina || 'Seleziona…';
   els.newMacchinaValue.classList.toggle('text-graphite-400', !draft.macchina);
@@ -177,7 +188,7 @@ function paintNew({ keepText = false } = {}) {
 
   const valid = hasMacc && draft.desc.trim().length > 0;
   els.newSave.disabled = !valid;
-  const dirty = !!(draft.linea || draft.macchina || draft.desc || draft.foto);
+  const dirty = !!(draft.linea || draft.macchina || draft.desc || draft.dettagli || draft.foto);
   els.newReset.classList.toggle('hidden', !dirty);
 }
 
@@ -194,6 +205,7 @@ async function saveNew() {
       linea: draft.linea,
       macchina: draft.macchina,
       descrizione: draft.desc.trim(),
+      dettagli: draft.dettagli,
       foto: draft.foto,
       authorName: authorName(),
     });

@@ -181,7 +181,7 @@ export async function searchInterventi(term) {
   const words = term.toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) return [];
   const hay = (r) =>
-    [r.descrizione, r.macchina, lineaLabel(r.linea), r.linea, r.note_esito, r.created_by_name, r.esito_by_name, STATI[r.stato]]
+    [r.descrizione, r.macchina, lineaLabel(r.linea), r.linea, r.note_esito, r.dettagli, r.created_by_name, r.esito_by_name, STATI[r.stato]]
       .filter(Boolean)
       .join(' ')
       .toLowerCase();

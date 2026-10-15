@@ -138,7 +138,11 @@ export async function exportDaFarePdf(rows) {
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(10.5);
           const lines = doc.splitTextToSize(r.descrizione || '', CW - 14);
-          const h = Math.max(BOX, lines.length * LINE_H);
+          doc.setFontSize(9.5);
+          const det = r.dettagli ? doc.splitTextToSize(r.dettagli, CW - 14) : [];
+          doc.setFontSize(10.5);
+          const DET_H = 4.3;
+          const h = Math.max(BOX, lines.length * LINE_H + det.length * DET_H);
           ensure(h + 4, nome, list.length);
           // casella vuota da spuntare a penna
           doc.setDrawColor(40, 40, 46);
@@ -147,6 +151,12 @@ export async function exportDaFarePdf(rows) {
           doc.setLineWidth(0.2);
           doc.setTextColor(30, 30, 34);
           doc.text(lines, M + 9, y);
+          if (det.length) {
+            doc.setFontSize(9.5);
+            doc.setTextColor(...GREY);
+            doc.text(det, M + 9, y + lines.length * LINE_H - 0.3);
+            doc.setFontSize(10.5);
+          }
           y += h + 3.2;
         }
         y += 3;

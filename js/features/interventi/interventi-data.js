@@ -39,7 +39,7 @@ function isMissingTable(error) {
 }
 
 const COLS =
-  'id, linea, macchina, descrizione, stato, foto_promemoria_path, note_esito, foto_esito_path, created_by, created_by_name, created_at, esito_by, esito_by_name, esito_at, operatore_nome, operatori, ricambi, ricambi_mancanti';
+  'id, linea, macchina, descrizione, stato, foto_promemoria_path, note_esito, dettagli, foto_esito_path, created_by, created_by_name, created_at, esito_by, esito_by_name, esito_at, operatore_nome, operatori, ricambi, ricambi_mancanti';
 
 /** Interventi aperti (da effettuare + da completare) e ultimi effettuati */
 export async function listInterventi() {
@@ -88,12 +88,12 @@ async function removeFoto(paths) {
 }
 
 /** Nuovo intervento (stato iniziale: da effettuare). `foto` = Blob JPEG o null */
-export async function createIntervento({ linea, macchina, descrizione, foto = null, authorName = '' }) {
+export async function createIntervento({ linea, macchina, descrizione, dettagli = '', foto = null, authorName = '' }) {
   let path = null;
   if (foto) path = await uploadFoto(foto);
   const { data, error } = await supabase
     .from('manutenzioni_soste')
-    .insert({ linea, macchina, descrizione, foto_promemoria_path: path, created_by_name: authorName || null })
+    .insert({ linea, macchina, descrizione, dettagli: (dettagli || '').trim() || null, foto_promemoria_path: path, created_by_name: authorName || null })
     .select(COLS)
     .single();
   if (error) {
@@ -106,7 +106,7 @@ export async function createIntervento({ linea, macchina, descrizione, foto = nu
 /**
  * Aggiorna l'esito. `foto`: Blob nuovo | null (nessun cambio); `rimuoviFoto`: true per toglierla.
  */
-export async function updateEsito(row, { stato, note, descrizione = null, operatori = [], esitoAt = null, foto = null, rimuoviFoto = false, authorName = '', extra = {} }) {
+export async function updateEsito(row, { stato, note, dettagli = undefined, descrizione = null, operatori = [], esitoAt = null, foto = null, rimuoviFoto = false, authorName = '', extra = {} }) {
   let fotoPath = row.foto_esito_path || null;
   let newPath = null;
   if (foto) {
@@ -127,6 +127,7 @@ export async function updateEsito(row, { stato, note, descrizione = null, operat
     esito_at: stato === 'da_effettuare' ? null : stato === 'effettuato' && esitoAt ? esitoAt.toISOString() : stato === row.stato && row.esito_at ? row.esito_at : new Date().toISOString(),
   };
   if (descrizione && descrizione !== row.descrizione) patch.descrizione = descrizione; // titolo modificato
+  if (dettagli !== undefined) patch.dettagli = (dettagli || '').trim() || null; // dettagli prima dell'intervento (mai nel rapporto degli effettuati)
   Object.assign(patch, extra); // campi in più (es. ricambi dell'inserimento rapido)
   if (stato === 'da_effettuare') patch.esito_by = null;
   else {

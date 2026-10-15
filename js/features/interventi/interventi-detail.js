@@ -109,6 +109,7 @@ export async function openDetail(row) {
   detail = { row, stato: row.stato, operatori: operatoriDi(row), opOpen: false, esitoAt: row.stato === 'effettuato' && row.esito_at ? new Date(row.esito_at) : null, foto: null, fotoUrl: '', rimuovi: false, promemoriaUrl: '' };
   ensureOperatori().then(() => detail?.row === row && paintDetail());
   els.detNote.value = row.note_esito || '';
+  $('int-detail-dettagli').value = row.dettagli || '';
   $('int-detail-title').textContent = row.macchina;
   $('int-detail-linea').textContent = lineaLabel(row.linea);
   $('int-detail-desc').textContent = row.descrizione;
@@ -184,6 +185,15 @@ function paintDetail() {
   paintQuando();
   paintOperatore();
   paintRicambi();
+  paintNotaPost();
+}
+
+/** Casella dei dettagli post intervento: compare con "Effettuato" (e con "Da completare", per scrivere cosa manca) */
+function paintNotaPost() {
+  const done = detail.stato === 'effettuato';
+  $('int-esito-note-step').classList.toggle('hidden', !done && detail.stato !== 'sospeso');
+  $('int-esito-note-label').firstChild.textContent = done ? 'Dettagli post intervento ' : 'Cosa manca da fare ';
+  els.detNote.placeholder = done ? 'Cosa è stato fatto, cosa è stato trovato…' : 'Cosa resta da completare…';
 }
 
 /** Ricambi prelevati dal magazzino: elenco (interventi effettuati) e, se non indicati, avviso + pulsante per indicarli ora */
@@ -324,13 +334,14 @@ async function saveDetail() {
   if (!detail) return;
   const { row } = detail;
   const note = els.detNote.value.trim();
+  const dettagli = $('int-detail-dettagli').value.trim();
   const descrizione = $('int-detail-desc-input').value.trim();
   if (!descrizione) {
     feedback.errorAction();
     toastWarning('Il titolo dell\'intervento non può essere vuoto.');
     return;
   }
-  const unchanged = descrizione === row.descrizione && detail.stato === row.stato && note === (row.note_esito || '') && !detail.foto && !detail.rimuovi && [...detail.operatori].sort().join('|') === [...operatoriDi(row)].sort().join('|') && (detail.stato !== 'effettuato' || sameMinute(detail.esitoAt, row.esito_at));
+  const unchanged = descrizione === row.descrizione && detail.stato === row.stato && note === (row.note_esito || '') && dettagli === (row.dettagli || '') && !detail.foto && !detail.rimuovi && [...detail.operatori].sort().join('|') === [...operatoriDi(row)].sort().join('|') && (detail.stato !== 'effettuato' || sameMinute(detail.esitoAt, row.esito_at));
   // Il giorno e l'ora di esecuzione non possono essere nel futuro
   if (detail.stato === 'effettuato' && detail.esitoAt && detail.esitoAt.getTime() > Date.now() + 60000) {
     feedback.errorAction();
@@ -343,7 +354,7 @@ async function saveDetail() {
   }
   setButtonBusy(els.detSave, true, 'Salvataggio…');
   try {
-    const updated = await updateEsito(row, { stato: detail.stato, note, descrizione, operatori: detail.operatori, esitoAt: detail.stato === 'effettuato' ? detail.esitoAt : null, foto: detail.foto, rimuoviFoto: detail.rimuovi, authorName: authorName() });
+    const updated = await updateEsito(row, { stato: detail.stato, note, dettagli, descrizione, operatori: detail.operatori, esitoAt: detail.stato === 'effettuato' ? detail.esitoAt : null, foto: detail.foto, rimuoviFoto: detail.rimuovi, authorName: authorName() });
     state.open = state.open.filter((r) => r.id !== updated.id);
     state.done = state.done.filter((r) => r.id !== updated.id);
     state.doneRecent = state.doneRecent.filter((r) => r.id !== updated.id);
