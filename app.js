@@ -9,6 +9,7 @@ import { initDashboard, enterDashboard, resetDashboard, refresh as refreshDashbo
 import { initUsers, refreshUsers } from './users.js';
 import { initMachines } from './machines.js';
 import { initShelves } from './shelves.js';
+import { initInventory } from './inventory.js';
 import { initMovements } from './movements.js';
 import { initLowStock } from './low-stock.js';
 import { initManuals } from './manuals.js';
@@ -71,6 +72,7 @@ function onAuthed(profile) {
     initUsers();
     initMachines();
     initShelves();
+    initInventory();
     initMovements();
     initLowStock();
     initManuals();

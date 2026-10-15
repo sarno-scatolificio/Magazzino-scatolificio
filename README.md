@@ -53,7 +53,8 @@ L'app ha due tipi di utente. I permessi sono applicati sia nell'app sia sul data
 | Importare l'inventario da Excel | — | ✅ |
 | Gestire manuali, pulsanti, gruppi e icone | — | ✅ |
 | Gestire utenti, macchine, scaffali, operatori, interventi rapidi | — | ✅ |
-| Consultare il Report | — | ✅ |
+| Consultare il Report ed esportare i movimenti in Excel | — | ✅ |
+| Fare l'inventario degli scaffali e vederne lo storico | — | ✅ |
 | Eliminare movimenti dallo storico | — | ✅ |
 
 Gli account non si creano da soli: li crea l'Admin, così l'accesso resta controllato.
@@ -239,6 +240,8 @@ Si apre dalle Impostazioni. Un unico filtro di periodo vale per tutta la pagina:
 - Se una sostituzione arriva **prima della media** (con una tolleranza del 10%), viene segnalata come **anticipata**: è il segnale che qualcosa nella macchina o nel pezzo non va.
 - Servono almeno 3 prelievi dello stesso ricambio nello stesso posto per avere un confronto sensato.
 
+**Esportazione in Excel**: un pulsante crea un file con due fogli, *Depositi* e *Prelievi*, relativi al periodo scelto.
+
 **Elenco dei movimenti**
 - Due schede, **Depositi** e **Prelievi**, con lo stesso selettore scorrevole del Magazzino.
 - Toccando una voce si espande la scheda con tutte le informazioni: articolo, quantità, chi, quando, linea, macchina e punto di utilizzo.
@@ -254,9 +257,32 @@ Si aprono dall'ingranaggio in alto. Le voci di gestione sono riservate all'Admin
 - **Gestione utenti**: elenco degli utenti registrati con email e ruolo; si imposta nome e cognome di ciascuno, che compaiono nei report e nello storico al posto dell'email.
 - **Gestione macchine**: aggiungere e rimuovere macchine (compaiono nel form articolo, nei filtri e nei Manuali) e caricare i manuali operatore, i manuali ricambi per linea e le icone.
 - **Gestione scaffali**: aggiungere e rimuovere scaffali, ciascuno assegnato a un'area (**Magazzino** o **Ufficio tecnico**); si vede quanti articoli contiene ognuno. Rimuovendo uno scaffale, le quantità restano all'articolo, semplicemente senza scaffale.
+- **Inventario**: conteggio guidato scaffale per scaffale, con correzioni tracciate. Il dettaglio è nella sezione [Inventario](#inventario-solo-admin) qui sotto.
 - **Interventi rapidi**: i lavori ricorrenti per linea e macchina che compaiono come scelte rapide negli Interventi.
 - **Operatori**: l'elenco delle persone assegnabili agli interventi.
 - **Carica da Excel**: import dell'inventario per categoria (Cuscinetti, Cinghie, Ricambi tecnici). Le colonne sono lette per posizione; la riga di intestazione è facoltativa. Più righe con lo stesso codice significano più scaffali per lo stesso articolo. Gli articoli già presenti vengono aggiornati, quelli nuovi creati.
+
+### Inventario (solo Admin)
+
+Serve a riallineare le giacenze con quello che c'è davvero sugli scaffali, **uno scaffale alla volta**, e a lasciare traccia di ogni correzione. Si apre da Impostazioni → Inventario.
+
+**Scaffali.** L'elenco è diviso per area (Magazzino, Ufficio tecnico) e per serie (SA, SB, SD…). Per ogni scaffale si vede il numero di articoli e quando è stato inventariato l'ultima volta: *mai inventariato* (rosso), *da rifare* se sono passati più di 90 giorni (arancione) oppure la data dell'ultimo inventario (verde). Gli inventari lasciati a metà compaiono con «In corso» e il numero di articoli già contati.
+
+**Come si conta.** Scelto lo scaffale, si decide se **vedere le quantità attese** (più veloce) oppure contare **alla cieca** (più rigoroso). Poi si apre l'elenco degli articoli che dovrebbero esserci:
+- **✓** conferma con un tocco che la quantità attesa è giusta;
+- **− / +** o la scrittura diretta correggono la quantità contata;
+- **0** segnala che l'articolo non c'è;
+- **Scansiona** apre la fotocamera: il codice a barre porta direttamente alla riga dell'articolo;
+- un articolo trovato sullo scaffale ma non in elenco si aggiunge con **Scansiona** o **Aggiungi**, dopo conferma (le sue quantità sugli altri scaffali non cambiano);
+- **Da contare** nasconde le righe già fatte.
+
+Il conteggio si salva da solo sul telefono: si può chiudere l'app e riprendere in seguito.
+
+**Riepilogo e chiusura.** Concludendo, il riepilogo mostra articoli confermati, corretti, aggiunti e non trovati, con la differenza di ciascuno. Gli articoli non contati risultano a zero solo dopo una conferma esplicita. Se ci sono differenze si sceglie un **motivo** (conteggio errato, prelievo non registrato, deposito non registrato, merce mancante, altro). Solo a questo punto le giacenze cambiano, tutte insieme: o si applica tutto o non cambia nulla.
+
+**Tracciabilità.** Ogni inventario chiuso registra chi l'ha fatto, quando, la modalità, il motivo e, per ogni articolo, la quantità attesa, quella contata e la differenza. Queste rettifiche **non sono depositi né prelievi**: non alterano i totali del Report né il calcolo della vita utile dei ricambi.
+
+**Storico.** La scheda *Storico* elenca gli ultimi inventari; toccandone uno si vedono le differenze articolo per articolo. Il pulsante **Excel** esporta l'elenco degli inventari e il dettaglio di tutte le righe.
 
 **Impostazioni dell'app (tutti)**
 - **Suoni** e **Vibrazione**: ogni azione ha un feedback sonoro e aptico leggero (attivabili e disattivabili).
