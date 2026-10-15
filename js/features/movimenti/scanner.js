@@ -161,7 +161,7 @@ export function startMovement(product, mode) {
 
 /* ------------------------------------------------------------------
    Ingresso animato di Movimenti (solo al primo arrivo dopo l'apertura/accesso):
-   1. le schede "Articoli sotto scorta" e "Ultimi movimenti" salgono una dopo l'altra
+   1. le schede "Articoli sotto scorta", "Prestiti in sospeso" (solo admin) e "Ultimi movimenti" salgono una dopo l'altra
       da dietro la barra in basso;
    2. Deposito e poi Prelievo entrano uno dopo l'altro, in modo semplice (nessun rimbalzo).
    Web Animations API: solo transform/opacity, nessuno stato lasciato dietro.
@@ -175,6 +175,7 @@ export function playScannerIntro() {
     requestAnimationFrame(() => {
       const cards = [
         document.getElementById('scanner-lowstock-card'),
+        document.getElementById('scanner-prestiti-btn'), // solo admin: per gli altri è nascosta e salta da sola
         document.querySelector('#scanner-idle-panel > .card-plate:last-child'),
       ].filter((c) => c && c.offsetParent);
       const dep = document.getElementById('mode-deposito');
