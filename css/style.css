@@ -2367,8 +2367,9 @@ button.hs-btn:not(:disabled):active { filter: brightness(0.92); }
 /* =============================================================
    Movimenti — ingresso animato + pulsanti Deposito/Prelievo con rilievo 3D
    ============================================================= */
-/* Fino al primo fotogramma dell'ingresso i 4 elementi restano nascosti (nessun lampo) */
+/* Fino al primo fotogramma dell'ingresso gli elementi restano nascosti (nessun lampo) */
 #view-scanner.intro-pending #scanner-lowstock-card,
+#view-scanner.intro-pending #scanner-prestiti-btn,
 #view-scanner.intro-pending #scanner-idle-panel > .card-plate:last-child,
 #view-scanner.intro-pending .scanner-actions > button { visibility: hidden; }
 /* I pulsanti arrivano da fuori schermo: il ritaglio laterale lo fa già .view-host (ai bordi dello schermo);
