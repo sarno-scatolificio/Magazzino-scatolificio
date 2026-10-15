@@ -46,8 +46,50 @@ export function machineOnLinea(entry, linea) {
   return l.includes(linea);
 }
 
+// Elenco delle macchine tenuto in memoria: viene caricato all'apertura dell'app, così i menu delle macchine
+// si aprono subito. Si rilegge in silenzio se ha più di un minuto e si butta quando le macchine cambiano.
+let entriesCache = null;
+let entriesAt = 0;
+let entriesInflight = null;
+const ENTRIES_MAX_AGE_MS = 60 * 1000;
+
+/** Scarta l'elenco in memoria: la prossima lettura va al database */
+export function invalidateMachineEntries() {
+  entriesCache = null;
+  entriesAt = 0;
+}
+if (typeof window !== 'undefined') window.addEventListener('machines-changed', invalidateMachineEntries);
+
+function refreshMachineEntries() {
+  if (!entriesInflight) {
+    entriesInflight = fetchMachineEntries()
+      .then((list) => {
+        entriesCache = list;
+        entriesAt = Date.now();
+        return list;
+      })
+      .finally(() => {
+        entriesInflight = null;
+      });
+  }
+  return entriesInflight;
+}
+
 /** Macchine (tabella `machines` + valori già usati dagli articoli) con linee e ordine, già ordinate. */
 export async function listMachineEntries() {
+  if (entriesCache) {
+    if (Date.now() - entriesAt > ENTRIES_MAX_AGE_MS) refreshMachineEntries().catch(() => {}); // aggiorna per la prossima volta
+    return [...entriesCache];
+  }
+  return [...(await refreshMachineEntries())];
+}
+
+/** Caricamento anticipato (all'apertura dell'app): non dà mai errore */
+export function preloadMachineEntries() {
+  return refreshMachineEntries().catch((err) => console.warn('Elenco macchine non precaricato.', err));
+}
+
+async function fetchMachineEntries() {
   const byKey = new Map(); // chiave minuscola -> voce (vince la forma scritta nella tabella)
   const registered = await selectMachinesRows();
   if (!registered.error) {
@@ -129,6 +171,7 @@ export async function listMachinesWithCounts() {
 
 /** Aggiunge una macchina alla tabella (solo admin: lo garantisce anche il database con la RLS) */
 export async function createMachine(nome) {
+  invalidateMachineEntries();
   const clean = normalizeMachineName(nome);
   if (!clean) throw new Error('Scrivi il nome della macchina.');
   if (clean.length > 60) throw new Error('Il nome è troppo lungo (massimo 60 caratteri).');
@@ -149,6 +192,7 @@ export async function createMachine(nome) {
  * diversa, il file precedente viene eliminato dallo storage. Solo admin.
  */
 export async function updateMachineIcon(machineId, { newIconStoragePath, previousIconStoragePath }) {
+  invalidateMachineEntries();
   const { data, error } = await supabase
     .from('machines')
     .update({ icon_storage_path: newIconStoragePath || null })
@@ -166,6 +210,7 @@ export async function updateMachineIcon(machineId, { newIconStoragePath, previou
 
 /** Imposta su quali linee si trova una macchina (almeno una). Solo admin. */
 export async function updateMachineLinee(machineId, linee) {
+  invalidateMachineEntries();
   const clean = MACHINE_LINES.filter((l) => linee.includes(l));
   if (!clean.length) throw new Error('Una macchina deve stare su almeno una linea.');
   const { data, error } = await supabase.from('machines').update({ linee: clean }).eq('id', machineId).select('id');
@@ -179,6 +224,7 @@ export async function updateMachineLinee(machineId, linee) {
 
 /** Salva l'ordine delle macchine, valido in tutta l'app: elenchi, filtri, Manuali (posizione = indice nell'array). Solo admin. */
 export async function updateMachinesOrder(orderedIds) {
+  invalidateMachineEntries();
   const results = await Promise.all(
     orderedIds.map((id, index) => supabase.from('machines').update({ sort_order: index }).eq('id', id).select('id'))
   );
@@ -199,6 +245,7 @@ export async function updateMachinesOrder(orderedIds) {
  * @returns {Promise<{ articoliSvuotati: number }>}
  */
 export async function deleteMachine({ id, nome }) {
+  invalidateMachineEntries();
   const key = normalizeMachineName(nome).toLowerCase();
 
   // 1) dalla tabella. Con la RLS un utente non admin non riceve un errore ma 0 righe: si controlla.

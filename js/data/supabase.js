@@ -10,6 +10,7 @@ export * from './supabase-client.js';
 export * from './supabase-auth.js';
 export * from './supabase-products.js';
 export * from './supabase-machines.js';
+export * from './supabase-prestiti.js';
 export * from './supabase-shelves.js';
 export * from './supabase-manuals.js';
 export * from './supabase-transactions.js';
