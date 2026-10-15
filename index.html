@@ -207,6 +207,17 @@
           </div>
         </div>
 
+        <button type="button" id="scanner-prestiti-btn" class="press-spring card-plate rounded-xl p-4 w-full flex items-center justify-between gap-3 text-left">
+          <span class="flex items-center gap-2.5 min-w-0">
+            <i data-lucide="handshake" class="w-5 h-5 text-amber-400 shrink-0"></i>
+            <span class="font-display font-bold text-xs uppercase tracking-wide text-graphite-400">Prestiti in sospeso</span>
+          </span>
+          <span class="flex items-center gap-2 shrink-0">
+            <span id="scanner-prestiti-count" class="font-mono text-sm font-semibold min-w-[1.75rem] text-center px-2 py-0.5 rounded-full bg-graphite-800 text-graphite-400">0</span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500"></i>
+          </span>
+        </button>
+
         <div class="card-plate rounded-xl p-4">
           <div class="flex items-center justify-between mb-2.5">
             <p class="font-display font-bold text-xs uppercase tracking-wide text-graphite-400">Ultimi movimenti</p>
@@ -408,6 +419,19 @@
 
             <!-- Solo nel Prelievo: linea per tutti gli articoli, macchinario (e punto di utilizzo, sopra) solo per i cuscinetti -->
             <div id="scan-prelievo-fields" class="hidden mt-3 space-y-3">
+              <!-- Prestito: il pezzo esce dal magazzino ma va reintegrato; si indica a chi viene dato (niente linea/macchinario) -->
+              <div id="scan-prestito-wrap">
+                <button type="button" id="scan-prestito-toggle" role="switch" aria-checked="false"
+                  class="press-spring w-full min-h-[44px] rounded-lg border px-3 flex items-center justify-between gap-3 font-display font-semibold uppercase tracking-wide text-sm bg-graphite-900 text-graphite-200 border-graphite-700">
+                  <span class="flex items-center gap-2"><i data-lucide="handshake" class="w-4 h-4"></i>Prestito</span>
+                  <span id="scan-prestito-state" class="ui-note normal-case font-normal text-graphite-500">no</span>
+                </button>
+                <div id="scan-prestito-dest-wrap" class="hidden mt-2">
+                  <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="scan-prestito-dest">A chi viene dato</label>
+                  <input id="scan-prestito-dest" type="text" maxlength="80" autocomplete="off" placeholder="Nome, reparto o ditta"
+                    class="w-full rounded-lg bg-graphite-900 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors">
+                </div>
+              </div>
               <div>
                 <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Linea</label>
                 <div id="scan-linea-group" class="grid grid-cols-2 gap-2" role="group" aria-label="Linea">
@@ -1466,6 +1490,11 @@
         <div id="int-new-chips" class="hidden flex flex-wrap gap-2 mb-2" aria-label="Interventi rapidi"></div>
         <textarea id="int-new-desc" rows="2" maxlength="300" placeholder="Cosa va fatto?" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors resize-none"></textarea>
       </div>
+      <!-- Dettagli: informazioni in più per chi farà il lavoro (solo per gli interventi da effettuare; non compaiono nel rapporto degli effettuati) -->
+      <div class="int-step" id="int-step-dettagli" data-locked="true">
+        <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="int-new-dettagli">Dettagli <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(facoltativi)</span></label>
+        <textarea id="int-new-dettagli" rows="3" maxlength="1000" placeholder="Altre indicazioni utili per fare il lavoro…" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors resize-none"></textarea>
+      </div>
       <div class="int-step" id="int-step-photo" data-locked="true">
         <div>
           <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5"><span id="int-new-photo-label">Foto promemoria</span> <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(facoltativa)</span></label>
@@ -1557,8 +1586,8 @@
         <button type="button" id="int-detail-ricambi-btn" class="hidden press-spring mt-2.5 w-full flex items-center justify-center gap-2 rounded-lg border border-amber-400 text-amber-400 hover:bg-graphite-800 px-3 text-xs font-display font-semibold uppercase tracking-wide transition-colors min-h-[44px]"><i data-lucide="package" class="w-4 h-4"></i>Indica ricambi</button>
       </div>
       <div>
-        <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Esito</label>
-        <div id="int-esito-seg" class="seg flex w-full rounded-lg border border-graphite-700 bg-graphite-800 p-0.5" role="group" aria-label="Esito">
+        <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Stato</label>
+        <div id="int-esito-seg" class="seg flex w-full rounded-lg border border-graphite-700 bg-graphite-800 p-0.5" role="group" aria-label="Stato">
           <span class="seg-indicator" aria-hidden="true"></span>
           <button type="button" data-stato="da_effettuare" class="category-tab flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">Da effettuare</button>
           <button type="button" data-stato="sospeso" class="category-tab flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">Da completare</button>
@@ -1590,8 +1619,12 @@
         <p id="int-operatore-empty" class="hidden text-xs text-graphite-500 mt-1.5">Nessun operatore in elenco: l'amministratore li aggiunge da Impostazioni → Operatori.</p>
       </div>
       <div>
-        <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="int-esito-note">Note sull'esito <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(facoltative)</span></label>
-        <textarea id="int-esito-note" rows="2" maxlength="500" placeholder="Cosa è stato fatto, cosa manca…" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors resize-none"></textarea>
+        <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="int-detail-dettagli">Dettagli <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(facoltativi · non compaiono nel rapporto degli effettuati)</span></label>
+        <textarea id="int-detail-dettagli" rows="3" maxlength="1000" placeholder="Altre indicazioni utili per fare il lavoro…" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors resize-none"></textarea>
+      </div>
+      <div id="int-esito-note-step" class="hidden">
+        <label id="int-esito-note-label" class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="int-esito-note">Dettagli post intervento <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(facoltativi)</span></label>
+        <textarea id="int-esito-note" rows="3" maxlength="500" placeholder="Cosa è stato fatto, cosa è stato trovato…" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors resize-none"></textarea>
       </div>
       <div>
           <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Foto del lavoro svolto <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(facoltativa)</span></label>
@@ -1823,6 +1856,33 @@
         <div class="skeleton h-12 w-full"></div>
       </div>
       <div id="movements-list" class="hidden"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Prestiti: in sospeso e reintegrati -->
+<div id="prestiti-modal" class="modal-overlay hidden fixed inset-0 z-[92] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-0 sm:px-4">
+  <div class="modal-panel w-full sm:max-w-md bg-graphite-900 border border-graphite-700 rounded-t-2xl sm:rounded-2xl max-h-[85vh] flex flex-col">
+    <div data-sheet-drag class="sheet-grabber sm:hidden"><span class="sheet-grabber-pill"></span></div>
+    <div data-sheet-drag class="flex items-center justify-between px-5 pb-3 pt-1 sm:pt-3 border-b border-graphite-800 shrink-0">
+      <h3 class="font-display font-bold text-lg uppercase tracking-wide">Prestiti</h3>
+      <button id="prestiti-modal-close" type="button" aria-label="Chiudi" class="modal-close modal-close--on-light">
+        <i data-lucide="x" class="w-6 h-6" stroke-width="2.5"></i>
+      </button>
+    </div>
+    <div class="px-5 pt-3 pb-1 shrink-0">
+      <div id="prestiti-seg" class="seg flex w-full rounded-lg border border-graphite-700 bg-graphite-800 p-0.5" role="tablist">
+        <span class="seg-indicator" aria-hidden="true"></span>
+        <button type="button" data-prestiti-tab="aperti" class="category-tab category-tab-active flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">In sospeso</button>
+        <button type="button" data-prestiti-tab="reintegrati" class="category-tab flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">Reintegrati</button>
+      </div>
+    </div>
+    <div class="flex-1 overflow-y-auto px-5 py-3">
+      <div id="prestiti-skeleton" class="space-y-2">
+        <div class="skeleton h-20 w-full"></div>
+        <div class="skeleton h-20 w-full"></div>
+      </div>
+      <div id="prestiti-list" class="hidden"></div>
     </div>
   </div>
 </div>
