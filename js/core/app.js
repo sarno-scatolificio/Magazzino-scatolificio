@@ -11,6 +11,7 @@ import { initMachines } from '../features/impostazioni/machines.js';
 import { initShelves } from '../features/impostazioni/shelves.js';
 import { initInventory } from '../features/impostazioni/inventory.js';
 import { initMovements } from '../features/movimenti/movements.js';
+import { initPrestiti } from '../features/movimenti/prestiti.js';
 import { initLowStock } from '../features/magazzino/low-stock.js';
 import { initManuals } from '../features/manuali/manuals.js';
 import { initManualsBrowser, enterManualsBrowser, resetManualsBrowser } from '../features/manuali/manuals-browser.js';
@@ -22,7 +23,7 @@ import { initPicker } from '../shared/picker.js';
 import { initGlobalSearch, resetGlobalSearch, syncSearchContext, closePanel as closeGlobalSearch } from '../shared/global-search.js';
 import feedback, { initFeedbackSettings } from '../shared/feedback.js';
 import { initOfflineSync } from './offline-queue.js';
-import { processTransaction, adjustCachedProductQuantity, bumpProductsVersion } from '../data/supabase.js';
+import { processTransaction, adjustCachedProductQuantity, bumpProductsVersion, preloadMachineEntries } from '../data/supabase.js';
 import { toastSuccess, toastError } from '../shared/toast.js';
 import { closeAllOverlays, syncSegIndicator } from '../shared/ui-utils.js';
 import { initNavHistory, pushLayer, resetLayers } from './nav-history.js';
@@ -64,6 +65,8 @@ function onAuthed(profile) {
     el.classList.toggle('hidden', !isAdmin());
   });
 
+  preloadMachineEntries(); // elenco macchine già pronto: i menu si aprono senza attesa
+
   if (!modulesInitialized) {
     initPicker();
     initScanner();
@@ -74,6 +77,7 @@ function onAuthed(profile) {
     initShelves();
     initInventory();
     initMovements();
+    initPrestiti();
     initLowStock();
     initManuals();
     initManualsBrowser();
