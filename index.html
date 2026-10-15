@@ -207,12 +207,22 @@
           </div>
         </div>
 
+        <!-- Prestiti in sospeso: li consulta e gestisce solo l'admin (per gli altri la scheda non compare) -->
+        <button type="button" id="scanner-prestiti-btn" data-admin-only class="hidden press-spring card-plate rounded-xl px-3.5 py-3 w-full flex items-center justify-between gap-3 text-left">
+          <span class="flex items-center gap-2.5 min-w-0">
+            <i data-lucide="handshake" class="w-5 h-5 text-amber-400 shrink-0"></i>
+            <span class="font-display font-bold text-xs uppercase tracking-wide text-graphite-400">Prestiti in sospeso</span>
+          </span>
+          <span class="flex items-center gap-2 shrink-0">
+            <span id="scanner-prestiti-count" class="font-mono text-sm font-semibold min-w-[1.75rem] text-center px-2 py-0.5 rounded-full bg-graphite-800 text-graphite-400">0</span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500"></i>
+          </span>
+        </button>
+
         <div class="card-plate rounded-xl px-3.5 py-3">
           <div class="flex items-center justify-between gap-3 mb-1.5">
             <p class="font-display font-bold text-xs uppercase tracking-wide text-graphite-400">Ultimi movimenti</p>
             <div class="flex items-center gap-3">
-              <!-- Prestiti: li consulta e gestisce solo l'admin -->
-              <button type="button" id="scanner-prestiti-btn" data-admin-only class="hidden ui-note font-display font-semibold uppercase tracking-wide text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1.5">Prestiti <span id="scanner-prestiti-count" class="font-mono text-[11px] min-w-[1.4rem] text-center px-1.5 py-0.5 rounded-full bg-graphite-800 text-graphite-400">0</span></button>
               <button type="button" id="scanner-movements-viewall-btn" class="ui-note font-display font-semibold uppercase tracking-wide text-amber-400 hover:text-amber-300 transition-colors">Vedi tutti</button>
             </div>
           </div>
