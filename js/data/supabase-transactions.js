@@ -33,7 +33,7 @@ export async function processTransaction({ productId, tipo, quantita, puntoUtili
 export async function listTransactions({ from, to, productId, limit = 200 } = {}) {
   let query = supabase
     .from('transactions')
-    .select('id, tipo, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, locazione, product_id, user_id, products(codice_articolo), profiles(full_name)')
+    .select('id, tipo, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, locazione, note, product_id, user_id, products(codice_articolo), profiles(full_name)')
     .order('data_ora', { ascending: false })
     .limit(limit);
 
@@ -101,15 +101,24 @@ async function withAdminNames(rows) {
 export async function listPrelieviForLifespan() {
   const pageSize = 1000;
   const rows = [];
+  // I prestiti non sono sostituzioni su macchina: restano fuori dalla vita utile (per id del prestito e, in ogni caso, per la nota "Prestito a …")
+  let loanIds = new Set();
+  try {
+    const { data, error } = await supabase.from('prestiti').select('transaction_id').not('transaction_id', 'is', null);
+    if (error) throw error;
+    loanIds = new Set(data.map((r) => r.transaction_id));
+  } catch (err) {
+    console.warn('Elenco prestiti non disponibile: si escludono dalla nota.', err);
+  }
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabase
       .from('transactions')
-      .select('id, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, product_id, products(codice_articolo, categoria)')
+      .select('id, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, note, product_id, products(codice_articolo, categoria)')
       .eq('tipo', 'prelievo')
       .order('data_ora', { ascending: true })
       .range(from, from + pageSize - 1);
     if (error) throw error;
-    rows.push(...data);
+    rows.push(...data.filter((r) => !loanIds.has(r.id) && !String(r.note || '').startsWith('Prestito a ')));
     if (data.length < pageSize) break;
   }
   return rows;
