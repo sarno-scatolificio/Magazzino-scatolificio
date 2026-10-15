@@ -8,6 +8,9 @@ import { els } from './scanner-shared.js';
 import { escapeHtml } from '../../shared/html-utils.js';
 import { listProducts, listTransactions } from '../../data/supabase.js';
 import { refreshPrestitiCount } from './prestiti.js';
+import { movementRow } from './movements.js';
+
+const RECENT_COUNT = 3; // poche voci: Deposito e Prelievo restano visibili senza scorrere
 
 /**
  * Riempie il pannello mostrato prima di scegliere Deposito/Prelievo, cosí
@@ -17,7 +20,7 @@ import { refreshPrestitiCount } from './prestiti.js';
 export async function loadIdlePanel() {
   if (!els.recentListEl) return; // non ancora inizializzato (caso limite)
   try {
-    const [lowStock, recent] = await Promise.all([listProducts({ onlyLowStock: true }), listTransactions({ limit: 5 })]);
+    const [lowStock, recent] = await Promise.all([listProducts({ onlyLowStock: true }), listTransactions({ limit: RECENT_COUNT })]);
     animateNumber(els.lowStockCountEl, lowStock.length, { duration: 500 });
     renderRecent(recent);
     refreshPrestitiCount();
@@ -36,25 +39,11 @@ function renderRecent(rows) {
   }
   els.recentEmptyEl.classList.add('hidden');
 
+  // Ogni voce si apre al tocco con i dettagli (scaffale, linea, macchina, note), come nell'elenco completo
   rows.forEach((r, i) => {
-    const date = new Date(r.data_ora);
-    const row = document.createElement('div');
-    row.className = 'list-item-in flex items-center justify-between gap-3 py-1.5 border-t border-graphite-800 first:border-t-0 first:pt-0';
-    row.style.setProperty('--i', i);
-    row.innerHTML = `
-      <div class="min-w-0">
-        <p class="text-sm text-graphite-100 truncate font-medium">${escapeHtml(r.products?.codice_articolo || '—')}</p>
-        <p class="ui-note text-graphite-500 mt-0.5 truncate">${escapeHtml(r.profiles?.full_name || 'Utente')} · ${date.toLocaleString('it-IT', {
-          day: '2-digit',
-          month: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-        })}</p>
-      </div>
-      <span class="shrink-0 font-mono text-xs font-semibold px-2 py-0.5 rounded-full ${
-        r.tipo === 'deposito' ? 'bg-emerald-500/15 text-emerald-700' : 'bg-amber-500/15 text-amber-300'
-      }">${r.tipo === 'deposito' ? '+' : '−'}${r.quantita}</span>
-    `;
+    const row = movementRow(r, i, els.recentListEl, { compact: true });
+    row.classList.remove('border-b');
     els.recentListEl.appendChild(row);
   });
+  window.lucide?.createIcons();
 }

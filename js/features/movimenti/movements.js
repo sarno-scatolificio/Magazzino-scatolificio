@@ -81,7 +81,8 @@ function render() {
   window.lucide?.createIcons();
 }
 
-function movementRow(r, i) {
+/** Riga di un movimento che si apre al tocco (una sola aperta alla volta dentro `container`). Usata anche dagli ultimi movimenti. */
+export function movementRow(r, i, container = els.list, { compact = false } = {}) {
   const date = new Date(r.data_ora);
   const wrap = document.createElement('div');
   wrap.className = 'list-item-in border-b border-graphite-800 last:border-0';
@@ -89,7 +90,7 @@ function movementRow(r, i) {
 
   const head = document.createElement('button');
   head.type = 'button';
-  head.className = 'w-full flex items-center gap-3 py-2.5 px-1 text-left';
+  head.className = `w-full flex items-center gap-3 ${compact ? 'py-1.5' : 'py-2.5'} px-1 text-left`;
   head.innerHTML = `
     <div class="min-w-0 flex-1">
       <p class="text-sm text-graphite-100 truncate font-medium">${escapeHtml(r.products?.codice_articolo || '—')}</p>
@@ -123,11 +124,11 @@ function movementRow(r, i) {
   track.appendChild(inner);
 
   head.addEventListener('click', () => {
-    const isOpen = openId === r.id;
+    const isOpen = track.classList.contains('acc-open');
     openId = isOpen ? null : r.id;
     // Un solo dettaglio aperto alla volta: si richiudono tutti gli altri accordion visibili.
-    els.list.querySelectorAll('.acc-track.acc-open').forEach((t) => t.classList.remove('acc-open'));
-    els.list.querySelectorAll('.movement-chev').forEach((c) => c.classList.remove('rotate-180'));
+    container.querySelectorAll('.acc-track.acc-open').forEach((t) => t.classList.remove('acc-open'));
+    container.querySelectorAll('.movement-chev').forEach((c) => c.classList.remove('rotate-180'));
     if (!isOpen) {
       track.classList.add('acc-open');
       head.querySelector('.movement-chev')?.classList.add('rotate-180');

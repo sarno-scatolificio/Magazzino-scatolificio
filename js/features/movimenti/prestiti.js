@@ -9,6 +9,7 @@ import { closeOverlay, emptyStateHtml, enableSheetDrag, openOverlay, setButtonBu
 import { confirmDialog } from '../../shared/ui-modal.js';
 import { escapeHtml } from '../../shared/html-utils.js';
 import feedback from '../../shared/feedback.js';
+import { isAdmin } from '../../core/auth.js';
 import { toastError, toastSuccess } from '../../shared/toast.js';
 
 const els = {};
@@ -28,6 +29,7 @@ export function initPrestiti() {
   if (!els.modal || !els.openBtn) return;
 
   els.openBtn.addEventListener('click', () => {
+    if (!isAdmin()) return;
     feedback.tap();
     openOverlay(els.modal);
     syncSegIndicator(els.seg);
@@ -50,7 +52,7 @@ export function initPrestiti() {
 
 /** Aggiorna il numero di prestiti in sospeso mostrato nel pannello iniziale (errori ignorati) */
 export async function refreshPrestitiCount() {
-  if (!els.count) return;
+  if (!els.count || !isAdmin()) return; // i prestiti li vede e gestisce solo l'admin
   try {
     const n = await countPrestitiAperti();
     els.count.textContent = n ? String(n) : '0';

@@ -103,7 +103,7 @@ async function runPrestito({ product, quantita, destinatario, locationId }) {
       setTimeout(() => feedback.lowStockAlert(), 350);
       toastWarning(`⚠️ Scorta minima raggiunta per ${result.codice_articolo}.`, 6000);
     }
-    refreshPrestitiCount();
+    refreshPrestitiCount(); // solo per l'admin: per gli altri non fa nulla
     return { ok: true, nuovaGiacenza: result.nuova_giacenza };
   } catch (err) {
     console.error(err);
