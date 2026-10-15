@@ -118,8 +118,9 @@ export async function updateEsito(row, { stato, note, descrizione = null, operat
   const patch = {
     stato,
     note_esito: note || null,
-    // Chi ha eseguito il lavoro (uno o più operatori): ha senso solo per gli effettuati e non compare nel PDF
-    operatori: stato === 'effettuato' ? operatori : [],
+    // Effettuato: chi ha eseguito il lavoro (non compare nel PDF dei fatti).
+    // Da effettuare / da completare: gli operatori a cui il lavoro è assegnato (PDF per operatore).
+    operatori,
     foto_esito_path: fotoPath,
     esito_by_name: stato === 'da_effettuare' ? null : authorName || null,
     // Giorno e ora di esecuzione: quelli scelti per gli effettuati; altrimenti (da completare) quelli già registrati o adesso

@@ -268,12 +268,11 @@ function paintQuando() {
 
 /** Tendina "Operatori": compare solo con esito "Effettuato" (con "Da effettuare" o "Da completare" non si vede) e permette di sceglierne più d'uno. I nomi non finiscono nel PDF. */
 function paintOperatore() {
-  const show = detail.stato === 'effettuato';
-  $('int-operatore-step').classList.toggle('hidden', !show);
-  if (!show) {
-    detail.opOpen = false;
-    return;
-  }
+  const done = detail.stato === 'effettuato';
+  $('int-operatore-step').classList.toggle('hidden', false);
+  $('int-operatore-label').innerHTML = done
+    ? 'Operatori che hanno effettuato il lavoro <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(puoi sceglierne più di uno)</span>'
+    : 'Operatori assegnati <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(facoltativo, puoi sceglierne più di uno)</span>';
   const names = [...state.operatori];
   detail.operatori.forEach((n) => {
     if (!names.includes(n)) names.push(n); // operatore tolto dall'elenco ma già registrato su questo intervento
@@ -331,7 +330,7 @@ async function saveDetail() {
     toastWarning('Il titolo dell\'intervento non può essere vuoto.');
     return;
   }
-  const unchanged = descrizione === row.descrizione && detail.stato === row.stato && note === (row.note_esito || '') && !detail.foto && !detail.rimuovi && (detail.stato !== 'effettuato' || ([...detail.operatori].sort().join('|') === [...operatoriDi(row)].sort().join('|') && sameMinute(detail.esitoAt, row.esito_at)));
+  const unchanged = descrizione === row.descrizione && detail.stato === row.stato && note === (row.note_esito || '') && !detail.foto && !detail.rimuovi && [...detail.operatori].sort().join('|') === [...operatoriDi(row)].sort().join('|') && (detail.stato !== 'effettuato' || sameMinute(detail.esitoAt, row.esito_at));
   // Il giorno e l'ora di esecuzione non possono essere nel futuro
   if (detail.stato === 'effettuato' && detail.esitoAt && detail.esitoAt.getTime() > Date.now() + 60000) {
     feedback.errorAction();

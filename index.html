@@ -806,7 +806,10 @@
           <span id="int-filter-macchina-value" class="text-graphite-400 truncate">Tutte le macchine</span>
           <i data-lucide="chevron-down" class="w-4 h-4 text-graphite-500 shrink-0"></i>
         </button>
-        <button type="button" id="int-pdf-btn" disabled aria-label="Esporta PDF degli interventi effettuati" class="int-pdf-btn no-dim press-spring w-11 min-h-[44px] rounded-lg flex items-center justify-center">
+        <button type="button" id="int-pdf-todo-btn" disabled aria-label="Stampa PDF degli interventi da effettuare, divisi per operatore, con caselle da spuntare" title="PDF interventi da effettuare (per operatore)" class="int-pdf-btn no-dim press-spring w-11 min-h-[44px] rounded-lg flex items-center justify-center">
+          <i data-lucide="list-checks" class="w-5 h-5" stroke-width="2"></i>
+        </button>
+        <button type="button" id="int-pdf-btn" disabled aria-label="Esporta PDF degli interventi effettuati" class="hidden int-pdf-btn no-dim press-spring w-11 min-h-[44px] rounded-lg flex items-center justify-center">
           <i data-lucide="file-down" class="w-5 h-5" stroke-width="2"></i>
         </button>
       </div>
@@ -1576,9 +1579,9 @@
           </button>
         </div>
       </div>
-      <!-- Operatori: la tendina compare solo quando l'esito è "Effettuato" -->
+      <!-- Operatori: con "Effettuato" sono chi ha eseguito il lavoro; con "Da effettuare"/"Da completare" sono gli assegnati -->
       <div id="int-operatore-step" class="hidden">
-        <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Operatori che hanno effettuato il lavoro <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(puoi sceglierne più di uno)</span></label>
+        <label id="int-operatore-label" class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Operatori che hanno effettuato il lavoro <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(puoi sceglierne più di uno)</span></label>
         <button type="button" id="int-operatore-btn" aria-expanded="false" class="w-full flex items-center justify-between rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm text-left hover:border-amber-400 transition-colors min-h-[44px]">
           <span id="int-operatore-value" class="truncate text-graphite-400">Seleziona operatori…</span>
           <i data-lucide="chevron-down" id="int-operatore-chevron" class="w-4 h-4 text-graphite-500 shrink-0 transition-transform"></i>

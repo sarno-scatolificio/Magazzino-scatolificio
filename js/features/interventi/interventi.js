@@ -16,7 +16,7 @@ import feedback from '../../shared/feedback.js';
 import { initDetailSheet, openDetail, resetDetail } from './interventi-detail.js';
 import { initNewSheet, openNew } from './interventi-new.js';
 import { initRicambiSheet } from './interventi-ricambi.js';
-import { initPdfSheet, onExportPdf } from './interventi-pdf-sheet.js';
+import { initPdfSheet, onExportPdf, onExportTodoPdf } from './interventi-pdf-sheet.js';
 import { initPhotoViewer } from './interventi-photo.js';
 import { listDistinctMacchine } from '../../data/supabase.js';
 import { openPicker } from '../../shared/picker.js';
@@ -87,6 +87,7 @@ export function initInterventi() {
 
   // PDF giornaliero
   $('int-pdf-btn').addEventListener('click', onExportPdf);
+  $('int-pdf-todo-btn').addEventListener('click', onExportTodoPdf);
 
   // Nuovo intervento
   els.fab.addEventListener('click', openNew);

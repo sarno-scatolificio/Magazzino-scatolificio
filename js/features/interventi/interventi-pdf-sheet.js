@@ -8,6 +8,7 @@ import { LINEE, keyToDate, lineaLabel, listEffettuatiRange, signedUrls } from '.
 import { closeOverlay, enableSheetDrag, openOverlay, setButtonBusy } from '../../shared/ui-utils.js';
 import { escapeHtml } from '../magazzino/products-shared.js';
 import { exportGiornoPdf } from './interventi-pdf.js';
+import { exportDaFarePdf } from './interventi-pdf-todo.js';
 import feedback from '../../shared/feedback.js';
 import { openPhotoViewer } from './interventi-photo.js';
 import { pickDateRange } from '../../shared/date-range-modal.js';
@@ -41,6 +42,28 @@ export function initPdfSheet() {
     paintPdfSheet();
   });
   $('int-pdf-go').addEventListener('click', generatePdf);
+}
+
+/** PDF dei lavori ancora da effettuare, diviso per operatore, con caselle da spuntare a penna */
+export async function onExportTodoPdf() {
+  if (!state.open.length) return;
+  feedback.tap();
+  const btn = $('int-pdf-todo-btn');
+  setButtonBusy(btn, true);
+  try {
+    const res = await exportDaFarePdf(state.open);
+    if (res === true) {
+      feedback.confirmAction();
+      toastSuccess('PDF generato.', 2500);
+    }
+  } catch (err) {
+    console.error(err);
+    feedback.errorAction();
+    toastError('Impossibile generare il PDF.');
+  } finally {
+    setButtonBusy(btn, false);
+    btn.disabled = !state.open.length;
+  }
 }
 
 export async function onExportPdf() {

@@ -365,6 +365,12 @@ button.press-spring:not(:disabled):active {
   transform: scale(0.95);
 }
 
+/* Conferma giacenza (V) nell'inventario: nessun hover/focus residuo dopo il tocco,
+   l'unico effetto è la pressione finché il dito resta premuto. */
+.inv-ok { -webkit-tap-highlight-color: transparent; }
+.inv-ok:focus, .inv-ok:focus-visible { outline: none; }
+@media (hover: hover) { .inv-ok:hover { background-color: var(--graphite-700, #d5dae0); } }
+
 /* Card/righe cliccabili (non <button>, es. shelf-header): stessa fisica */
 [data-pressable], .shelf-header {
   transition: transform var(--dur-slow) var(--ease-spring);

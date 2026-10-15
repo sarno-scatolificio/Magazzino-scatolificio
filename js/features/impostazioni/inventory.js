@@ -42,6 +42,9 @@ const TIPO_LABEL = { confermato: 'Confermato', corretto: 'Corretto', aggiunto: '
 
 const BTN_STEP =
   'press-spring shrink-0 w-11 h-11 rounded-lg border border-graphite-700 bg-graphite-800 hover:bg-graphite-700 flex items-center justify-center font-display font-bold text-lg leading-none';
+// Come BTN_STEP ma senza hover: sul touch l'hover resta "appiccicato" dopo il tocco.
+// L'effetto di pressione (scala) viene solo da :active (css press-spring) e sparisce al rilascio.
+const BTN_STEP_OK = BTN_STEP.replace('hover:bg-graphite-700 ', 'inv-ok ');
 const BTN_TOOL =
   'press-spring flex-1 min-h-[44px] rounded-lg border border-graphite-700 bg-graphite-800 hover:bg-graphite-700 px-3 flex items-center justify-center gap-1.5 text-xs font-display font-semibold uppercase tracking-wide';
 const ROW_BASE = 'inv-row rounded-xl border p-3 transition-colors';
@@ -573,7 +576,9 @@ function buildCount() {
     const r = st.session.rows[i];
     if (act === 'ok') {
       feedback.tap();
-      setContato(i, r.atteso);
+      ev.target.closest('[data-act]')?.blur(); // niente stato "premuto" residuo dopo il rilascio
+      // Toggle: primo tocco conferma la quantità attesa, secondo tocco annulla (torna "da contare")
+      setContato(i, r.contato === r.atteso ? null : r.atteso);
     } else if (act === 'zero') {
       feedback.tap();
       setContato(i, 0);
@@ -637,7 +642,7 @@ function rowHtml(r, i) {
           ? `<span class="mr-auto text-xs text-graphite-400">Atteso <strong class="text-graphite-200">${r.atteso}</strong> <span data-delta class="font-display font-bold"></span></span>`
           : '<span class="mr-auto"></span>'
       }
-      ${visibile ? `<button type="button" data-act="ok" aria-label="Quantità giusta" class="${BTN_STEP} text-emerald-700"><i data-lucide="check" class="w-5 h-5" stroke-width="3"></i></button>` : ''}
+      ${visibile ? `<button type="button" data-act="ok" aria-label="Quantità giusta" aria-pressed="${r.contato === r.atteso}" class="${BTN_STEP_OK} text-emerald-700"><i data-lucide="check" class="w-5 h-5" stroke-width="3"></i></button>` : ''}
       <button type="button" data-act="dec" aria-label="Meno" class="${BTN_STEP}">−</button>
       <input data-input data-no-clear type="number" inputmode="numeric" min="0" step="1" value="${r.contato ?? ''}" placeholder="${visibile ? r.atteso : '–'}"
         class="w-16 h-11 rounded-lg bg-graphite-800 border border-graphite-700 text-center font-display font-bold text-base focus:border-amber-400 outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
@@ -690,6 +695,7 @@ function setContato(i, value, fromInput = false) {
     el.className = `${ROW_BASE} ${ROW_STATE[stateOf(r)]}`;
     const input = el.querySelector('[data-input]');
     if (!fromInput && input) input.value = value ?? '';
+    el.querySelector('[data-act="ok"]')?.setAttribute('aria-pressed', String(value === r.atteso));
     paintDelta(i);
   }
   paintProgress();

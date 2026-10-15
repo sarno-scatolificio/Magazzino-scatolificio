@@ -156,7 +156,13 @@ function ricambiBanner() {
 export function renderList() {
   els.notice.classList.toggle('hidden', !state.tableMissing);
   // Il pulsante PDF è bianco e toccabile solo se esiste almeno un intervento effettuato
+  // Due pulsanti distinti nello stesso posto: negli Effettuati il rapporto dei lavori eseguiti,
+  // nei Da effettuare il foglio per operatore con le caselle da spuntare.
   const pdfBtn = $('int-pdf-btn');
+  const todoBtn = $('int-pdf-todo-btn');
+  pdfBtn.classList.toggle('hidden', state.tab !== 'done');
+  todoBtn.classList.toggle('hidden', state.tab !== 'open');
+  todoBtn.disabled = !state.open.length;
   pdfBtn.disabled = !state.doneDays.size;
   pdfBtn.title = state.doneDays.size ? 'Esporta PDF degli interventi effettuati' : 'Nessun intervento effettuato da esportare';
   paintDateRow();
@@ -232,6 +238,7 @@ export function renderList() {
             ${r.ricambi_mancanti ? `<span class="inline-block ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 ${CHIP_RICAMBI}">Ricambi da indicare</span>` : ''}
             <p class="text-sm font-medium text-graphite-100 leading-snug line-clamp-3">${escapeHtml(r.descrizione)}</p>
             ${r.note_esito ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-1">Esito: ${escapeHtml(r.note_esito)}</p>` : ''}
+            ${r.stato !== 'effettuato' && ops.length ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-1">Assegnato a: ${escapeHtml(sortOperatori(ops).map(formatOperatore).join(', '))}</p>` : ''}
             ${ricambiDi(r).length ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-1">Ricambi: ${escapeHtml(ricambiDi(r).map(ricambiLabel).join(', '))}</p>` : ''}
             <p class="ui-note text-graphite-500 mt-1">${escapeHtml(when)}</p>
           </div>
