@@ -670,18 +670,22 @@ button.lowstock-header:not(:disabled):active { transform: none; background: tran
 /* Interventi aperti sotto una piastrella: sfondo pieno (niente trasparenza sul fondo a puntini) */
 .int-detail { background: #ffffff; }
 
-/* Piastrella aperta + elenco = un solo blocco: la piastrella perde gli angoli e il bordo in basso, lo slot sale
-   a toccarla e l'elenco ha lo stesso bordo blu (la linguetta del fascicolo), senza ripetere il nome. */
-.int-tile.lowstock-tile-selected {
-  border-bottom-width: 0;
-  padding-bottom: calc(0.75rem + 2px); /* il bordo tolto non fa rimpicciolire la piastrella */
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  box-shadow: none;
+/* Piastrelle delle macchine: in una riga con una piastrella aperta, quella aperta si allarga e ingrandisce
+   l'icona, l'altra si rimpicciolisce. Il bordo blu dell'elenco ha sempre gli angoli arrotondati. */
+.int-tile-row {
+  transition: grid-template-columns var(--dur-base) var(--ease-inout), column-gap var(--dur-base) var(--ease-inout);
 }
-.int-slot { transition: grid-template-rows var(--dur-base) var(--ease-inout), margin-top var(--dur-base) var(--ease-inout); }
-.int-slot.acc-open { margin-top: 0 !important; }
-.int-slot .int-detail { border-color: var(--accent); border-top-left-radius: 0; border-top-right-radius: 0; }
+.int-tile-row.int-has-sel { align-items: start; }
+.int-tile .lowstock-tile-ico-box { transition: height var(--dur-base) var(--ease-inout), color var(--dur-base) ease, background-color var(--dur-base) ease; }
+.int-tile-img { --tile-origin: 44px; }
+.int-tile-img.lowstock-tile-selected { --tile-origin: 56px; }
+.int-tile-img.lowstock-tile-selected .int-tile-ico-img { height: 5rem; }
+.int-tile.lowstock-tile-selected .lowstock-tile-name { font-size: 0.875rem; }
+.int-has-sel .int-tile:not(.lowstock-tile-selected) { padding: 0.75rem 0.5rem 0.5rem; }
+.int-has-sel .int-tile:not(.lowstock-tile-selected) .int-tile-ico-img { height: 2.25rem; }
+.int-has-sel .int-tile:not(.lowstock-tile-selected) .lowstock-tile-name { font-size: 10px; margin-top: 0.25rem; }
+.int-has-sel .int-tile:not(.lowstock-tile-selected) .int-tile-badge { transform: scale(0.85); transform-origin: top right; }
+.int-slot .int-detail { border-color: var(--accent); }
 .int-detail > .int-row:first-child { border-top-width: 0; }
 /* Icona macchina (immagine) sulla piastrella: su blu resta su fondo chiaro per restare leggibile */
 .lowstock-tile-selected .int-tile-ico-img { background-color: #ffffff; }
