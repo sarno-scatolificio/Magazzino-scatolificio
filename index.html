@@ -1490,7 +1490,6 @@
       </div>
       <div class="int-step" id="int-step-desc" data-locked="true">
         <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="int-new-desc" id="int-new-desc-label">3 · Intervento</label>
-        <div id="int-new-chips" class="hidden flex flex-wrap gap-2 mb-2" aria-label="Interventi rapidi"></div>
         <textarea id="int-new-desc" rows="2" maxlength="300" placeholder="Cosa va fatto?" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors resize-none"></textarea>
       </div>
       <!-- Dettagli: informazioni in più per chi farà il lavoro (solo per gli interventi da effettuare; non compaiono nel rapporto degli effettuati) -->
@@ -1728,6 +1727,12 @@
           <span id="rapidi-macchina-value" class="text-graphite-400 truncate">Macchina…</span>
           <i data-lucide="chevron-down" class="w-4 h-4 text-graphite-500 shrink-0"></i>
         </button>
+        <div class="flex items-center gap-2">
+          <label for="rapidi-cadenza" class="text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 shrink-0">Ripeti ogni</label>
+          <input id="rapidi-cadenza" type="number" inputmode="numeric" min="1" max="365" step="1" placeholder="–" data-no-clear aria-label="Ripeti ogni quanti giorni (facoltativo)"
+            class="w-20 rounded-lg bg-graphite-800 border border-graphite-700 px-3 py-2.5 text-sm text-center focus:border-amber-400 outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+          <span class="text-xs text-graphite-500">giorni · compare da solo tra i "Da effettuare" alle 6:00</span>
+        </div>
         <div class="flex gap-2">
           <input id="rapidi-titolo" type="text" maxlength="120" autocomplete="off" placeholder="es. Sostituzione cinghia" class="flex-1 min-w-0 w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors">
           <button id="rapidi-add-btn" type="submit" class="press-spring shrink-0 rounded-lg bg-amber-400 hover:bg-amber-300 text-white font-display font-semibold uppercase tracking-wide text-xs px-4 min-h-[44px]">Aggiungi</button>
