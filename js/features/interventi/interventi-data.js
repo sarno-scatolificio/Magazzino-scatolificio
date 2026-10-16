@@ -11,6 +11,7 @@ export const FOTO_BUCKET = 'interventi-foto';
 export const LINEE = [
   { value: 'L1', label: 'Linea 1' },
   { value: 'L2', label: 'Linea 2' },
+  { value: 'REP', label: 'Reparto' }, // macchine uniche di reparto, senza linea (Fasciatrice, Sovrappositore…)
 ];
 export const STATI = {
   da_effettuare: 'Da effettuare',
@@ -31,7 +32,7 @@ export const lineaLabel = (v) => (v === 'L1-L2' ? 'Entrambe le linee' : LINEE.fi
 /** Un intervento rapido vale per la stessa linea e la stessa macchina (senza distinzione di maiuscole) */
 export function rapidoMatches(rapido, linea, macchina) {
   if (!linea || !macchina) return false;
-  return (rapido.linea === linea || rapido.linea === 'L1-L2') && (rapido.macchina || '').toLowerCase() === macchina.toLowerCase();
+  return (rapido.linea === linea || (rapido.linea === 'L1-L2' && linea !== 'REP')) && (rapido.macchina || '').toLowerCase() === macchina.toLowerCase();
 }
 
 function isMissingTable(error) {

@@ -168,7 +168,8 @@ async function onAdd(e) {
     }
     // Macchina presente su entrambe le linee: l'intervento rapido è uno solo e vale per tutte e due
     const entry = (await listMachineEntries().catch(() => [])).find((m) => m.nome.toLowerCase() === macchina.toLowerCase());
-    const onBoth = Array.isArray(entry?.linee) && entry.linee.includes('L1') && entry.linee.includes('L2');
+    // (scegliendo "Reparto" l'intervento resta di reparto, anche se la macchina sta pure sulle linee)
+    const onBoth = linea !== 'REP' && Array.isArray(entry?.linee) && entry.linee.includes('L1') && entry.linee.includes('L2');
     await createRapido({ linea: onBoth ? 'L1-L2' : linea, macchina, titolo, cadenzaGiorni });
     if (onBoth) toastInfo('Vale per entrambe le linee: la macchina è presente su Linea 1 e Linea 2.', 3000);
     els.title.value = '';
