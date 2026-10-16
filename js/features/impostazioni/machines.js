@@ -5,7 +5,7 @@
 // registrate compaiono nel form articolo e nel filtro "per macchina".
 // =============================================================
 
-import { listMachinesWithCounts, createMachine, deleteMachine, updateMachineLinee, updateMachinesOrder, compareMachines, MACHINE_LINES, bumpProductsVersion, uploadMachineManual, deleteMachineManual, uploadOperatorManual, deleteOperatorManual } from '../../data/supabase.js';
+import { listMachinesWithCounts, createMachine, deleteMachine, updateMachineLinee, updateMachinesOrder, compareMachines, MACHINE_LINES, REPARTO, bumpProductsVersion, uploadMachineManual, deleteMachineManual, uploadOperatorManual, deleteOperatorManual } from '../../data/supabase.js';
 import { toastSuccess, toastError } from '../../shared/toast.js';
 import { isAdmin } from '../../core/auth.js';
 import { staggerIndex, setButtonBusy, openOverlay, closeOverlay, enableSheetDrag, startUploadProgress } from '../../shared/ui-utils.js';
@@ -23,7 +23,7 @@ const LINEA_SLOTS = [
   { value: 'L1-L2', label: 'Linea 1-2' },
 ];
 
-const LINEA_LABELS = { L1: 'Linea 1', L2: 'Linea 2' };
+const LINEA_LABELS = { L1: 'Linea 1', L2: 'Linea 2', REP: 'Reparto' };
 
 const els = {};
 let tableMissing = false;
@@ -151,9 +151,10 @@ function buildLineeRow(machine) {
   const label = document.createElement('span');
   label.className = 'ui-note font-semibold uppercase tracking-wide text-graphite-500 mr-0.5';
   label.textContent = 'Linee';
+  label.title = 'Reparto: macchine di reparto, senza linea (si può abbinare alle linee)';
   left.appendChild(label);
   const active = Array.isArray(machine.linee) && machine.linee.length ? machine.linee : MACHINE_LINES;
-  MACHINE_LINES.forEach((l) => {
+  [...MACHINE_LINES, REPARTO].forEach((l) => {
     const on = active.includes(l);
     const chip = document.createElement('button');
     chip.type = 'button';
@@ -188,10 +189,11 @@ function buildLineeRow(machine) {
 
 async function toggleLinea(machine, linea, chip) {
   const current = Array.isArray(machine.linee) && machine.linee.length ? machine.linee : [...MACHINE_LINES];
+  // Linea 1, Linea 2 e Reparto sono indipendenti: una macchina può stare in più posti (es. Trasporti su entrambe le linee e in reparto)
   const next = current.includes(linea) ? current.filter((l) => l !== linea) : [...current, linea];
   if (!next.length) {
     feedback.errorAction();
-    toastError('Una macchina deve stare su almeno una linea.');
+    toastError('Una macchina deve stare su almeno una linea o essere di reparto.');
     return;
   }
   chip.disabled = true;
