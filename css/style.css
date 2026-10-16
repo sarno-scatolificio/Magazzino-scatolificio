@@ -669,6 +669,20 @@ button.lowstock-header:not(:disabled):active { transform: none; background: tran
 .int-tile-new { line-height: 0; }
 /* Interventi aperti sotto una piastrella: sfondo pieno (niente trasparenza sul fondo a puntini) */
 .int-detail { background: #ffffff; }
+
+/* Piastrella aperta + elenco = un solo blocco: la piastrella perde gli angoli e il bordo in basso, lo slot sale
+   a toccarla e l'elenco ha lo stesso bordo blu (la linguetta del fascicolo), senza ripetere il nome. */
+.int-tile.lowstock-tile-selected {
+  border-bottom-width: 0;
+  padding-bottom: calc(0.75rem + 2px); /* il bordo tolto non fa rimpicciolire la piastrella */
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  box-shadow: none;
+}
+.int-slot { transition: grid-template-rows var(--dur-base) var(--ease-inout), margin-top var(--dur-base) var(--ease-inout); }
+.int-slot.acc-open { margin-top: 0 !important; }
+.int-slot .int-detail { border-color: var(--accent); border-top-left-radius: 0; border-top-right-radius: 0; }
+.int-detail > .int-row:first-child { border-top-width: 0; }
 /* Icona macchina (immagine) sulla piastrella: su blu resta su fondo chiaro per restare leggibile */
 .lowstock-tile-selected .int-tile-ico-img { background-color: #ffffff; }
 
