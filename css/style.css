@@ -1165,6 +1165,16 @@ button.shelf-item:not(:disabled):active {
   border-left: 2px solid rgba(var(--accent-rgb), 0.28);
 }
 .group-shelves > .shelf-card { margin-top: 0; }
+/* Gruppo dentro un altro gruppo (macchina dentro Linea, negli Interventi): niente rientro né filo laterale */
+.group-shelves--flat { margin-left: 0; padding: 0.5rem 0 0 0; border-left: 0; }
+/* «N nuovi» (interventi inseriti da altri, non ancora visti) nell'intestazione di un gruppo chiuso */
+.ig-new {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-weight: 600; color: var(--accent);
+  transition: color var(--dur-base) ease;
+}
+.ig-new::before { content: ''; width: 0.4rem; height: 0.4rem; border-radius: 9999px; background: currentColor; }
+.shelf-group.group-open > .shelf-group-header .ig-new { color: #ffffff; }
 
 /* Uscendo dal Magazzino tutto si richiude di scatto (nessuna animazione visibile). */
 .shelf-reset-instant .shelf-group-header,
@@ -2275,6 +2285,21 @@ input:disabled + .input-clear { display: none; }
   margin-top: auto; /* contenuto corto: in fondo; contenuto lungo: seguono la pagina e scorrono con essa */
 }
 #view-scanner #scanner-idle-panel { margin-bottom: 1rem; }
+/* Ultimi movimenti: 4 voci in vista, le altre (ultimi 30 giorni) scorrono dentro la scheda.
+   L'altezza esatta la imposta scanner-idle.js; questa è solo quella di ripiego. */
+.recent-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  max-height: 13.5rem;
+  scrollbar-width: none;
+}
+.recent-scroll::-webkit-scrollbar { width: 0; height: 0; }
+/* Sfumatura in fondo: c'è altro da scorrere */
+.recent-scroll[data-more="1"] {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent);
+}
 
 
 /* =============================================================
