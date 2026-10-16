@@ -260,7 +260,7 @@ function buildTileGrid(tiles, tab, linea) {
   for (let r = 0; r * TILE_COLS < tiles.length; r += 1) {
     const rowTiles = tiles.slice(r * TILE_COLS, r * TILE_COLS + TILE_COLS);
     const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-2 gap-2';
+    grid.className = 'grid grid-cols-2 gap-2 int-tile-row';
     const slot = document.createElement('div');
     slot.className = 'acc-track lowstock-slot int-slot';
     slot.innerHTML = '<div class="acc-inner"><div class="lowstock-slot-inner"></div></div>';
@@ -271,7 +271,7 @@ function buildTileGrid(tiles, tab, linea) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.tileId = t.id;
-      if (iconUrl) btn.style.setProperty('--tile-origin', '44px'); // centro dell'icona più alta (pt-4 + metà di h-14)
+      if (iconUrl) btn.classList.add('int-tile-img');
       btn.className = 'list-item-in lowstock-tile int-tile relative card-plate rounded-xl p-3 pt-4 text-center';
       btn.style.setProperty('--i', staggerIndex(t.n));
       btn.innerHTML = `
@@ -303,6 +303,26 @@ function buildTileGrid(tiles, tab, linea) {
       t.slot = slot;
     });
 
+    // Nella riga con una piastrella aperta: quella aperta si allarga, l'altra si rimpicciolisce
+    const paintRow = () => {
+      const sel = rowTiles.findIndex((o) => o.btn.classList.contains('lowstock-tile-selected'));
+      grid.classList.toggle('int-has-sel', sel >= 0);
+      let cols = 'minmax(0, 1fr) minmax(0, 1fr)';
+      let gap = '';
+      if (sel >= 0) {
+        if (rowTiles.length === 1) {
+          cols = 'minmax(0, 1fr) minmax(0, 0fr)';
+          gap = '0px';
+        } else {
+          cols = sel === 0 ? 'minmax(0, 1.7fr) minmax(0, 0.9fr)' : 'minmax(0, 0.9fr) minmax(0, 1.7fr)';
+        }
+      }
+      grid.style.gridTemplateColumns = cols;
+      grid.style.columnGap = gap;
+    };
+    rowTiles.forEach((t) => { t.paintRow = paintRow; });
+    paintRow();
+
     const setOpen = (t, on) => {
       t.btn.classList.toggle('lowstock-tile-selected', on);
       t.btn.setAttribute('aria-expanded', String(on));
@@ -310,6 +330,7 @@ function buildTileGrid(tiles, tab, linea) {
       if (on) rowTiles.forEach((o) => o.detail.classList.toggle('hidden', o !== t));
       if (on) void t.slot.offsetWidth; // reflow: la transizione parte sempre
       t.slot.classList.toggle('acc-open', on);
+      paintRow();
     };
 
     rowTiles.forEach((t) => {
@@ -345,6 +366,7 @@ function buildTileGrid(tiles, tab, linea) {
     t.btn.setAttribute('aria-expanded', 'true');
     t.detail.classList.remove('hidden');
     t.slot.classList.add('acc-open');
+    t.paintRow();
   });
   return out;
 }
