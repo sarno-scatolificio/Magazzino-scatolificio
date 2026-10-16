@@ -226,10 +226,17 @@ export function renderList() {
     });
     group.el.style.setProperty('--i', staggerIndex(i++));
 
+    // Macchine con più interventi: piastrelle (come «Articoli sotto scorta»); toccandone una, i suoi interventi
+    // si aprono subito sotto la sua riga. Una macchina con un solo intervento si mostra direttamente.
+    let tiles = [];
+    const flushTiles = () => {
+      if (tiles.length) group.inner.append(...buildTileGrid(tiles, state.tab, linea));
+      tiles = [];
+    };
     names.forEach((name) => {
       const items = machines.get(name).sort(timeSort);
       if (items.length === 1) {
-        // Un solo intervento: si mostra direttamente, con il nome della macchina in testa alla scheda
+        flushTiles();
         const card = document.createElement('div');
         card.className = 'card-plate rounded-xl overflow-hidden';
         card.innerHTML = `
@@ -240,34 +247,119 @@ export function renderList() {
         group.inner.appendChild(card);
         return;
       }
-      // Più interventi sulla stessa macchina: gruppo a sua volta chiuso
-      const machineKey = `${state.tab}|${linea}|${name}`;
-      const sub = buildGroup({
-        icon: 'cog',
-        title: name,
-        sub: plural(items.length, 'intervento', 'interventi'),
-        newCount: countNew(items),
-        open: !!state.filterMacchina || state.openMacchine.has(machineKey),
-        auto: !!state.filterMacchina,
-        set: state.openMacchine,
-        key: machineKey,
-        headPad: 'py-2.5',
-        flat: true,
-      });
-      const card = document.createElement('div');
-      card.className = 'card-plate rounded-xl overflow-hidden';
-      items.forEach((r, n) => {
-        const row = buildRow(r, unseenIds.has(r.id));
-        if (n === 0) row.classList.remove('border-t');
-        card.appendChild(row);
-      });
-      sub.inner.appendChild(card);
-      group.inner.appendChild(sub.el);
+      tiles.push({ name, items, newCount: countNew(items), rows: items.map((r) => buildRow(r, unseenIds.has(r.id))) });
     });
+    flushTiles();
     els.list.appendChild(group.el);
   });
   window.lucide?.createIcons();
   loadThumbs(rows);
+}
+
+const TILE_COLS = 2; // piastrelle per riga
+
+/**
+ * Piastrelle delle macchine con più interventi, a righe di due; sotto ogni riga uno «slot» a fisarmonica dove
+ * si apre l'elenco della piastrella toccata. Una sola aperta per linea: un altro tocco chiude la precedente e
+ * apre la nuova, un secondo tocco sulla stessa la richiude. Stesso linguaggio degli «Articoli sotto scorta».
+ */
+function buildTileGrid(tiles, tab, linea) {
+  const prefix = `${tab}|${linea}|`;
+  const out = [];
+  const state_ = { openKey: null };
+  tiles.forEach((t, n) => {
+    t.key = `${prefix}${t.name}`;
+    t.id = t.key;
+    t.n = n;
+  });
+  const openInitially = (t) => !!state.filterMacchina || state.openMacchine.has(t.key);
+
+  for (let r = 0; r * TILE_COLS < tiles.length; r += 1) {
+    const rowTiles = tiles.slice(r * TILE_COLS, r * TILE_COLS + TILE_COLS);
+    const grid = document.createElement('div');
+    grid.className = 'grid grid-cols-2 gap-2';
+    const slot = document.createElement('div');
+    slot.className = 'acc-track lowstock-slot';
+    slot.innerHTML = '<div class="acc-inner"><div class="lowstock-slot-inner"></div></div>';
+    const slotInner = slot.querySelector('.lowstock-slot-inner');
+
+    rowTiles.forEach((t) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.tileId = t.id;
+      btn.className = 'list-item-in lowstock-tile int-tile relative card-plate rounded-xl p-3 pt-4 text-center';
+      btn.style.setProperty('--i', staggerIndex(t.n));
+      btn.innerHTML = `
+        <span class="lowstock-tile-badge int-tile-badge absolute top-1.5 right-1.5 font-mono text-[11px] font-semibold px-2 py-0.5 rounded-full">${t.items.length}</span>
+        ${t.newCount ? `<span class="int-tile-new absolute top-2 left-2" data-new="${t.newCount}" title="${t.newCount} ${t.newCount === 1 ? 'nuovo' : 'nuovi'}"><span class="unseen-dot"></span></span>` : ''}
+        <span class="lowstock-tile-ico-box mx-auto w-9 h-9 rounded-lg bg-graphite-700/50 flex items-center justify-center">
+          <i data-lucide="cog" class="lowstock-tile-ico w-[18px] h-[18px] text-graphite-400" stroke-width="1.8"></i>
+        </span>
+        <p class="lowstock-tile-name text-xs font-display font-bold uppercase tracking-wide mt-1.5 truncate"></p>`;
+      btn.querySelector('.lowstock-tile-name').textContent = t.name; // testo, mai HTML
+      btn.setAttribute('aria-expanded', 'false');
+      t.btn = btn;
+      grid.appendChild(btn);
+
+      // Dettaglio: gli interventi della macchina (righe già pronte, con pallino e miniatura)
+      const detail = document.createElement('div');
+      detail.className = 'lowstock-detail rounded-xl border-2 border-graphite-700 overflow-hidden mb-2';
+      detail.dataset.tileId = t.id;
+      const head = document.createElement('p');
+      head.className = 'px-4 py-2 ui-note font-display font-bold uppercase tracking-wide text-graphite-400 bg-graphite-800/40';
+      head.textContent = `${t.name} · ${t.items.length} interventi`;
+      detail.appendChild(head);
+      t.rows.forEach((row, i) => {
+        row.classList.add('lowstock-item');
+        row.style.setProperty('--i', i);
+        detail.appendChild(row);
+      });
+      slotInner.appendChild(detail);
+      t.detail = detail;
+      t.slot = slot;
+    });
+
+    const setOpen = (t, on) => {
+      t.btn.classList.toggle('lowstock-tile-selected', on);
+      t.btn.setAttribute('aria-expanded', String(on));
+      if (on) void t.slot.offsetWidth; // reflow: la transizione parte sempre
+      t.slot.classList.toggle('acc-open', on);
+    };
+
+    rowTiles.forEach((t) => {
+      t.setOpen = (on) => setOpen(t, on);
+      t.btn.addEventListener('click', () => {
+        feedback.tap();
+        const wasOpen = state_.openKey === t.key;
+        // Una sola aperta per linea: si chiude quella aperta (anche in un'altra riga)
+        tiles.forEach((o) => {
+          if (o !== t && o.btn.classList.contains('lowstock-tile-selected')) {
+            o.setOpen(false);
+            if (!state.filterMacchina) state.openMacchine.delete(o.key);
+          }
+        });
+        if (wasOpen) {
+          state_.openKey = null;
+          t.setOpen(false);
+          state.openMacchine.delete(t.key);
+          return;
+        }
+        state_.openKey = t.key;
+        t.setOpen(true);
+        if (!state.filterMacchina) state.openMacchine.add(t.key);
+      });
+    });
+    out.push(grid, slot);
+  }
+
+  // Stato iniziale (dopo un nuovo disegno dell'elenco o con filtro): la piastrella ricordata resta aperta, senza animazione
+  tiles.filter(openInitially).slice(0, 1).forEach((t) => {
+    state_.openKey = t.key;
+    t.btn.classList.add('lowstock-tile-selected');
+    t.btn.setAttribute('aria-expanded', 'true');
+    t.slot.classList.add('acc-open');
+  });
+  return out;
 }
 
 /**
@@ -336,6 +428,17 @@ function buildGroup({ icon, title, sub, newCount, open, auto, set, key, headPad,
 
 /** Presa visione di un intervento: i contatori «N nuovi» dei gruppi che lo contengono scendono di uno */
 function dropNewBadge(row) {
+  // Piastrella della macchina: il pallino «nuovi» si aggiorna (e sparisce a zero)
+  const detail = row.closest('.lowstock-detail[data-tile-id]');
+  if (detail) {
+    const tile = detail.closest('.lowstock-slot')?.previousElementSibling?.querySelector(`[data-tile-id="${CSS.escape(detail.dataset.tileId)}"]`);
+    const dot = tile?.querySelector('.int-tile-new');
+    if (dot) {
+      const n = Number(dot.dataset.new || 0) - 1;
+      if (n > 0) dot.dataset.new = String(n);
+      else dot.remove();
+    }
+  }
   for (let g = row.closest('.shelf-group'); g; g = g.parentElement?.closest('.shelf-group')) {
     const badge = g.querySelector(':scope > .shelf-group-header .ig-new');
     if (!badge) continue;
