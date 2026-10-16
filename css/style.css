@@ -647,14 +647,14 @@ button.lowstock-header:not(:disabled):active { transform: none; background: tran
   background: var(--accent);
   /* Origine sul centro dell'icona dello scaffale (pt-4 + metà riquadro da 36px = 34px dall'alto):
      alla chiusura il blu passa dietro l'icona e si spegne lì. */
-  clip-path: circle(0% at 50% 34px);
+  clip-path: circle(0% at 50% var(--tile-origin, 34px));
   transition: clip-path var(--dur-slow) var(--ease-out);
 }
 .lowstock-tile-selected {
   border-color: var(--accent) !important;
   box-shadow: 0 1px 2px rgba(13, 17, 23, 0.10); /* toglie il filo di luce in alto: sul blu si vedrebbe come bordino bianco */
 }
-.lowstock-tile-selected::before { clip-path: circle(95% at 50% 34px); }
+.lowstock-tile-selected::before { clip-path: circle(95% at 50% var(--tile-origin, 34px)); }
 .lowstock-tile-name, .lowstock-tile-ico, .lowstock-tile-ico-box, .lowstock-tile-badge {
   transition: color var(--dur-base) ease, background-color var(--dur-base) ease;
 }
