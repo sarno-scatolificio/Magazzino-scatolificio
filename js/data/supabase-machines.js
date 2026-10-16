@@ -100,7 +100,7 @@ async function fetchMachineEntries() {
   if (!registered.error) {
     registered.data.forEach((r) => {
       const n = normalizeMachineName(r.nome);
-      if (n) byKey.set(n.toLowerCase(), { id: r.id, nome: n, linee: Array.isArray(r.linee) ? r.linee : null, sort_order: r.sort_order ?? null });
+      if (n) byKey.set(n.toLowerCase(), { id: r.id, nome: n, linee: Array.isArray(r.linee) ? r.linee : null, sort_order: r.sort_order ?? null, icon_storage_path: r.icon_storage_path || null });
     });
   } else if (!isMissingMachinesTable(registered.error)) {
     throw registered.error;
@@ -109,7 +109,7 @@ async function fetchMachineEntries() {
   if (error) throw error;
   data.forEach((r) => {
     const n = normalizeMachineName(r.macchina);
-    if (n && !byKey.has(n.toLowerCase())) byKey.set(n.toLowerCase(), { id: null, nome: n, linee: null, sort_order: null });
+    if (n && !byKey.has(n.toLowerCase())) byKey.set(n.toLowerCase(), { id: null, nome: n, linee: null, sort_order: null, icon_storage_path: null });
   });
   return Array.from(byKey.values()).sort(compareMachines);
 }
