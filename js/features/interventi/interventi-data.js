@@ -25,12 +25,13 @@ export const operatoriDi = (r) => (Array.isArray(r?.operatori) && r.operatori.le
 export const ricambiDi = (r) => (Array.isArray(r?.ricambi) ? r.ricambi : []);
 export const ricambiLabel = (x) => `${x.codice} ×${x.quantita}`;
 
-export const lineaLabel = (v) => LINEE.find((l) => l.value === v)?.label || v || '';
+/** 'L1-L2' = intervento rapido condiviso da una macchina presente su entrambe le linee */
+export const lineaLabel = (v) => (v === 'L1-L2' ? 'Entrambe le linee' : LINEE.find((l) => l.value === v)?.label || v || '');
 
 /** Un intervento rapido vale per la stessa linea e la stessa macchina (senza distinzione di maiuscole) */
 export function rapidoMatches(rapido, linea, macchina) {
   if (!linea || !macchina) return false;
-  return rapido.linea === linea && (rapido.macchina || '').toLowerCase() === macchina.toLowerCase();
+  return (rapido.linea === linea || rapido.linea === 'L1-L2') && (rapido.macchina || '').toLowerCase() === macchina.toLowerCase();
 }
 
 function isMissingTable(error) {

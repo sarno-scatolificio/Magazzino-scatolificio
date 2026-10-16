@@ -5,10 +5,10 @@
 // =============================================================
 
 import { LINEE, lineaLabel, listRapidi, createRapido, deleteRapido, updateRapidoCadenza, listOperatori, createOperatore, deleteOperatore, formatOperatore, compareOperatori } from './interventi-data.js';
-import { listDistinctMacchine } from '../../data/supabase.js';
+import { listDistinctMacchine, listMachineEntries } from '../../data/supabase.js';
 import { invalidateRapidi, invalidateOperatori } from './interventi.js';
 import { openPicker } from '../../shared/picker.js';
-import { toastSuccess, toastError, toastWarning } from '../../shared/toast.js';
+import { toastSuccess, toastError, toastWarning, toastInfo } from '../../shared/toast.js';
 import { isAdmin } from '../../core/auth.js';
 import { staggerIndex, setButtonBusy, openOverlay, closeOverlay, enableSheetDrag, syncSegIndicator } from '../../shared/ui-utils.js';
 import { confirmDialog } from '../../shared/ui-modal.js';
@@ -110,7 +110,7 @@ function render(rapidi) {
     p.textContent = 'Nessun intervento rapido ancora registrato.';
     els.list.appendChild(p);
   }
-  const order = (v) => LINEE.findIndex((l) => l.value === v);
+  const order = (v) => (v === 'L1-L2' ? 99 : LINEE.findIndex((l) => l.value === v));
   const sorted = [...rapidi].sort((a, b) => order(a.linea) - order(b.linea) || a.macchina.localeCompare(b.macchina, 'it') || a.titolo.localeCompare(b.titolo, 'it'));
   let lastKey = '';
   let i = 0;
@@ -166,7 +166,11 @@ async function onAdd(e) {
       toastWarning('La ripetizione deve essere un numero di giorni da 1 a 365.');
       return;
     }
-    await createRapido({ linea, macchina, titolo, cadenzaGiorni });
+    // Macchina presente su entrambe le linee: l'intervento rapido è uno solo e vale per tutte e due
+    const entry = (await listMachineEntries().catch(() => [])).find((m) => m.nome.toLowerCase() === macchina.toLowerCase());
+    const onBoth = Array.isArray(entry?.linee) && entry.linee.includes('L1') && entry.linee.includes('L2');
+    await createRapido({ linea: onBoth ? 'L1-L2' : linea, macchina, titolo, cadenzaGiorni });
+    if (onBoth) toastInfo('Vale per entrambe le linee: la macchina è presente su Linea 1 e Linea 2.', 3000);
     els.title.value = '';
     els.cadenza.value = '';
     invalidateRapidi();
