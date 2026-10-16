@@ -221,12 +221,13 @@
 
         <div class="card-plate rounded-xl px-3.5 py-3">
           <div class="flex items-center justify-between gap-3 mb-1.5">
-            <p class="font-display font-bold text-xs uppercase tracking-wide text-graphite-400">Ultimi movimenti</p>
+            <p class="font-display font-bold text-xs uppercase tracking-wide text-graphite-400">Ultimi movimenti <span class="normal-case tracking-normal font-sans font-normal text-graphite-500">· 30 giorni</span></p>
             <div class="flex items-center gap-3">
               <button type="button" id="scanner-movements-viewall-btn" class="ui-note font-display font-semibold uppercase tracking-wide text-amber-400 hover:text-amber-300 transition-colors">Vedi tutti</button>
             </div>
           </div>
-          <div id="scanner-recent-list" class="space-y-2">
+          <div id="scanner-recent-list" class="recent-scroll space-y-2">
+            <div class="skeleton h-9 w-full"></div>
             <div class="skeleton h-9 w-full"></div>
             <div class="skeleton h-9 w-full"></div>
             <div class="skeleton h-9 w-full"></div>
@@ -1494,6 +1495,17 @@
       <div class="int-step" id="int-step-desc" data-locked="true">
         <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="int-new-desc" id="int-new-desc-label">3 · Intervento</label>
         <textarea id="int-new-desc" rows="2" maxlength="300" placeholder="Cosa va fatto?" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors resize-none"></textarea>
+        <div id="int-new-rapidi" class="hidden mt-1.5">
+          <button type="button" id="int-new-rapidi-btn" aria-expanded="false" class="press-spring flex items-center gap-1.5 min-h-[40px] text-xs font-display font-semibold uppercase tracking-wide text-amber-400">
+            <i data-lucide="zap" class="w-4 h-4" stroke-width="2.2"></i><span id="int-new-rapidi-label">Interventi rapidi</span>
+            <i data-lucide="chevron-down" id="int-new-rapidi-chev" class="w-4 h-4 transition-transform" stroke-width="2.2"></i>
+          </button>
+          <div id="int-new-rapidi-wrap" class="punti-expand" aria-hidden="true">
+            <div class="punti-expand-inner">
+              <div id="int-new-rapidi-list" role="listbox" aria-label="Interventi rapidi" class="mt-1 rounded-lg border border-graphite-700 bg-white overflow-hidden"></div>
+            </div>
+          </div>
+        </div>
       </div>
       <!-- Dettagli: informazioni in più per chi farà il lavoro (solo per gli interventi da effettuare; non compaiono nel rapporto degli effettuati) -->
       <div class="int-step" id="int-step-dettagli" data-locked="true">
@@ -1718,29 +1730,43 @@
       <button id="rapidi-modal-close" type="button" aria-label="Chiudi" class="modal-close modal-close--on-light"><i data-lucide="x" class="w-6 h-6" stroke-width="2.5"></i></button>
     </div>
     <div class="flex-1 overflow-y-auto px-5 py-4">
-      <p class="text-xs text-graphite-500 mb-3">Gli interventi registrati qui compaiono come scelta rapida nel Blocco Note Interventi, quando si sceglie la stessa linea e la stessa macchina.</p>
+      <p class="text-xs text-graphite-500 mb-3">Lavori ricorrenti di una macchina: con una ripetizione, tornano da soli tra i "Da effettuare".</p>
       <p id="rapidi-notice" class="hidden text-xs rounded-lg px-3 py-2 mb-3 bg-rose-500/10 text-rose-700">Le tabelle degli interventi non sono ancora state create sul database.</p>
-      <form id="rapidi-form" class="space-y-2 mb-4">
-        <div id="rapidi-linea-seg" class="seg flex w-full rounded-lg border border-graphite-700 bg-graphite-800 p-0.5" role="group" aria-label="Linea">
-          <span class="seg-indicator" aria-hidden="true"></span>
-          <button type="button" data-linea="L1" class="category-tab flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">Linea 1</button>
-          <button type="button" data-linea="L2" class="category-tab flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">Linea 2</button>
-          <button type="button" data-linea="REP" class="category-tab flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">Reparto</button>
+      <form id="rapidi-form" class="card-plate rounded-xl p-3.5 space-y-3.5 mb-5" novalidate>
+        <div class="int-step">
+          <p class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">1 · Linea</p>
+          <div id="rapidi-linea-seg" class="seg flex w-full rounded-lg border border-graphite-700 bg-graphite-800 p-0.5" role="group" aria-label="Linea">
+            <span class="seg-indicator" aria-hidden="true"></span>
+            <button type="button" data-linea="L1" class="category-tab flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">Linea 1</button>
+            <button type="button" data-linea="L2" class="category-tab flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">Linea 2</button>
+            <button type="button" data-linea="REP" class="category-tab flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">Reparto</button>
+          </div>
         </div>
-        <button type="button" id="rapidi-macchina-btn" class="w-full flex items-center justify-between rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm text-left hover:border-amber-400 transition-colors min-h-[44px]">
-          <span id="rapidi-macchina-value" class="text-graphite-400 truncate">Macchina…</span>
-          <i data-lucide="chevron-down" class="w-4 h-4 text-graphite-500 shrink-0"></i>
+        <div class="int-step" id="rapidi-step-macchina" data-locked="true">
+          <p class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">2 · Macchina</p>
+          <div id="rapidi-macchine" class="flex flex-wrap gap-2" role="group" aria-label="Macchina"></div>
+        </div>
+        <div class="int-step" id="rapidi-step-titolo" data-locked="true">
+          <label for="rapidi-titolo" class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">3 · Intervento</label>
+          <input id="rapidi-titolo" type="text" maxlength="120" autocomplete="off" placeholder="es. Sostituzione cinghia" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors min-h-[44px]">
+        </div>
+        <div class="int-step" id="rapidi-step-cadenza" data-locked="true">
+          <p class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Ripetizione <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(facoltativa)</span></p>
+          <div id="rapidi-cadenza-chips" class="flex flex-wrap gap-2" role="group" aria-label="Ripetizione"></div>
+          <div id="rapidi-cadenza-altro" class="punti-expand" aria-hidden="true">
+            <div class="punti-expand-inner">
+              <div class="flex items-center gap-2 pt-2.5">
+                <input id="rapidi-cadenza" type="number" inputmode="numeric" min="1" max="365" step="1" placeholder="–" data-no-clear aria-label="Ripeti ogni quanti giorni"
+                  class="w-20 rounded-lg bg-graphite-800 border border-graphite-700 px-3 py-2.5 text-sm text-center focus:border-amber-400 outline-none transition-colors min-h-[44px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                <span class="text-xs text-graphite-500">giorni (da 1 a 365)</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-xs text-graphite-500 mt-2">Con una ripetizione il lavoro compare da solo tra i "Da effettuare" alle 6:00.</p>
+        </div>
+        <button id="rapidi-add-btn" type="submit" disabled class="press-spring w-full rounded-lg bg-amber-400 hover:bg-amber-300 text-white font-display font-semibold uppercase tracking-wide text-sm min-h-[48px] flex items-center justify-center gap-2">
+          <i data-lucide="plus" class="w-5 h-5" stroke-width="2.5"></i><span>Aggiungi</span>
         </button>
-        <div class="flex items-center gap-2">
-          <label for="rapidi-cadenza" class="text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 shrink-0">Ripeti ogni</label>
-          <input id="rapidi-cadenza" type="number" inputmode="numeric" min="1" max="365" step="1" placeholder="–" data-no-clear aria-label="Ripeti ogni quanti giorni (facoltativo)"
-            class="w-20 rounded-lg bg-graphite-800 border border-graphite-700 px-3 py-2.5 text-sm text-center focus:border-amber-400 outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
-          <span class="text-xs text-graphite-500">giorni · compare da solo tra i "Da effettuare" alle 6:00</span>
-        </div>
-        <div class="flex gap-2">
-          <input id="rapidi-titolo" type="text" maxlength="120" autocomplete="off" placeholder="es. Sostituzione cinghia" class="flex-1 min-w-0 w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors">
-          <button id="rapidi-add-btn" type="submit" class="press-spring shrink-0 rounded-lg bg-amber-400 hover:bg-amber-300 text-white font-display font-semibold uppercase tracking-wide text-xs px-4 min-h-[44px]">Aggiungi</button>
-        </div>
       </form>
       <div id="rapidi-skeleton" class="space-y-2"><div class="skeleton h-12 w-full"></div><div class="skeleton h-12 w-full"></div></div>
       <div id="rapidi-list" class="hidden space-y-2"></div>
