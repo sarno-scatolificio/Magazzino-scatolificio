@@ -26,6 +26,9 @@ function isMissingMachinesTable(error) {
 /** Linee su cui può trovarsi una macchina */
 export const MACHINE_LINES = ['L1', 'L2'];
 
+/** Macchine di reparto (es. Fasciatrice, Sovrappositore: uniche, senza linea). Si salvano come linee = ['REP']; una macchina può anche stare su una o due linee E in reparto (es. Trasporti). */
+export const REPARTO = 'REP';
+
 /** Ordine delle macchine in tutta l'app: prima quelle ordinate dall'admin (sort_order), poi le altre in ordine alfabetico */
 export function compareMachines(a, b) {
   const sa = a.sort_order ?? Infinity;
@@ -40,8 +43,10 @@ export function compareMachines(a, b) {
  * creata) vale per tutte.
  */
 export function machineOnLinea(entry, linea) {
-  if (!linea || linea === 'L1-L2') return true;
   const l = entry?.linee;
+  // "Reparto": solo le macchine di reparto; una macchina solo di reparto non compare sotto Linea 1 o Linea 2
+  if (linea === REPARTO) return Array.isArray(l) && l.includes(REPARTO);
+  if (!linea || linea === 'L1-L2') return true;
   if (!Array.isArray(l) || l.length === 0) return true;
   return l.includes(linea);
 }
@@ -211,8 +216,8 @@ export async function updateMachineIcon(machineId, { newIconStoragePath, previou
 /** Imposta su quali linee si trova una macchina (almeno una). Solo admin. */
 export async function updateMachineLinee(machineId, linee) {
   invalidateMachineEntries();
-  const clean = MACHINE_LINES.filter((l) => linee.includes(l));
-  if (!clean.length) throw new Error('Una macchina deve stare su almeno una linea.');
+  const clean = [...MACHINE_LINES, REPARTO].filter((l) => linee.includes(l));
+  if (!clean.length) throw new Error('Una macchina deve stare su almeno una linea o essere di reparto.');
   const { data, error } = await supabase.from('machines').update({ linee: clean }).eq('id', machineId).select('id');
   if (error) {
     if (isMissingMachineColumn(error)) throw new Error('Manca la colonna delle linee sulla tabella delle macchine.');
