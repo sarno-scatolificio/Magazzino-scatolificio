@@ -262,7 +262,7 @@ function buildTileGrid(tiles, tab, linea) {
     const grid = document.createElement('div');
     grid.className = 'grid grid-cols-2 gap-2';
     const slot = document.createElement('div');
-    slot.className = 'acc-track lowstock-slot';
+    slot.className = 'acc-track lowstock-slot int-slot';
     slot.innerHTML = '<div class="acc-inner"><div class="lowstock-slot-inner"></div></div>';
     const slotInner = slot.querySelector('.lowstock-slot-inner');
 
@@ -292,10 +292,7 @@ function buildTileGrid(tiles, tab, linea) {
       const detail = document.createElement('div');
       detail.className = 'lowstock-detail int-detail rounded-xl border-2 border-graphite-700 overflow-hidden mb-2';
       detail.dataset.tileId = t.id;
-      const head = document.createElement('p');
-      head.className = 'px-4 py-2 ui-note font-display font-bold uppercase tracking-wide text-graphite-400 bg-graphite-800/40';
-      head.textContent = `${t.name} · ${t.items.length} ${t.items.length === 1 ? 'intervento' : 'interventi'}`;
-      detail.appendChild(head);
+      detail.classList.add('hidden'); // si mostra solo quando la sua piastrella è aperta (nella riga ce ne sono due)
       t.rows.forEach((row, i) => {
         row.classList.add('lowstock-item');
         row.style.setProperty('--i', i);
@@ -309,6 +306,8 @@ function buildTileGrid(tiles, tab, linea) {
     const setOpen = (t, on) => {
       t.btn.classList.toggle('lowstock-tile-selected', on);
       t.btn.setAttribute('aria-expanded', String(on));
+      // Nello slot ci sono gli interventi di entrambe le piastrelle della riga: si vedono solo quelli della piastrella aperta
+      if (on) rowTiles.forEach((o) => o.detail.classList.toggle('hidden', o !== t));
       if (on) void t.slot.offsetWidth; // reflow: la transizione parte sempre
       t.slot.classList.toggle('acc-open', on);
     };
@@ -344,6 +343,7 @@ function buildTileGrid(tiles, tab, linea) {
     state_.openKey = t.key;
     t.btn.classList.add('lowstock-tile-selected');
     t.btn.setAttribute('aria-expanded', 'true');
+    t.detail.classList.remove('hidden');
     t.slot.classList.add('acc-open');
   });
   return out;
