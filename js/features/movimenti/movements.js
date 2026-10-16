@@ -114,7 +114,7 @@ export function movementRow(r, i, container = els.list, { compact = false } = {}
   const detailRows = [
     ['Scaffale', r.locazione],
     ['Punto di utilizzo', r.punto_utilizzo_specifico],
-    ['Linea', r.linea],
+    ['Linea', r.linea === 'REP' ? 'Reparto' : r.linea],
     ['Macchina', r.macchinario],
     ['Note', r.note],
   ].filter(([, v]) => v);

@@ -96,7 +96,7 @@ export async function pickMacchinario() {
   }
   const options = [...els.macchinarioSelect.options].map((o) => o.value).filter(Boolean);
   const picked = await openPicker({
-    title: `Macchinario · ${els.lineaInput.value === 'L1' ? 'Linea 1' : 'Linea 2'}`,
+    title: `Macchinario · ${{ L1: 'Linea 1', L2: 'Linea 2', REP: 'Reparto' }[els.lineaInput.value] || ''}`,
     options,
     keepOrder: true,
     currentValue: els.macchinarioSelect.value,

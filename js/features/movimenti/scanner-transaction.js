@@ -164,7 +164,7 @@ export async function confirmTransaction() {
     if (!linea) {
       feedback.errorAction();
       flagMissing(els.lineaGroup);
-      toastError('Seleziona la linea (Linea 1 o Linea 2).');
+      toastError('Seleziona la linea (Linea 1, Linea 2 o Reparto).');
       return;
     }
     if (ss.currentProduct.categoria === 'cuscinetti') {
