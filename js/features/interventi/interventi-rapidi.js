@@ -4,7 +4,7 @@
 // Interventi, scelte linea e macchina, compaiono da soli come scelte rapide.
 // =============================================================
 
-import { LINEE, lineaLabel, listRapidi, createRapido, deleteRapido, listOperatori, createOperatore, deleteOperatore, formatOperatore, compareOperatori } from './interventi-data.js';
+import { LINEE, lineaLabel, listRapidi, createRapido, deleteRapido, updateRapidoCadenza, listOperatori, createOperatore, deleteOperatore, formatOperatore, compareOperatori } from './interventi-data.js';
 import { listDistinctMacchine } from '../../data/supabase.js';
 import { invalidateRapidi, invalidateOperatori } from './interventi.js';
 import { openPicker } from '../../shared/picker.js';
@@ -25,6 +25,7 @@ export function initInterventiRapidi() {
   els.seg = $('rapidi-linea-seg');
   els.form = $('rapidi-form');
   els.title = $('rapidi-titolo');
+  els.cadenza = $('rapidi-cadenza');
   els.addBtn = $('rapidi-add-btn');
   els.list = $('rapidi-list');
   els.skeleton = $('rapidi-skeleton');
@@ -128,13 +129,21 @@ function render(rapidi) {
     const name = document.createElement('span');
     name.className = 'min-w-0 text-sm font-medium text-graphite-100';
     name.textContent = r.titolo;
+    // Cadenza: ogni N giorni il lavoro compare da solo tra i "Da effettuare" alle 6:00 (vuoto = nessuna ripetizione)
+    const cad = document.createElement('label');
+    cad.className = 'shrink-0 flex items-center gap-1 text-[11px] text-graphite-500';
+    cad.innerHTML = 'ogni <input type="number" inputmode="numeric" min="1" max="365" step="1" placeholder="–" data-no-clear class="w-14 rounded-md bg-graphite-800 border border-graphite-700 px-1 py-1.5 text-sm text-center text-graphite-100 focus:border-amber-400 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"> gg';
+    const cadInput = cad.querySelector('input');
+    cadInput.value = r.cadenza_giorni ?? '';
+    cadInput.setAttribute('aria-label', `Ripeti "${r.titolo}" ogni quanti giorni`);
+    cadInput.addEventListener('change', () => onCadenza(r, cadInput));
     const del = document.createElement('button');
     del.type = 'button';
     del.setAttribute('aria-label', `Rimuovi ${r.titolo}`);
     del.className = 'shrink-0 w-11 h-11 rounded-lg flex items-center justify-center text-rose-700 hover:bg-rose-50 transition-colors';
     del.innerHTML = '<i data-lucide="trash-2" class="w-5 h-5" stroke-width="2"></i>';
     del.addEventListener('click', () => onRemove(r));
-    row.append(name, del);
+    row.append(name, cad, del);
     els.list.appendChild(row);
   });
   els.list.classList.remove('hidden');
@@ -151,8 +160,15 @@ async function onAdd(e) {
   }
   setButtonBusy(els.addBtn, true);
   try {
-    await createRapido({ linea, macchina, titolo });
+    const cadenzaGiorni = parseCadenza(els.cadenza.value);
+    if (cadenzaGiorni === false) {
+      feedback.errorAction();
+      toastWarning('La ripetizione deve essere un numero di giorni da 1 a 365.');
+      return;
+    }
+    await createRapido({ linea, macchina, titolo, cadenzaGiorni });
     els.title.value = '';
+    els.cadenza.value = '';
     invalidateRapidi();
     feedback.confirmAction();
     toastSuccess('Intervento rapido aggiunto.', 2000);
@@ -162,6 +178,37 @@ async function onAdd(e) {
     toastError(err.message || 'Impossibile aggiungere l\'intervento rapido.');
   } finally {
     setButtonBusy(els.addBtn, false);
+  }
+}
+
+/** Giorni di ripetizione: numero intero 1-365, null se vuoto, false se non valido */
+function parseCadenza(txt) {
+  const t = String(txt ?? '').trim();
+  if (t === '') return null;
+  const n = Number(t);
+  return Number.isInteger(n) && n >= 1 && n <= 365 ? n : false;
+}
+
+async function onCadenza(r, input) {
+  const giorni = parseCadenza(input.value);
+  if (giorni === false) {
+    feedback.errorAction();
+    toastWarning('La ripetizione deve essere un numero di giorni da 1 a 365.');
+    input.value = r.cadenza_giorni ?? '';
+    return;
+  }
+  if (giorni === (r.cadenza_giorni ?? null)) return;
+  try {
+    await updateRapidoCadenza(r.id, giorni);
+    r.cadenza_giorni = giorni;
+    invalidateRapidi();
+    feedback.confirmAction();
+    toastSuccess(giorni ? `Ripetizione: ogni ${giorni} ${giorni === 1 ? 'giorno' : 'giorni'}, alle 6:00.` : 'Ripetizione tolta.', 2500);
+  } catch (err) {
+    console.error(err);
+    feedback.errorAction();
+    toastError('Impossibile salvare la ripetizione.');
+    input.value = r.cadenza_giorni ?? '';
   }
 }
 

@@ -6,8 +6,8 @@
 import { $, authorName, draft, els, state } from './interventi-shared.js';
 import { closeOverlay, enableSheetDrag, openOverlay, setButtonBusy, syncSegIndicator } from '../../shared/ui-utils.js';
 import { confirmDialog } from '../../shared/ui-modal.js';
-import { createIntervento, dayKey, deleteIntervento, lineaLabel, rapidoMatches, updateEsito } from './interventi-data.js';
-import { ensureRapidi, loadDay, paintTabs, renderList } from './interventi-list.js';
+import { createIntervento, dayKey, deleteIntervento, lineaLabel, updateEsito } from './interventi-data.js';
+import { loadDay, paintTabs, renderList } from './interventi-list.js';
 import { applyRicambi, askRicambi, pickRicambi } from './interventi-ricambi.js';
 import feedback from '../../shared/feedback.js';
 import { listDistinctMacchine } from '../../data/supabase.js';
@@ -25,7 +25,6 @@ export function initNewSheet() {
   els.newMacchinaBtn = $('int-new-macchina-btn');
   els.newMacchinaValue = $('int-new-macchina-value');
   els.newDesc = $('int-new-desc');
-  els.newChips = $('int-new-chips');
   els.newSave = $('int-new-save');
   els.newReset = $('int-new-reset');
 
@@ -105,7 +104,6 @@ export async function openNew() {
   feedback.tap();
   paintNew();
   openOverlay(els.newModal);
-  ensureRapidi(); // in background: le scelte rapide servono al terzo passo
 }
 
 async function pickNewMacchina() {
@@ -124,13 +122,10 @@ async function pickNewMacchina() {
   const changed = picked !== draft.macchina;
   draft.macchina = picked;
   feedback.stepDone();
-  await ensureRapidi();
   paintNew();
-  // Nessuna scelta rapida per questa combinazione: si va dritti alla scrittura
-  if (changed && !draft.desc && !rapidiFor(draft.linea, draft.macchina).length) els.newDesc.focus();
+  // Scelta la macchina si va dritti alla scrittura
+  if (changed && !draft.desc) els.newDesc.focus();
 }
-
-const rapidiFor = (linea, macchina) => state.rapidi.filter((r) => rapidoMatches(r, linea, macchina));
 
 function paintNew({ keepText = false } = {}) {
   // Tipo (da effettuare / già effettuato) e testi che cambiano di conseguenza
@@ -162,27 +157,8 @@ function paintNew({ keepText = false } = {}) {
   els.newMacchinaValue.classList.toggle('text-graphite-400', !draft.macchina);
   els.newMacchinaValue.classList.toggle('text-graphite-100', !!draft.macchina);
 
-  // Scelte rapide filtrate per linea + macchina
-  const chips = hasMacc ? rapidiFor(draft.linea, draft.macchina) : [];
-  els.newChips.classList.toggle('hidden', !chips.length);
-  if (!keepText) {
-    els.newChips.innerHTML = '';
-    chips.forEach((c) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'int-chip press-spring';
-      b.textContent = c.titolo; // testo, mai HTML
-      b.addEventListener('click', () => {
-        draft.desc = c.titolo;
-        els.newDesc.value = c.titolo;
-        feedback.presetPick();
-        paintNew({ keepText: true });
-      });
-      els.newChips.appendChild(b);
-    });
-    if (document.activeElement !== els.newDesc) els.newDesc.value = draft.desc;
-  }
-  els.newChips.querySelectorAll('.int-chip').forEach((b) => b.setAttribute('aria-pressed', String(b.textContent === draft.desc.trim())));
+  // La descrizione si riscrive solo se non si sta digitando (le scelte rapide non compaiono più qui)
+  if (!keepText && document.activeElement !== els.newDesc) els.newDesc.value = draft.desc;
 
   wirePhotoNew?.show(draft.fotoUrl);
 

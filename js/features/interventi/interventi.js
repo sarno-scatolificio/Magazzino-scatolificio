@@ -10,7 +10,7 @@
 // interventi-shared / -list / -new / -detail / -photo / -pdf-sheet.
 
 import { $, draft, els, state } from './interventi-shared.js';
-import { LINEE, STATI, dayKey, keyToDate, lineaLabel, listEffettuatiDays, listInterventi } from './interventi-data.js';
+import { LINEE, STATI, dayKey, generaProgrammati, keyToDate, lineaLabel, listEffettuatiDays, listInterventi } from './interventi-data.js';
 import { defaultDay, loadDay, paintFilters, paintTabs, renderList, selectDay, stepDay } from './interventi-list.js';
 import feedback from '../../shared/feedback.js';
 import { initDetailSheet, openDetail, resetDetail } from './interventi-detail.js';
@@ -126,7 +126,7 @@ export function resetInterventi() {
   state.filterLinea = '';
   state.filterMacchina = '';
   state.tab = 'open';
-  draft.linea = draft.macchina = draft.desc = '';
+  draft.linea = draft.macchina = draft.desc = draft.dettagli = '';
   draft.foto = null;
   draft.fotoUrl = '';
   draft.fatto = false;
@@ -144,6 +144,7 @@ export async function refreshInterventi({ silent = false } = {}) {
     els.list.classList.add('hidden');
   }
   try {
+    await generaProgrammati().catch(() => {}); // scadenziario: porta tra i Da effettuare quelli arrivati a scadenza
     const [res, days, order] = await Promise.all([
       listInterventi(),
       listEffettuatiDays().catch(() => null),

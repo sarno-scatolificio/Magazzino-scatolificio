@@ -235,6 +235,7 @@ export function renderList() {
         row.innerHTML = `
           <div class="min-w-0 flex-1">
             ${r.stato === 'sospeso' ? `<span class="inline-block ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 mr-1 ${STATO_CHIP.sospeso}">${STATI.sospeso}</span>` : ''}
+            ${r.rapido_id && r.stato !== 'effettuato' ? `<span class="inline-block ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 mr-1 bg-sky-100 text-sky-800">Programmato</span>` : ''}
             ${r.ricambi_mancanti ? `<span class="inline-block ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 ${CHIP_RICAMBI}">Ricambi da indicare</span>` : ''}
             <p class="text-sm font-medium text-graphite-100 leading-snug line-clamp-3">${escapeHtml(r.descrizione)}</p>
             ${r.stato !== 'effettuato' && r.dettagli ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-2">Dettagli: ${escapeHtml(r.dettagli)}</p>` : ''}

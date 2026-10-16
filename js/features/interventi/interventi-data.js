@@ -39,7 +39,7 @@ function isMissingTable(error) {
 }
 
 const COLS =
-  'id, linea, macchina, descrizione, stato, foto_promemoria_path, note_esito, dettagli, foto_esito_path, created_by, created_by_name, created_at, esito_by, esito_by_name, esito_at, operatore_nome, operatori, ricambi, ricambi_mancanti';
+  'id, linea, macchina, descrizione, stato, foto_promemoria_path, note_esito, dettagli, rapido_id, foto_esito_path, created_by, created_by_name, created_at, esito_by, esito_by_name, esito_at, operatore_nome, operatori, ricambi, ricambi_mancanti';
 
 /** Interventi aperti (da effettuare + da completare) e ultimi effettuati */
 export async function listInterventi() {
@@ -177,7 +177,7 @@ export async function signedUrls(paths) {
 
 // ---- Interventi rapidi ----
 export async function listRapidi() {
-  const { data, error } = await supabase.from('interventi_rapidi').select('id, linea, macchina, titolo').order('titolo', { ascending: true });
+  const { data, error } = await supabase.from('interventi_rapidi').select('id, linea, macchina, titolo, cadenza_giorni').order('titolo', { ascending: true });
   if (error) {
     if (isMissingTable(error)) return { tableMissing: true, rapidi: [] };
     throw error;
@@ -185,13 +185,31 @@ export async function listRapidi() {
   return { tableMissing: false, rapidi: data };
 }
 
-export async function createRapido({ linea, macchina, titolo }) {
-  const { data, error } = await supabase.from('interventi_rapidi').insert({ linea, macchina, titolo }).select('id, linea, macchina, titolo').single();
+export async function createRapido({ linea, macchina, titolo, cadenzaGiorni = null }) {
+  const row = { linea, macchina, titolo };
+  if (cadenzaGiorni) {
+    row.cadenza_giorni = cadenzaGiorni;
+    row.cadenza_da = new Date().toISOString(); // il conteggio parte da adesso
+  }
+  const { data, error } = await supabase.from('interventi_rapidi').insert(row).select('id, linea, macchina, titolo, cadenza_giorni').single();
   if (error) {
     if (error.code === '23505') throw new Error('Questo intervento rapido esiste già per la stessa linea e macchina.');
     throw error;
   }
   return data;
+}
+
+/** Cadenza (in giorni) di un intervento rapido: dopo N giorni compare da solo tra i "Da effettuare" alle 6:00. null = nessuna ripetizione. */
+export async function updateRapidoCadenza(id, giorni) {
+  const patch = giorni ? { cadenza_giorni: giorni, cadenza_da: new Date().toISOString() } : { cadenza_giorni: null, cadenza_da: null };
+  const { error } = await supabase.from('interventi_rapidi').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+/** Fa comparire tra i "Da effettuare" gli interventi programmati arrivati a scadenza (lo fa già il database ogni 5 minuti: qui è solo una rete di sicurezza) */
+export async function generaProgrammati() {
+  const { error } = await supabase.rpc('genera_interventi_programmati');
+  if (error) throw error;
 }
 
 export async function deleteRapido(id) {
