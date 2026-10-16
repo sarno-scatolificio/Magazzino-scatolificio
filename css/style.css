@@ -663,6 +663,11 @@ button.lowstock-header:not(:disabled):active { transform: none; background: tran
 .lowstock-tile-selected .lowstock-tile-ico-box { background-color: rgba(255, 255, 255, 0.18); }
 .lowstock-tile-selected .lowstock-tile-badge { background-color: #fff; color: var(--accent); }
 
+/* Piastrelle delle macchine negli Interventi: stesso comportamento di quelle degli articoli sotto scorta,
+   col numero di interventi nel blu del tema (non nel rosso della scorta). */
+.lowstock-tile:not(.lowstock-tile-selected) .int-tile-badge { background: var(--accent-tint); color: var(--accent-dark); }
+.int-tile-new { line-height: 0; }
+
 /* Elenco articoli di uno scaffale in scorta minima: altezza massima fissa (circa 5 righe),
    oltre la quale scorre SOLO l'elenco, non la pagina (overscroll-behavior: contain). Il titolo
    dello scaffale sta fuori dal contenitore, quindi resta sempre visibile. */
