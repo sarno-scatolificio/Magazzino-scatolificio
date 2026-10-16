@@ -16,6 +16,8 @@ export const state = {
   doneDays: new Set(),    // giorni (AAAA-MM-GG) con almeno un intervento effettuato: pallini blu del calendario
   doneDay: '',            // giorno mostrato nella scheda Effettuati
   machineOrder: [],       // macchine nell'ordine scelto dall'admin: raggruppamento dell'elenco
+  openLinee: new Set(),   // gruppi Linea aperti nell'elenco (chiave: scheda|linea), tutti chiusi all'ingresso
+  openMacchine: new Set(),// gruppi macchina aperti (chiave: scheda|linea|macchina)
   tableMissing: false,
   loaded: false,
   loading: false,

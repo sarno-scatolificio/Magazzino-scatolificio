@@ -6,8 +6,8 @@
 import { $, authorName, draft, els, state } from './interventi-shared.js';
 import { closeOverlay, enableSheetDrag, openOverlay, setButtonBusy, syncSegIndicator } from '../../shared/ui-utils.js';
 import { confirmDialog } from '../../shared/ui-modal.js';
-import { createIntervento, dayKey, deleteIntervento, lineaLabel, updateEsito } from './interventi-data.js';
-import { loadDay, paintTabs, renderList } from './interventi-list.js';
+import { createIntervento, dayKey, deleteIntervento, lineaLabel, rapidoMatches, updateEsito } from './interventi-data.js';
+import { ensureRapidi, loadDay, paintTabs, renderList } from './interventi-list.js';
 import { applyRicambi, askRicambi, pickRicambi } from './interventi-ricambi.js';
 import feedback from '../../shared/feedback.js';
 import { listDistinctMacchine } from '../../data/supabase.js';
@@ -81,6 +81,12 @@ export function initNewSheet() {
     paintNew();
   });
 
+  $('int-new-rapidi-btn').addEventListener('click', () => {
+    rapidiOpen = !rapidiOpen;
+    feedback.tap();
+    paintNew({ keepText: true });
+  });
+
   els.newReset.addEventListener('click', async () => {
     const ok = await confirmDialog({ title: 'Azzerare la bozza?', message: 'Linea, macchina, testo e foto già inseriti verranno cancellati.', confirmLabel: 'Azzera', danger: true });
     if (!ok) return;
@@ -98,12 +104,89 @@ function clearDraft() {
   draft.foto = null;
   draft.fotoUrl = '';
   draft.fatto = false;
+  rapidiOpen = false;
 }
 
 export async function openNew() {
   feedback.tap();
+  rapidiOpen = false;
   paintNew();
   openOverlay(els.newModal);
+  // Interventi rapidi in memoria: si caricano (una volta) e compaiono come scelte per la macchina
+  await ensureRapidi();
+  paintNew({ keepText: true });
+}
+
+const RAPIDI_SHOWN = 4; // voci mostrate nella tendina; le altre con «Vedi tutti»
+let rapidiOpen = false; // tendina aperta a mano col pulsante (scrivendo si apre da sola)
+
+/** Interventi rapidi della linea e macchina scelte: prima i più usati su quella macchina, poi in ordine alfabetico */
+function rapidiForDraft() {
+  if (!draft.linea || !draft.macchina) return [];
+  const mac = draft.macchina.toLowerCase();
+  const uses = new Map();
+  [...state.open, ...state.doneRecent].forEach((r) => {
+    if ((r.macchina || '').toLowerCase() !== mac) return;
+    const k = (r.descrizione || '').trim().toLowerCase();
+    uses.set(k, (uses.get(k) || 0) + 1);
+  });
+  const titles = [...new Set(state.rapidi.filter((r) => rapidoMatches(r, draft.linea, draft.macchina)).map((r) => r.titolo))];
+  const n = (t) => uses.get(t.trim().toLowerCase()) || 0;
+  return titles.sort((a, b) => n(b) - n(a) || a.localeCompare(b, 'it'));
+}
+
+function pickRapido(t) {
+  draft.desc = t;
+  els.newDesc.value = t;
+  rapidiOpen = false;
+  feedback.stepDone();
+  paintNew({ keepText: true });
+}
+
+/** Tendina sotto il campo: prime voci (o quelle che contengono quanto scritto) + «Vedi tutti» con ricerca */
+function paintRapidi() {
+  const box = $('int-new-rapidi');
+  const all = rapidiForDraft();
+  box.classList.toggle('hidden', !all.length);
+  if (!all.length) return;
+  $('int-new-rapidi-label').textContent = `Interventi rapidi (${all.length})`;
+  const words = draft.desc.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const exact = all.some((t) => t.toLowerCase() === draft.desc.trim().toLowerCase());
+  const matches = words.length ? all.filter((t) => words.every((w) => t.toLowerCase().includes(w))) : all;
+  const open = rapidiOpen || (words.length > 0 && !exact && matches.length > 0);
+  const list = $('int-new-rapidi-list');
+  list.innerHTML = '';
+  const rowCls = 'w-full text-left px-3.5 py-2.5 text-sm border-t border-graphite-700/70 first:border-t-0 active:bg-[var(--accent-tint-soft)] min-h-[44px]';
+  matches.slice(0, RAPIDI_SHOWN).forEach((t) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'option');
+    b.className = `${rowCls} text-graphite-100`;
+    b.textContent = t; // testo, mai HTML
+    b.addEventListener('click', () => pickRapido(t));
+    list.appendChild(b);
+  });
+  if (!matches.length) {
+    const p = document.createElement('p');
+    p.className = 'px-3.5 py-2.5 text-xs text-graphite-500';
+    p.textContent = 'Nessun intervento rapido corrisponde.';
+    list.appendChild(p);
+  }
+  if (all.length > Math.min(matches.length, RAPIDI_SHOWN)) {
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = `${rowCls} font-display font-semibold uppercase tracking-wide text-xs text-amber-400`;
+    more.textContent = `Vedi tutti (${all.length})`;
+    more.addEventListener('click', async () => {
+      const picked = await openPicker({ title: `Interventi rapidi · ${draft.macchina}`, options: all, keepOrder: true, currentValue: draft.desc.trim() });
+      if (picked) pickRapido(picked);
+    });
+    list.appendChild(more);
+  }
+  $('int-new-rapidi-wrap').classList.toggle('is-open', open);
+  $('int-new-rapidi-wrap').setAttribute('aria-hidden', String(!open));
+  $('int-new-rapidi-btn').setAttribute('aria-expanded', String(open));
+  $('int-new-rapidi-chev').classList.toggle('rotate-180', open);
 }
 
 async function pickNewMacchina() {
@@ -160,6 +243,7 @@ function paintNew({ keepText = false } = {}) {
   // La descrizione si riscrive solo se non si sta digitando (le scelte rapide non compaiono più qui)
   if (!keepText && document.activeElement !== els.newDesc) els.newDesc.value = draft.desc;
 
+  paintRapidi();
   wirePhotoNew?.show(draft.fotoUrl);
 
   const valid = hasMacc && draft.desc.trim().length > 0;

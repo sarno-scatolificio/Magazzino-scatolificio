@@ -1,13 +1,12 @@
 // =============================================================
 // interventi-rapidi.js — Impostazioni → Interventi rapidi (solo Admin)
-// Elenco dei lavori ricorrenti associati a una linea e a una macchina. Nel Blocco Note
-// Interventi, scelte linea e macchina, compaiono da soli come scelte rapide.
+// Elenco dei lavori ricorrenti associati a una linea e a una macchina, con ripetizione facoltativa
+// (tornano da soli tra i «Da effettuare»). Registrazione in tre tocchi: Linea → Macchina (chip) → Intervento.
 // =============================================================
 
 import { LINEE, lineaLabel, listRapidi, createRapido, deleteRapido, updateRapidoCadenza, listOperatori, createOperatore, deleteOperatore, formatOperatore, compareOperatori } from './interventi-data.js';
 import { listDistinctMacchine, listMachineEntries } from '../../data/supabase.js';
 import { invalidateRapidi, invalidateOperatori } from './interventi.js';
-import { openPicker } from '../../shared/picker.js';
 import { toastSuccess, toastError, toastWarning, toastInfo } from '../../shared/toast.js';
 import { isAdmin } from '../../core/auth.js';
 import { staggerIndex, setButtonBusy, openOverlay, closeOverlay, enableSheetDrag, syncSegIndicator } from '../../shared/ui-utils.js';
@@ -18,7 +17,20 @@ const $ = (id) => document.getElementById(id);
 const els = {};
 let linea = '';
 let macchina = '';
+let macchineLinea = []; // macchine presenti sulla linea scelta
+let cadenzaSel = ''; // '' = nessuna ripetizione | '7' | '15' | '30' | '90' | 'altro'
 let tableMissing = false;
+let lineaSeq = 0;
+
+// Scelte rapide per la ripetizione: un tocco; "Altro" apre il campo per un numero di giorni a piacere
+const CADENZE = [
+  { v: '', label: 'Mai' },
+  { v: '7', label: '7 giorni' },
+  { v: '15', label: '15 giorni' },
+  { v: '30', label: '30 giorni' },
+  { v: '90', label: '90 giorni' },
+  { v: 'altro', label: 'Altro…' },
+];
 
 export function initInterventiRapidi() {
   els.modal = $('rapidi-modal');
@@ -26,61 +38,123 @@ export function initInterventiRapidi() {
   els.form = $('rapidi-form');
   els.title = $('rapidi-titolo');
   els.cadenza = $('rapidi-cadenza');
+  els.cadenzaChips = $('rapidi-cadenza-chips');
+  els.cadenzaAltro = $('rapidi-cadenza-altro');
+  els.macchine = $('rapidi-macchine');
   els.addBtn = $('rapidi-add-btn');
   els.list = $('rapidi-list');
   els.skeleton = $('rapidi-skeleton');
   els.notice = $('rapidi-notice');
   if (!els.modal) return;
 
+  // Scelte di ripetizione (chip): si disegnano una volta sola
+  CADENZE.forEach(({ v, label }) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'int-chip press-spring';
+    b.dataset.cad = v;
+    b.textContent = label;
+    els.cadenzaChips.appendChild(b);
+  });
+  els.cadenzaChips.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-cad]');
+    if (!btn) return;
+    cadenzaSel = btn.dataset.cad;
+    feedback.modeSelect();
+    paintForm();
+    if (cadenzaSel === 'altro') setTimeout(() => els.cadenza.focus(), 280);
+  });
+
   $('rapidi-manage-btn')?.addEventListener('click', () => {
     openOverlay(els.modal);
     syncSegIndicator(els.seg);
+    paintForm();
     refresh();
   });
   $('rapidi-modal-close').addEventListener('click', () => closeOverlay(els.modal));
   els.modal.addEventListener('click', (e) => e.target === els.modal && closeOverlay(els.modal));
   enableSheetDrag(els.modal.querySelector('.modal-panel'), () => closeOverlay(els.modal));
 
+  // 1 · Linea
   els.seg.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-linea]');
-    if (!btn) return;
-    const changed = linea !== btn.dataset.linea;
+    if (!btn || btn.dataset.linea === linea) return;
     linea = btn.dataset.linea;
     feedback.modeSelect();
-    if (changed && macchina) {
-      // La macchina già scelta deve esistere anche sulla nuova linea
-      const onLine = await listDistinctMacchine({ linea }).catch(() => null);
-      if (onLine && !onLine.includes(macchina)) {
-        macchina = '';
-        const v = $('rapidi-macchina-value');
-        v.textContent = 'Macchina…';
-        v.classList.replace('text-graphite-100', 'text-graphite-400');
-      }
-    }
     els.seg.querySelectorAll('[data-linea]').forEach((b) => b.classList.toggle('category-tab-active', b.dataset.linea === linea));
     syncSegIndicator(els.seg);
-  });
-
-  $('rapidi-macchina-btn').addEventListener('click', async () => {
-    let options = [];
+    // Si mostrano subito le macchine di quella linea, da toccare: niente elenco a parte da aprire
+    const mySeq = ++lineaSeq;
+    let list = [];
     try {
-      // Solo le macchine presenti sulla linea scelta (tutte se non ancora scelta)
-    options = await listDistinctMacchine({ linea });
+      list = await listDistinctMacchine({ linea });
     } catch (err) {
       feedback.errorAction();
       toastError('Impossibile caricare l\'elenco delle macchine.');
-      return;
     }
-    const picked = await openPicker({ title: 'Macchina', options, keepOrder: true, currentValue: macchina });
-    if (!picked) return;
-    macchina = picked;
-    feedback.stepDone();
-    const v = $('rapidi-macchina-value');
-    v.textContent = macchina;
-    v.classList.replace('text-graphite-400', 'text-graphite-100');
+    if (mySeq !== lineaSeq) return; // nel frattempo si è scelta un'altra linea
+    macchineLinea = list;
+    if (macchina && !macchineLinea.includes(macchina)) macchina = ''; // la macchina deve esistere anche sulla nuova linea
+    renderMacchine();
+    paintForm();
   });
 
+  // 2 · Macchina (chip)
+  els.macchine.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-macchina]');
+    if (!btn) return;
+    const changed = macchina !== btn.dataset.macchina;
+    macchina = btn.dataset.macchina;
+    feedback.stepDone();
+    renderMacchine();
+    paintForm();
+    // Scelta la macchina si va dritti alla scrittura
+    if (changed && !els.title.value.trim()) setTimeout(() => els.title.focus(), 120);
+  });
+
+  // 3 · Intervento
+  els.title.addEventListener('input', paintForm);
+
   els.form.addEventListener('submit', onAdd);
+  renderMacchine();
+  paintForm();
+}
+
+function renderMacchine() {
+  els.macchine.innerHTML = '';
+  if (!linea) {
+    els.macchine.innerHTML = '<p class="text-xs text-graphite-500">Scegli prima la linea.</p>';
+    return;
+  }
+  if (!macchineLinea.length) {
+    els.macchine.innerHTML = '<p class="text-xs text-graphite-500">Nessuna macchina su questa linea.</p>';
+    return;
+  }
+  macchineLinea.forEach((name) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'int-chip press-spring';
+    b.dataset.macchina = name;
+    b.textContent = name; // testo, mai HTML
+    b.setAttribute('aria-pressed', String(name === macchina));
+    els.macchine.appendChild(b);
+  });
+}
+
+/** Passi sbloccati in ordine (Linea → Macchina → Intervento), scelte attive e pulsante Aggiungi */
+function paintForm() {
+  const hasLinea = !!linea;
+  const hasMacc = hasLinea && !!macchina;
+  $('rapidi-step-macchina').dataset.locked = String(!hasLinea);
+  $('rapidi-step-titolo').dataset.locked = String(!hasMacc);
+  $('rapidi-step-cadenza').dataset.locked = String(!hasMacc);
+  els.macchine.querySelectorAll('[data-macchina]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.macchina === macchina)));
+  els.cadenzaChips.querySelectorAll('[data-cad]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cad === cadenzaSel)));
+  const altro = cadenzaSel === 'altro';
+  els.cadenzaAltro.classList.toggle('is-open', altro);
+  els.cadenzaAltro.setAttribute('aria-hidden', String(!altro));
+  els.title.disabled = tableMissing;
+  els.addBtn.disabled = tableMissing || !hasMacc || !els.title.value.trim();
 }
 
 async function refresh() {
@@ -101,33 +175,48 @@ async function refresh() {
 
 function render(rapidi) {
   els.notice.classList.toggle('hidden', !tableMissing);
-  els.addBtn.disabled = tableMissing;
-  els.title.disabled = tableMissing;
+  paintForm();
   els.list.innerHTML = '';
   if (!rapidi.length) {
     const p = document.createElement('p');
     p.className = 'text-sm text-graphite-500 py-2';
     p.textContent = 'Nessun intervento rapido ancora registrato.';
     els.list.appendChild(p);
+  } else {
+    const h = document.createElement('p');
+    h.className = 'ui-label font-display font-bold uppercase tracking-wider text-graphite-400';
+    h.textContent = 'Già registrati';
+    els.list.appendChild(h);
   }
   const order = (v) => (v === 'L1-L2' ? 99 : LINEE.findIndex((l) => l.value === v));
   const sorted = [...rapidi].sort((a, b) => order(a.linea) - order(b.linea) || a.macchina.localeCompare(b.macchina, 'it') || a.titolo.localeCompare(b.titolo, 'it'));
+  // Una scheda per macchina (stessa linea), con i suoi interventi in righe: come nell'elenco degli Interventi
   let lastKey = '';
+  let card = null;
   let i = 0;
   sorted.forEach((r) => {
     const key = `${r.linea}|${r.macchina}`;
     if (key !== lastKey) {
       lastKey = key;
-      const h = document.createElement('p');
-      h.className = 'ui-label font-display font-bold uppercase tracking-wider text-graphite-400 pt-2';
-      h.textContent = `${lineaLabel(r.linea)} · ${r.macchina}`; // testo, mai HTML
-      els.list.appendChild(h);
+      card = document.createElement('div');
+      card.className = 'list-item-in card-plate rounded-xl overflow-hidden';
+      card.style.setProperty('--i', staggerIndex(i++));
+      const head = document.createElement('div');
+      head.className = 'flex items-center justify-between gap-2 px-3.5 py-2 bg-graphite-800/70';
+      const name = document.createElement('h4');
+      name.className = 'min-w-0 truncate font-display font-bold text-sm uppercase tracking-wider text-graphite-100';
+      name.textContent = r.macchina; // testo, mai HTML
+      const lin = document.createElement('span');
+      lin.className = 'shrink-0 ui-label font-display font-bold uppercase tracking-wider text-graphite-500';
+      lin.textContent = lineaLabel(r.linea);
+      head.append(name, lin);
+      card.appendChild(head);
+      els.list.appendChild(card);
     }
     const row = document.createElement('div');
-    row.className = 'list-item-in card-plate rounded-xl pl-3.5 pr-1.5 py-1.5 flex items-center justify-between gap-2';
-    row.style.setProperty('--i', staggerIndex(i++));
+    row.className = 'flex items-center justify-between gap-2 pl-3.5 pr-1.5 py-1.5 border-t border-graphite-700/70';
     const name = document.createElement('span');
-    name.className = 'min-w-0 text-sm font-medium text-graphite-100';
+    name.className = 'min-w-0 flex-1 text-sm font-medium text-graphite-100';
     name.textContent = r.titolo;
     // Cadenza: ogni N giorni il lavoro compare da solo tra i "Da effettuare" alle 6:00 (vuoto = nessuna ripetizione)
     const cad = document.createElement('label');
@@ -144,7 +233,7 @@ function render(rapidi) {
     del.innerHTML = '<i data-lucide="trash-2" class="w-5 h-5" stroke-width="2"></i>';
     del.addEventListener('click', () => onRemove(r));
     row.append(name, cad, del);
-    els.list.appendChild(row);
+    card.appendChild(row);
   });
   els.list.classList.remove('hidden');
   window.lucide?.createIcons();
@@ -158,22 +247,24 @@ async function onAdd(e) {
     toastWarning('Scegli linea e macchina e scrivi l\'intervento.');
     return;
   }
+  const cadenzaGiorni = parseCadenza(cadenzaSel === 'altro' ? els.cadenza.value : cadenzaSel);
+  if (cadenzaGiorni === false || (cadenzaSel === 'altro' && cadenzaGiorni === null)) {
+    feedback.errorAction();
+    toastWarning('La ripetizione deve essere un numero di giorni da 1 a 365.');
+    return;
+  }
   setButtonBusy(els.addBtn, true);
   try {
-    const cadenzaGiorni = parseCadenza(els.cadenza.value);
-    if (cadenzaGiorni === false) {
-      feedback.errorAction();
-      toastWarning('La ripetizione deve essere un numero di giorni da 1 a 365.');
-      return;
-    }
     // Macchina presente su entrambe le linee: l'intervento rapido è uno solo e vale per tutte e due
     const entry = (await listMachineEntries().catch(() => [])).find((m) => m.nome.toLowerCase() === macchina.toLowerCase());
     // (scegliendo "Reparto" l'intervento resta di reparto, anche se la macchina sta pure sulle linee)
     const onBoth = linea !== 'REP' && Array.isArray(entry?.linee) && entry.linee.includes('L1') && entry.linee.includes('L2');
     await createRapido({ linea: onBoth ? 'L1-L2' : linea, macchina, titolo, cadenzaGiorni });
     if (onBoth) toastInfo('Vale per entrambe le linee: la macchina è presente su Linea 1 e Linea 2.', 3000);
+    // Linea e macchina restano scelte: per aggiungerne un altro sulla stessa macchina basta riscrivere il titolo
     els.title.value = '';
     els.cadenza.value = '';
+    cadenzaSel = '';
     invalidateRapidi();
     feedback.confirmAction();
     toastSuccess('Intervento rapido aggiunto.', 2000);
@@ -183,6 +274,7 @@ async function onAdd(e) {
     toastError(err.message || 'Impossibile aggiungere l\'intervento rapido.');
   } finally {
     setButtonBusy(els.addBtn, false);
+    paintForm();
   }
 }
 

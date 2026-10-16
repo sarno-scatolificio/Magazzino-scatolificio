@@ -118,6 +118,8 @@ export function resetInterventi() {
   state.doneDays = new Set();
   state.doneDay = '';
   state.machineOrder = [];
+  state.openLinee.clear();
+  state.openMacchine.clear();
   state.loaded = false;
   state.rapidi = [];
   state.rapidiLoaded = false;

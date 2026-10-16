@@ -5,7 +5,7 @@
 
 import { $, CHIP_RICAMBI, STATO_CHIP, els, state } from './interventi-shared.js';
 import { LINEE, STATI, dayKey, formatOperatore, keyToDate, lineaLabel, listEffettuatiDays, listEffettuatiRange, listOperatori, listRapidi, operatoriDi, ricambiDi, ricambiLabel, signedUrls, sortOperatori } from './interventi-data.js';
-import { emptyStateHtml, staggerIndex, syncSegIndicator } from '../../shared/ui-utils.js';
+import { emptyStateHtml, modalCloseMs, staggerIndex, syncSegIndicator } from '../../shared/ui-utils.js';
 import { escapeHtml } from '../magazzino/products-shared.js';
 import feedback from '../../shared/feedback.js';
 import { openDetail } from './interventi-detail.js';
@@ -188,8 +188,9 @@ export function renderList() {
   const banner = ricambiBanner();
   if (banner) els.list.appendChild(banner);
 
-  // Ordine: prima per linea, poi per macchina (ordine scelto dall'admin). Una scheda per macchina
-  // con dentro tutti i suoi interventi, così l'elenco resta ordinato e si legge a colpo d'occhio.
+  // Ordine: prima per linea, poi per macchina (ordine scelto dall'admin). Ogni linea è un gruppo chiuso che si
+  // apre al tocco; dentro, una macchina con più interventi è a sua volta un gruppo, con un solo intervento
+  // si mostra direttamente. Con un filtro attivo i gruppi si aprono da soli (c'è già poco da cercare).
   const orderIdx = new Map(state.machineOrder.map((n, i) => [n.toLowerCase(), i]));
   const idxOf = (m) => (orderIdx.has(m.toLowerCase()) ? orderIdx.get(m.toLowerCase()) : 9999);
   const byLinea = new Map();
@@ -201,69 +202,189 @@ export function renderList() {
   });
   const lineaIdx = (v) => (LINEE.findIndex((l) => l.value === v) + 1 || 99);
   const timeSort = (a, b) => (state.tab === 'done' ? new Date(a.esito_at) - new Date(b.esito_at) : new Date(b.created_at) - new Date(a.created_at));
+  const unseenIds = new Set(rows.filter(isUnseen).map((r) => r.id));
+  const countNew = (items) => items.filter((r) => unseenIds.has(r.id)).length;
+  const filtering = !!(state.filterLinea || state.filterMacchina);
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
   let i = 0;
   [...byLinea.keys()].sort((a, b) => lineaIdx(a) - lineaIdx(b)).forEach((linea) => {
     const machines = byLinea.get(linea);
-    const total = [...machines.values()].reduce((n, list) => n + list.length, 0);
-    const section = document.createElement('section');
-    section.className = 'space-y-2.5';
-    section.innerHTML = `
-      <div class="flex items-center justify-between rounded-lg bg-amber-400 text-white px-3.5 py-2">
-        <h3 class="font-display font-bold text-base uppercase tracking-wider">${escapeHtml(lineaLabel(linea))}</h3>
-        <span class="font-mono text-sm font-semibold">${total}</span>
-      </div>`;
-    [...machines.keys()].sort((a, b) => idxOf(a) - idxOf(b) || a.localeCompare(b, 'it')).forEach((name) => {
+    const names = [...machines.keys()].sort((a, b) => idxOf(a) - idxOf(b) || a.localeCompare(b, 'it'));
+    const all = names.flatMap((n) => machines.get(n));
+    const lineaKey = `${state.tab}|${linea}`;
+    const group = buildGroup({
+      icon: linea === 'REP' ? 'warehouse' : 'factory',
+      title: lineaLabel(linea),
+      sub: `${plural(all.length, 'intervento', 'interventi')} · ${plural(names.length, 'macchina', 'macchine')}`,
+      newCount: countNew(all),
+      open: filtering || state.openLinee.has(lineaKey),
+      auto: filtering,
+      set: state.openLinee,
+      key: lineaKey,
+      headPad: 'py-3.5',
+    });
+    group.el.style.setProperty('--i', staggerIndex(i++));
+
+    names.forEach((name) => {
       const items = machines.get(name).sort(timeSort);
+      if (items.length === 1) {
+        // Un solo intervento: si mostra direttamente, con il nome della macchina in testa alla scheda
+        const card = document.createElement('div');
+        card.className = 'card-plate rounded-xl overflow-hidden';
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-2 px-3.5 py-2 bg-graphite-800/70">
+            <h4 class="min-w-0 truncate font-display font-bold text-sm uppercase tracking-wider text-graphite-100">${escapeHtml(name)}</h4>
+          </div>`;
+        card.appendChild(buildRow(items[0], unseenIds.has(items[0].id)));
+        group.inner.appendChild(card);
+        return;
+      }
+      // Più interventi sulla stessa macchina: gruppo a sua volta chiuso
+      const machineKey = `${state.tab}|${linea}|${name}`;
+      const sub = buildGroup({
+        icon: 'cog',
+        title: name,
+        sub: plural(items.length, 'intervento', 'interventi'),
+        newCount: countNew(items),
+        open: !!state.filterMacchina || state.openMacchine.has(machineKey),
+        auto: !!state.filterMacchina,
+        set: state.openMacchine,
+        key: machineKey,
+        headPad: 'py-2.5',
+        flat: true,
+      });
       const card = document.createElement('div');
-      card.className = 'list-item-in card-plate rounded-xl overflow-hidden';
-      card.style.setProperty('--i', staggerIndex(i++));
-      card.innerHTML = `
-        <div class="flex items-center justify-between gap-2 px-3.5 py-2 bg-graphite-800/70">
-          <h4 class="min-w-0 truncate font-display font-bold text-sm uppercase tracking-wider text-graphite-100">${escapeHtml(name)}</h4>
-          <span class="shrink-0 ui-note font-mono text-graphite-500">${items.length}</span>
-        </div>`;
-      items.forEach((r) => {
-        const row = document.createElement('button');
-        row.type = 'button';
-        row.dataset.id = r.id;
-        row.className = 'int-row relative w-full text-left pl-7 pr-3.5 py-3 flex items-start gap-3 border-t border-graphite-700/70';
-        let unseen = isUnseen(r);
-        const ops = operatoriDi(r);
-        const who = r.stato === 'effettuato' ? (ops.length ? ops.map(formatOperatore).join(', ') : r.esito_by_name) : r.created_by_name;
-        const when = r.stato === 'effettuato' ? `Fatto ${fmtDateTime(r.esito_at)}${who ? ` · ${who}` : ''}` : `${fmtDateTime(r.created_at)}${who ? ` · ${who}` : ''}`;
-        row.innerHTML = `
-          <div class="min-w-0 flex-1">
-            ${r.stato === 'sospeso' ? `<span class="inline-block ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 mr-1 ${STATO_CHIP.sospeso}">${STATI.sospeso}</span>` : ''}
-            ${r.rapido_id && r.stato !== 'effettuato' ? `<span class="inline-block ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 mr-1 bg-sky-100 text-sky-800">Programmato</span>` : ''}
-            ${r.ricambi_mancanti ? `<span class="inline-block ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 ${CHIP_RICAMBI}">Ricambi da indicare</span>` : ''}
-            <p class="text-sm font-medium text-graphite-100 leading-snug line-clamp-3">${escapeHtml(r.descrizione)}</p>
-            ${r.stato !== 'effettuato' && r.dettagli ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-2">Dettagli: ${escapeHtml(r.dettagli)}</p>` : ''}
-            ${r.note_esito ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-1">${r.stato === 'effettuato' ? 'Post intervento' : 'Da completare'}: ${escapeHtml(r.note_esito)}</p>` : ''}
-            ${r.stato !== 'effettuato' && ops.length ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-1">Assegnato a: ${escapeHtml(sortOperatori(ops).map(formatOperatore).join(', '))}</p>` : ''}
-            ${ricambiDi(r).length ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-1">Ricambi: ${escapeHtml(ricambiDi(r).map(ricambiLabel).join(', '))}</p>` : ''}
-            <p class="ui-note text-graphite-500 mt-1">${escapeHtml(when)}</p>
-          </div>
-          <img class="int-thumb hidden" alt="" data-thumb>${unseen ? UNSEEN_DOT_HTML : ''}`;
-        row.addEventListener('click', (e) => {
-          const onDot = !!e.target.closest('[data-unseen-hit]');
-          if (unseen) {
-            unseen = false;
-            markSeen(r);
-            dismissDot(row); // presa visione: il pallino si ingrandisce e implode
-            if (onDot) feedback.tap();
-          }
-          if (onDot) return; // il tocco sul pallino segna solo come visto, senza aprire l'intervento
-          openDetail(r);
-        });
+      card.className = 'card-plate rounded-xl overflow-hidden';
+      items.forEach((r, n) => {
+        const row = buildRow(r, unseenIds.has(r.id));
+        if (n === 0) row.classList.remove('border-t');
         card.appendChild(row);
       });
-      section.appendChild(card);
+      sub.inner.appendChild(card);
+      group.inner.appendChild(sub.el);
     });
-    els.list.appendChild(section);
+    els.list.appendChild(group.el);
   });
   window.lucide?.createIcons();
   loadThumbs(rows);
+}
+
+/**
+ * Gruppo che si apre e si chiude con l'animazione a cassetto degli scaffali del Magazzino
+ * (.shelf-group): intestazione bianca che si tinge di blu dal centro dell'icona, chevron che ruota.
+ * `set` ricorda i gruppi aperti tra un disegno dell'elenco e l'altro; con `auto` (filtri attivi) lo
+ * stato non si memorizza. `newCount` = interventi nuovi (pallino) nascosti dentro il gruppo chiuso.
+ */
+function buildGroup({ icon, title, sub, newCount, open, auto, set, key, headPad, flat = false }) {
+  const el = document.createElement('div');
+  el.className = `list-item-in shelf-group${open ? ' group-open group-settled' : ''}`;
+  el.innerHTML = `
+    <div class="shelf-group-header flex items-center justify-between gap-3 px-4 ${headPad} border-2 border-graphite-700 rounded-xl" role="button" tabindex="0" aria-expanded="${open}">
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="shelf-ico-box shrink-0 w-9 h-9 rounded-lg bg-graphite-700/50 flex items-center justify-center">
+          <i data-lucide="${icon}" class="shelf-ico w-[18px] h-[18px] text-graphite-400" stroke-width="1.8"></i>
+        </span>
+        <div class="min-w-0">
+          <p class="shelf-title font-display font-bold uppercase tracking-wide truncate">${escapeHtml(title)}</p>
+          <p class="shelf-sub ui-note text-graphite-500 mt-0.5 flex flex-wrap gap-x-2">
+            <span class="whitespace-nowrap">${escapeHtml(sub)}</span>${newCount ? `<span class="ig-new whitespace-nowrap" data-new="${newCount}">${newCount} ${newCount === 1 ? 'nuovo' : 'nuovi'}</span>` : ''}
+          </p>
+        </div>
+      </div>
+      <i data-lucide="chevron-down" class="shelf-chevron w-5 h-5 text-graphite-400 shrink-0" stroke-width="2"></i>
+    </div>
+    <div class="group-body-track">
+      <div class="group-body-inner"><div class="group-shelves${flat ? ' group-shelves--flat' : ''} space-y-2.5"></div></div>
+    </div>`;
+  const head = el.querySelector('.shelf-group-header');
+  const track = el.querySelector('.group-body-track');
+  const inner = el.querySelector('.group-shelves');
+
+  // A gruppo aperto del tutto si toglie il ritaglio (come per gli scaffali), così nulla resta tagliato
+  let settleTimer = null;
+  const settle = () => {
+    clearTimeout(settleTimer);
+    if (el.classList.contains('group-open')) el.classList.add('group-settled');
+  };
+  track.addEventListener('transitionend', (e) => {
+    if (e.target === track && e.propertyName === 'grid-template-rows') settle();
+  });
+
+  const toggle = () => {
+    const on = !el.classList.contains('group-open');
+    if (!auto) {
+      if (on) set.add(key);
+      else set.delete(key);
+    }
+    feedback.tap();
+    el.classList.toggle('group-open', on);
+    head.setAttribute('aria-expanded', String(on));
+    clearTimeout(settleTimer);
+    if (on) settleTimer = setTimeout(settle, modalCloseMs() + 120); // ripiego se transitionend non arriva
+    else el.classList.remove('group-settled');
+  };
+  head.addEventListener('click', toggle);
+  head.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggle();
+    }
+  });
+  return { el, inner };
+}
+
+/** Presa visione di un intervento: i contatori «N nuovi» dei gruppi che lo contengono scendono di uno */
+function dropNewBadge(row) {
+  for (let g = row.closest('.shelf-group'); g; g = g.parentElement?.closest('.shelf-group')) {
+    const badge = g.querySelector(':scope > .shelf-group-header .ig-new');
+    if (!badge) continue;
+    const n = Number(badge.dataset.new || 0) - 1;
+    if (n > 0) {
+      badge.dataset.new = String(n);
+      badge.textContent = `${n} ${n === 1 ? 'nuovo' : 'nuovi'}`;
+    } else {
+      badge.remove();
+    }
+  }
+}
+
+/** Riga di un intervento dentro la scheda della macchina */
+function buildRow(r, isNew) {
+  const row = document.createElement('button');
+  row.type = 'button';
+  row.dataset.id = r.id;
+  row.className = 'int-row relative w-full text-left pl-7 pr-3.5 py-3 flex items-start gap-3 border-t border-graphite-700/70';
+  let unseen = isNew;
+  const ops = operatoriDi(r);
+  const who = r.stato === 'effettuato' ? (ops.length ? ops.map(formatOperatore).join(', ') : r.esito_by_name) : r.created_by_name;
+  const when = r.stato === 'effettuato' ? `Fatto ${fmtDateTime(r.esito_at)}${who ? ` · ${who}` : ''}` : `${fmtDateTime(r.created_at)}${who ? ` · ${who}` : ''}`;
+  row.innerHTML = `
+    <div class="min-w-0 flex-1">
+      ${r.stato === 'sospeso' ? `<span class="inline-block ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 mr-1 ${STATO_CHIP.sospeso}">${STATI.sospeso}</span>` : ''}
+      ${r.rapido_id && r.stato !== 'effettuato' ? `<span class="inline-block ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 mr-1 bg-sky-100 text-sky-800">Programmato</span>` : ''}
+      ${r.ricambi_mancanti ? `<span class="inline-block ui-label font-display font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-1 ${CHIP_RICAMBI}">Ricambi da indicare</span>` : ''}
+      <p class="text-sm font-medium text-graphite-100 leading-snug line-clamp-3">${escapeHtml(r.descrizione)}</p>
+      ${r.stato !== 'effettuato' && r.dettagli ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-2">Dettagli: ${escapeHtml(r.dettagli)}</p>` : ''}
+      ${r.note_esito ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-1">${r.stato === 'effettuato' ? 'Post intervento' : 'Da completare'}: ${escapeHtml(r.note_esito)}</p>` : ''}
+      ${r.stato !== 'effettuato' && ops.length ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-1">Assegnato a: ${escapeHtml(sortOperatori(ops).map(formatOperatore).join(', '))}</p>` : ''}
+      ${ricambiDi(r).length ? `<p class="text-xs text-graphite-500 mt-1 line-clamp-1">Ricambi: ${escapeHtml(ricambiDi(r).map(ricambiLabel).join(', '))}</p>` : ''}
+      <p class="ui-note text-graphite-500 mt-1">${escapeHtml(when)}</p>
+    </div>
+    <img class="int-thumb hidden" alt="" data-thumb>${unseen ? UNSEEN_DOT_HTML : ''}`;
+  row.addEventListener('click', (e) => {
+    const onDot = !!e.target.closest('[data-unseen-hit]');
+    if (unseen) {
+      unseen = false;
+      markSeen(r);
+      dismissDot(row); // presa visione: il pallino si ingrandisce e implode
+      dropNewBadge(row);
+      if (onDot) feedback.tap();
+    }
+    if (onDot) return; // il tocco sul pallino segna solo come visto, senza aprire l'intervento
+    openDetail(r);
+  });
+  return row;
 }
 
 /** Miniature caricate dopo il disegno dell'elenco (URL firmati in un'unica richiesta) */
