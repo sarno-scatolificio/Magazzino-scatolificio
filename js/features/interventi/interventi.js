@@ -18,7 +18,7 @@ import { initNewSheet, openNew } from './interventi-new.js';
 import { initRicambiSheet } from './interventi-ricambi.js';
 import { initPdfSheet, onExportPdf, onExportTodoPdf } from './interventi-pdf-sheet.js';
 import { initPhotoViewer } from './interventi-photo.js';
-import { listDistinctMacchine } from '../../data/supabase.js';
+import { getSectionIconUrl, listDistinctMacchine, listMachineEntries } from '../../data/supabase.js';
 import { openPicker } from '../../shared/picker.js';
 import { pickDateRange } from '../../shared/date-range-modal.js';
 import { syncSegIndicator } from '../../shared/ui-utils.js';
@@ -118,6 +118,7 @@ export function resetInterventi() {
   state.doneDays = new Set();
   state.doneDay = '';
   state.machineOrder = [];
+  state.machineIcons = new Map();
   state.openLinee.clear();
   state.openMacchine.clear();
   state.loaded = false;
@@ -147,16 +148,20 @@ export async function refreshInterventi({ silent = false } = {}) {
   }
   try {
     await generaProgrammati().catch(() => {}); // scadenziario: porta tra i Da effettuare quelli arrivati a scadenza
-    const [res, days, order] = await Promise.all([
+    const [res, days, entries] = await Promise.all([
       listInterventi(),
       listEffettuatiDays().catch(() => null),
-      listDistinctMacchine().catch(() => null),
+      listMachineEntries().catch(() => null),
     ]);
     state.tableMissing = res.tableMissing;
     state.open = res.open;
     state.doneRecent = res.done;
     state.doneDays = new Set(days || res.done.map((r) => dayKey(new Date(r.esito_at))));
-    if (order) state.machineOrder = order;
+    if (entries) {
+      state.machineOrder = entries.map((e) => e.nome);
+      // Stessa icona delle macchine nei Manuali (se l'admin ne ha caricata una)
+      state.machineIcons = new Map(entries.filter((e) => e.icon_storage_path).map((e) => [e.nome.toLowerCase(), getSectionIconUrl(e.icon_storage_path)]));
+    }
     // Scheda Effettuati: un giorno alla volta (oggi se ci sono interventi, altrimenti l'ultimo giorno con interventi)
     if (!state.doneDay) state.doneDay = defaultDay();
     await loadDay();

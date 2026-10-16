@@ -226,30 +226,13 @@ export function renderList() {
     });
     group.el.style.setProperty('--i', staggerIndex(i++));
 
-    // Macchine con più interventi: piastrelle (come «Articoli sotto scorta»); toccandone una, i suoi interventi
-    // si aprono subito sotto la sua riga. Una macchina con un solo intervento si mostra direttamente.
-    let tiles = [];
-    const flushTiles = () => {
-      if (tiles.length) group.inner.append(...buildTileGrid(tiles, state.tab, linea));
-      tiles = [];
-    };
-    names.forEach((name) => {
+    // Ogni macchina è una piastrella (anche con un solo intervento, come «Articoli sotto scorta»);
+    // toccandola, i suoi interventi si aprono subito sotto la sua riga.
+    const tiles = names.map((name) => {
       const items = machines.get(name).sort(timeSort);
-      if (items.length === 1) {
-        flushTiles();
-        const card = document.createElement('div');
-        card.className = 'card-plate rounded-xl overflow-hidden';
-        card.innerHTML = `
-          <div class="flex items-center justify-between gap-2 px-3.5 py-2 bg-graphite-800/70">
-            <h4 class="min-w-0 truncate font-display font-bold text-sm uppercase tracking-wider text-graphite-100">${escapeHtml(name)}</h4>
-          </div>`;
-        card.appendChild(buildRow(items[0], unseenIds.has(items[0].id)));
-        group.inner.appendChild(card);
-        return;
-      }
-      tiles.push({ name, items, newCount: countNew(items), rows: items.map((r) => buildRow(r, unseenIds.has(r.id))) });
+      return { name, items, newCount: countNew(items), rows: items.map((r) => buildRow(r, unseenIds.has(r.id))) };
     });
-    flushTiles();
+    group.inner.append(...buildTileGrid(tiles, state.tab, linea));
     els.list.appendChild(group.el);
   });
   window.lucide?.createIcons();
@@ -259,7 +242,7 @@ export function renderList() {
 const TILE_COLS = 2; // piastrelle per riga
 
 /**
- * Piastrelle delle macchine con più interventi, a righe di due; sotto ogni riga uno «slot» a fisarmonica dove
+ * Piastrelle delle macchine (una per macchina), a righe di due; sotto ogni riga uno «slot» a fisarmonica dove
  * si apre l'elenco della piastrella toccata. Una sola aperta per linea: un altro tocco chiude la precedente e
  * apre la nuova, un secondo tocco sulla stessa la richiude. Stesso linguaggio degli «Articoli sotto scorta».
  */
@@ -284,6 +267,7 @@ function buildTileGrid(tiles, tab, linea) {
     const slotInner = slot.querySelector('.lowstock-slot-inner');
 
     rowTiles.forEach((t) => {
+      const iconUrl = state.machineIcons.get(t.name.toLowerCase()) || '';
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.tileId = t.id;
@@ -292,8 +276,10 @@ function buildTileGrid(tiles, tab, linea) {
       btn.innerHTML = `
         <span class="lowstock-tile-badge int-tile-badge absolute top-1.5 right-1.5 font-mono text-[11px] font-semibold px-2 py-0.5 rounded-full">${t.items.length}</span>
         ${t.newCount ? `<span class="int-tile-new absolute top-2 left-2" data-new="${t.newCount}" title="${t.newCount} ${t.newCount === 1 ? 'nuovo' : 'nuovi'}"><span class="unseen-dot"></span></span>` : ''}
-        <span class="lowstock-tile-ico-box mx-auto w-9 h-9 rounded-lg bg-graphite-700/50 flex items-center justify-center">
-          <i data-lucide="cog" class="lowstock-tile-ico w-[18px] h-[18px] text-graphite-400" stroke-width="1.8"></i>
+        <span class="lowstock-tile-ico-box mx-auto w-9 h-9 rounded-lg bg-graphite-700/50 flex items-center justify-center${iconUrl ? ' int-tile-ico-img p-1' : ''}">
+          ${iconUrl
+            ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" class="w-full h-full object-contain">`
+            : '<i data-lucide="cog" class="lowstock-tile-ico w-[18px] h-[18px] text-graphite-400" stroke-width="1.8"></i>'}
         </span>
         <p class="lowstock-tile-name text-xs font-display font-bold uppercase tracking-wide mt-1.5 truncate"></p>`;
       btn.querySelector('.lowstock-tile-name').textContent = t.name; // testo, mai HTML
@@ -303,11 +289,11 @@ function buildTileGrid(tiles, tab, linea) {
 
       // Dettaglio: gli interventi della macchina (righe già pronte, con pallino e miniatura)
       const detail = document.createElement('div');
-      detail.className = 'lowstock-detail rounded-xl border-2 border-graphite-700 overflow-hidden mb-2';
+      detail.className = 'lowstock-detail int-detail rounded-xl border-2 border-graphite-700 overflow-hidden mb-2';
       detail.dataset.tileId = t.id;
       const head = document.createElement('p');
       head.className = 'px-4 py-2 ui-note font-display font-bold uppercase tracking-wide text-graphite-400 bg-graphite-800/40';
-      head.textContent = `${t.name} · ${t.items.length} interventi`;
+      head.textContent = `${t.name} · ${t.items.length} ${t.items.length === 1 ? 'intervento' : 'interventi'}`;
       detail.appendChild(head);
       t.rows.forEach((row, i) => {
         row.classList.add('lowstock-item');
