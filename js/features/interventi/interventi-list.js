@@ -271,12 +271,13 @@ function buildTileGrid(tiles, tab, linea) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.tileId = t.id;
+      if (iconUrl) btn.style.setProperty('--tile-origin', '44px'); // centro dell'icona più alta (pt-4 + metà di h-14)
       btn.className = 'list-item-in lowstock-tile int-tile relative card-plate rounded-xl p-3 pt-4 text-center';
       btn.style.setProperty('--i', staggerIndex(t.n));
       btn.innerHTML = `
         <span class="lowstock-tile-badge int-tile-badge absolute top-1.5 right-1.5 font-mono text-[11px] font-semibold px-2 py-0.5 rounded-full">${t.items.length}</span>
         ${t.newCount ? `<span class="int-tile-new absolute top-2 left-2" data-new="${t.newCount}" title="${t.newCount} ${t.newCount === 1 ? 'nuovo' : 'nuovi'}"><span class="unseen-dot"></span></span>` : ''}
-        <span class="lowstock-tile-ico-box mx-auto w-9 h-9 rounded-lg bg-graphite-700/50 flex items-center justify-center${iconUrl ? ' int-tile-ico-img p-1' : ''}">
+        <span class="lowstock-tile-ico-box mx-auto ${iconUrl ? 'int-tile-ico-img w-full h-14 p-1' : 'w-9 h-9'} rounded-lg bg-graphite-700/50 flex items-center justify-center">
           ${iconUrl
             ? `<img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" decoding="async" class="w-full h-full object-contain">`
             : '<i data-lucide="cog" class="lowstock-tile-ico w-[18px] h-[18px] text-graphite-400" stroke-width="1.8"></i>'}
