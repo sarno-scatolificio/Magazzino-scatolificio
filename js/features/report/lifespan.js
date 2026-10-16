@@ -102,7 +102,7 @@ function fmtDays(d) {
 const fmtDate = (t) => new Date(t).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
 function placeLabel(g) {
-  const parts = [g.linea];
+  const parts = [g.linea === 'REP' ? 'Reparto' : g.linea];
   if (g.bearing) parts.push(g.macchinario, g.punto);
   return parts.filter(Boolean).map(escapeHtml).join(' · ');
 }

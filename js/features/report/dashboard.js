@@ -295,7 +295,7 @@ function moreButton(tab, remaining) {
   return btn;
 }
 
-const LINEA_LABELS = { L1: 'Linea 1', L2: 'Linea 2' };
+const LINEA_LABELS = { L1: 'Linea 1', L2: 'Linea 2', REP: 'Reparto' };
 
 function movementRow(r, i, tab) {
   const date = new Date(r.data_ora);
