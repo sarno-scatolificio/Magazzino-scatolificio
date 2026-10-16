@@ -606,6 +606,11 @@ function openCount() {
   setCameraVisible(false);
   paintRows();
   openOverlay(els.count);
+  // L'elenco parte sempre dall'alto: il primo articolo resta visibile (lo scorrimento di un inventario precedente non si porta dietro)
+  els.rows.scrollTop = 0;
+  requestAnimationFrame(() => {
+    els.rows.scrollTop = 0;
+  });
 }
 
 function cleanupCount() {
