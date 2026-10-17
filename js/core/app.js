@@ -19,12 +19,13 @@ import { initHistoryAdmin } from '../features/impostazioni/history-admin.js';
 import { initInterventi, enterInterventi, resetInterventi, setInterventiFab } from '../features/interventi/interventi.js';
 import { initInterventiRapidi, initOperatori } from '../features/interventi/interventi-rapidi.js';
 import { initUnseenBadge } from '../features/interventi/interventi-unseen.js';
+import { takeCameraResume } from '../features/interventi/interventi-photo.js';
 import { initPicker } from '../shared/picker.js';
 import { initGlobalSearch, resetGlobalSearch, syncSearchContext, closePanel as closeGlobalSearch } from '../shared/global-search.js';
 import feedback, { initFeedbackSettings } from '../shared/feedback.js';
 import { initOfflineSync } from './offline-queue.js';
 import { processTransaction, adjustCachedProductQuantity, bumpProductsVersion, preloadMachineEntries } from '../data/supabase.js';
-import { toastSuccess, toastError } from '../shared/toast.js';
+import { toastSuccess, toastError, toastWarning } from '../shared/toast.js';
 import { closeAllOverlays, syncSegIndicator } from '../shared/ui-utils.js';
 import { initNavHistory, pushLayer, resetLayers } from './nav-history.js';
 import { getPdfCacheInfo, clearPdfCache } from '../features/manuali/pdf-cache.js';
@@ -120,6 +121,11 @@ function onAuthed(profile) {
   }
   const firstEntry = currentView === null; // primo arrivo dopo apertura/accesso (non un semplice rinfresco del profilo)
   switchView('scanner', { animate: false });
+  // L'app è ripartita mentre si scattava la foto di un intervento: si torna agli Interventi e si avvisa
+  if (firstEntry && takeCameraResume()) {
+    switchView('interventi', { animate: false });
+    toastWarning('L\'app si è riavviata mentre si apriva la fotocamera: riapri l\'intervento e rifai la foto.', 8000);
+  }
 
   // Shortcut PWA "Deposito"/"Prelievo": apre lo scanner già pronto nella
   // modalità scelta dalla schermata Home, invece di richiedere il tap manuale.

@@ -31,9 +31,30 @@ class ConnectionError extends Error {
   }
 }
 
+/** Blocco interno della sessione rimasto occupato da una pagina chiusa di colpo (es. app scartata dal telefono mentre si apre la fotocamera) */
+function isLockError(err) {
+  return /lock/i.test(`${err?.name || ''} ${err?.message || ''}`);
+}
+
+/** Sessione salvata in locale da Supabase, letta direttamente: non passa dal blocco di cui sopra, quindi è disponibile subito */
+function readStoredSession() {
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key && /^sb-.+-auth-token$/.test(key)) {
+        const s = JSON.parse(localStorage.getItem(key));
+        if (s?.access_token && s?.user?.id) return s;
+      }
+    }
+  } catch (err) {
+    /* storage non disponibile: si procede senza */
+  }
+  return null;
+}
+
 /** Errore dovuto a rete assente o servizio momentaneamente irraggiungibile: vale la pena riprovare */
 function isRetryableConnectionError(err) {
-  if (isNetworkError(err)) return true;
+  if (isNetworkError(err) || isLockError(err)) return true;
   return err?.name === 'AuthRetryableFetchError' || err?.status === 0 || err?.status >= 500;
 }
 
@@ -217,6 +238,10 @@ export function initAuth(onAuthed, onSignedOut) {
   const statusBox = document.getElementById('login-status');
   const submitLabel = submitBtn.querySelector('.btn-label');
 
+  // Riapertura dell'app con una sessione già salvata (anche dopo che il telefono l'ha chiusa mentre era aperta la
+  // fotocamera): il login non deve nemmeno comparire mentre si verifica la sessione. Se serve, onSignedOut lo mostra.
+  if (readStoredSession()) document.getElementById('auth-view')?.classList.add('hidden');
+
   const showStatus = (text) => {
     if (!statusBox) return;
     statusBox.textContent = text || '';
@@ -322,6 +347,39 @@ export function initAuth(onAuthed, onSignedOut) {
       const session = await withConnectionRetries(() => getSession(), onAttempt);
       if (!session) return onSignedOut(); // nessuna sessione: qui sí che è un vero logout
 
+      // Profilo già salvato per questa sessione: si entra subito e lo si ricontrolla in sottofondo, così una rete
+      // lenta alla riapertura non fa vedere il login. Solo un rifiuto vero del server porta davvero fuori.
+      const known = getCachedProfile(session);
+      if (known) {
+        authState.session = session;
+        authState.profile = known;
+        resetIdleTimer(handleIdleTimeout);
+        showStatus('');
+        onAuthed(known);
+        try {
+          const fresh = await withConnectionRetries(() => getMyProfile(), onAttempt);
+          if (!fresh) {
+            await signOut().catch(() => {});
+            authState.session = null;
+            authState.profile = null;
+            stopIdleTimer();
+            return onSignedOut();
+          }
+          cacheProfile(fresh);
+          authState.profile = fresh;
+          if (fresh.role !== known.role || fresh.full_name !== known.full_name) onAuthed(fresh);
+        } catch (err) {
+          console.error(err);
+          if (!(err instanceof ConnectionError)) {
+            authState.session = null;
+            authState.profile = null;
+            stopIdleTimer();
+            onSignedOut();
+          }
+        }
+        return;
+      }
+
       let profile;
       try {
         profile = await withConnectionRetries(() => getMyProfile(), onAttempt);
@@ -351,6 +409,18 @@ export function initAuth(onAuthed, onSignedOut) {
       onAuthed(profile);
     } catch (err) {
       console.error(err);
+      // La lettura della sessione è fallita solo per rete o blocco occupato, ma in locale c'è la sessione di questo
+      // utente: si entra con l'ultimo profilo salvato invece di rimandarlo al login.
+      const stored = err instanceof ConnectionError ? readStoredSession() : null;
+      const cached = stored ? getCachedProfile(stored) : null;
+      if (cached) {
+        authState.session = stored;
+        authState.profile = cached;
+        resetIdleTimer(handleIdleTimeout);
+        showStatus('');
+        toastWarning('Sessione ripristinata con gli ultimi dati salvati.');
+        return onAuthed(cached);
+      }
       if (err instanceof ConnectionError) showLoginError(mapAuthError(err));
       onSignedOut();
     } finally {
