@@ -1733,6 +1733,13 @@
       <p class="text-xs text-graphite-500 mb-3">Lavori ricorrenti di una macchina: con una ripetizione, tornano da soli tra i "Da effettuare".</p>
       <p id="rapidi-notice" class="hidden text-xs rounded-lg px-3 py-2 mb-3 bg-rose-500/10 text-rose-700">Le tabelle degli interventi non sono ancora state create sul database.</p>
       <form id="rapidi-form" class="card-plate rounded-xl p-3.5 space-y-3.5 mb-5" novalidate>
+        <div id="rapidi-edit-banner" class="hidden rounded-lg bg-amber-400/15 px-3 py-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs font-display font-bold uppercase tracking-wide text-graphite-100">Modifica intervento rapido</p>
+            <button id="rapidi-edit-cancel" type="button" class="press-spring shrink-0 min-h-[36px] px-2 text-xs font-display font-semibold uppercase tracking-wide text-graphite-400">Annulla</button>
+          </div>
+          <p class="text-xs text-graphite-500 mt-1">Le modifiche valgono dal prossimo inserimento: gli interventi già in elenco, da effettuare o effettuati, non cambiano.</p>
+        </div>
         <div class="int-step">
           <p class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">1 · Linea</p>
           <div id="rapidi-linea-seg" class="seg flex w-full rounded-lg border border-graphite-700 bg-graphite-800 p-0.5" role="group" aria-label="Linea">
@@ -1762,7 +1769,7 @@
               </div>
             </div>
           </div>
-          <p class="text-xs text-graphite-500 mt-2">Con una ripetizione il lavoro compare da solo tra i "Da effettuare" alle 6:00.</p>
+          <p class="text-xs text-graphite-500 mt-2">Con una ripetizione il lavoro compare da solo tra i "Da effettuare" alle 00:00 del giorno di scadenza.</p>
         </div>
         <button id="rapidi-add-btn" type="submit" disabled class="press-spring w-full rounded-lg bg-amber-400 hover:bg-amber-300 text-white font-display font-semibold uppercase tracking-wide text-sm min-h-[48px] flex items-center justify-center gap-2">
           <i data-lucide="plus" class="w-5 h-5" stroke-width="2.5"></i><span>Aggiungi</span>
