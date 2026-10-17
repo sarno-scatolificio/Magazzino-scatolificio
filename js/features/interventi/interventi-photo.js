@@ -48,6 +48,39 @@ async function compressImage(file, maxSide = 1600, quality = 0.8) {
   return blob;
 }
 
+// Aprendo la fotocamera il telefono può chiudere l'app per liberare memoria: al ritorno l'app riparte da capo e la
+// foto, che non è mai arrivata alla pagina, è persa. Prima dello scatto si lascia un segno, così alla ripartenza
+// l'app riporta agli Interventi e avvisa di rifare la foto, invece di sembrare un'uscita dall'account.
+const CAMERA_KEY = 'magazzino_camera_pending';
+const CAMERA_MAX_AGE_MS = 15 * 60 * 1000;
+
+function markCameraOpened() {
+  try {
+    localStorage.setItem(CAMERA_KEY, String(Date.now()));
+  } catch (err) {
+    /* storage non disponibile: nessun avviso al ritorno */
+  }
+}
+
+function clearCameraMark() {
+  try {
+    localStorage.removeItem(CAMERA_KEY);
+  } catch (err) {
+    /* niente da fare */
+  }
+}
+
+/** true se l'app è ripartita mentre era aperta la fotocamera (il segno si consuma: vale una volta sola) */
+export function takeCameraResume() {
+  try {
+    const t = Number(localStorage.getItem(CAMERA_KEY));
+    localStorage.removeItem(CAMERA_KEY);
+    return Number.isFinite(t) && t > 0 && Date.now() - t < CAMERA_MAX_AGE_MS;
+  } catch (err) {
+    return false;
+  }
+}
+
 /** Collega Scatta/Galleria/Rimuovi di un blocco foto. `get/set` leggono e scrivono il blob nello stato. */
 export function wirePhoto(pfx, onChange) {
   const actions = $(`${pfx}-photo-actions`);
@@ -56,7 +89,14 @@ export function wirePhoto(pfx, onChange) {
   const cam = $(`${pfx}-photo-input-cam`);
   const gal = $(`${pfx}-photo-input-gal`);
 
-  $(`${pfx}-photo-shoot`).addEventListener('click', () => cam.click());
+  $(`${pfx}-photo-shoot`).addEventListener('click', () => {
+    markCameraOpened();
+    cam.click();
+  });
+  // La pagina non è stata chiusa (fotocamera annullata o scatto riuscito): il segno non serve più
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') setTimeout(clearCameraMark, 3000);
+  });
   $(`${pfx}-photo-pick`).addEventListener('click', () => gal.click());
   $(`${pfx}-photo-remove`).addEventListener('click', () => {
     feedback.cancelAction();
@@ -66,6 +106,7 @@ export function wirePhoto(pfx, onChange) {
   img.classList.add('cursor-zoom-in');
   img.addEventListener('click', () => img.src && openPhotoViewer(img.src));
   const handle = async (input) => {
+    clearCameraMark();
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
