@@ -201,11 +201,27 @@ export async function createRapido({ linea, macchina, titolo, cadenzaGiorni = nu
   return data;
 }
 
-/** Cadenza (in giorni) di un intervento rapido: dopo N giorni compare da solo tra i "Da effettuare" alle 6:00. null = nessuna ripetizione. */
+/** Cadenza (in giorni) di un intervento rapido: dopo N giorni compare da solo tra i "Da effettuare" alle 00:00 del giorno di scadenza. null = nessuna ripetizione. */
 export async function updateRapidoCadenza(id, giorni) {
   const patch = giorni ? { cadenza_giorni: giorni, cadenza_da: new Date().toISOString() } : { cadenza_giorni: null, cadenza_da: null };
   const { error } = await supabase.from('interventi_rapidi').update(patch).eq('id', id);
   if (error) throw error;
+}
+
+/**
+ * Modifica un intervento rapido già salvato (linea, macchina, titolo, ripetizione).
+ * Cambia SOLO il modello: gli interventi già inseriti (da effettuare o effettuati) sono copie e restano com'erano;
+ * le modifiche valgono dal prossimo inserimento. `riparti` azzera il conteggio dei giorni da adesso.
+ */
+export async function updateRapido(id, { linea, macchina, titolo, cadenzaGiorni = null, riparti = false }) {
+  const patch = { linea, macchina, titolo, cadenza_giorni: cadenzaGiorni };
+  if (riparti) patch.cadenza_da = cadenzaGiorni ? new Date().toISOString() : null;
+  const { data, error } = await supabase.from('interventi_rapidi').update(patch).eq('id', id).select('id, linea, macchina, titolo, cadenza_giorni').single();
+  if (error) {
+    if (error.code === '23505') throw new Error('Esiste già un intervento rapido uguale per la stessa linea e macchina.');
+    throw error;
+  }
+  return data;
 }
 
 /** Fa comparire tra i "Da effettuare" gli interventi programmati arrivati a scadenza (lo fa già il database ogni 5 minuti: qui è solo una rete di sicurezza) */
