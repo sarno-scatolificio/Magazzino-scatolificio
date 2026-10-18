@@ -124,6 +124,12 @@
       <!-- Il titolo della sezione resta per i lettori di schermo; a vista c'è la ricerca -->
       <p id="app-header-title" class="sr-only">Movimenti</p>
 
+      <!-- Titolo mostrato al posto della ricerca quando sono aperte le Impostazioni -->
+      <div id="hdr-settings-title" class="hdr-settings-title" aria-hidden="true">
+        <span class="hdr-settings-ico"><i data-lucide="settings-2" class="w-5 h-5" stroke-width="2"></i></span>
+        <span class="hdr-settings-text font-display">Impostazioni</span>
+      </div>
+
       <div id="hsearch" class="hsearch relative flex-1 min-w-0" role="search">
         <i data-lucide="search" class="hsearch-icon w-[18px] h-[18px]" stroke-width="2.2"></i>
         <input id="hsearch-input" type="text" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="none" spellcheck="false" data-no-clear
@@ -173,16 +179,17 @@
         </div>
 
         <!-- Articoli sotto scorta: la scheda si espande nella stessa tab (niente modale) -->
+        <div class="mv-tiles">
         <div id="scanner-lowstock-card" class="lowstock-card card-plate rounded-xl overflow-hidden">
-          <button type="button" id="scanner-lowstock-btn" aria-expanded="false" aria-controls="lowstock-track" class="lowstock-header w-full text-left p-3.5 flex items-center gap-3">
-            <span class="shrink-0 w-9 h-9 rounded-lg bg-rose-500/10 flex items-center justify-center">
+          <button type="button" id="scanner-lowstock-btn" aria-expanded="false" aria-controls="lowstock-track" class="lowstock-header mvt w-full text-left p-3.5">
+            <span class="mvt-ico shrink-0 w-9 h-9 rounded-lg bg-rose-500/10 flex items-center justify-center">
               <i data-lucide="alert-triangle" class="w-[18px] h-[18px] text-rose-600" stroke-width="1.8"></i>
             </span>
-            <div class="min-w-0 flex-1">
-              <p id="scanner-lowstock-count" class="font-display font-bold text-lg leading-none">—</p>
+            <div class="mvt-txt">
+              <p id="scanner-lowstock-count" class="font-display font-bold text-2xl leading-none">—</p>
               <p class="ui-note text-graphite-500 mt-1">Articoli sotto scorta</p>
             </div>
-            <i data-lucide="chevron-down" class="lowstock-chevron w-5 h-5 text-graphite-400 shrink-0" stroke-width="2"></i>
+            <i data-lucide="chevron-down" class="mvt-chev lowstock-chevron w-5 h-5 text-graphite-400 shrink-0" stroke-width="2"></i>
           </button>
           <div id="lowstock-track" class="acc-track">
             <div class="acc-inner">
@@ -208,16 +215,17 @@
         </div>
 
         <!-- Prestiti in sospeso: li consulta e gestisce solo l'admin (per gli altri la scheda non compare) -->
-        <button type="button" id="scanner-prestiti-btn" data-admin-only class="hidden press-spring card-plate rounded-xl px-3.5 py-3 w-full flex items-center justify-between gap-3 text-left">
-          <span class="flex items-center gap-2.5 min-w-0">
-            <i data-lucide="handshake" class="w-5 h-5 text-amber-400 shrink-0"></i>
-            <span class="font-display font-bold text-xs uppercase tracking-wide text-graphite-400">Prestiti in sospeso</span>
+        <button type="button" id="scanner-prestiti-btn" data-admin-only class="hidden mvt press-spring card-plate rounded-xl p-3.5 w-full text-left">
+          <span class="mvt-ico shrink-0 w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
+            <i data-lucide="handshake" class="w-[18px] h-[18px] text-amber-400" stroke-width="1.8"></i>
           </span>
-          <span class="flex items-center gap-2 shrink-0">
-            <span id="scanner-prestiti-count" class="font-mono text-sm font-semibold min-w-[1.75rem] text-center px-2 py-0.5 rounded-full bg-graphite-800 text-graphite-400">0</span>
-            <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500"></i>
-          </span>
+          <div class="mvt-txt">
+            <p id="scanner-prestiti-count" class="font-display font-bold text-2xl leading-none">0</p>
+            <p class="ui-note text-graphite-500 mt-1">Prestiti in sospeso</p>
+          </div>
+          <i data-lucide="chevron-right" class="mvt-chev w-5 h-5 text-graphite-400 shrink-0" stroke-width="2"></i>
         </button>
+        </div>
 
         <div class="card-plate rounded-xl px-3.5 py-3">
           <div class="flex items-center justify-between gap-3 mb-1.5">
@@ -495,21 +503,21 @@
            mostrano sempre la scaffalatura, senza selettore (gestito via JS in base alla categoria) -->
       <!-- Riga compatta: Scaffalatura/Macchina a sinistra, Annulla/Ripeti a destra (il "+" nuovo articolo è il pulsante tondo in basso, come negli Interventi) -->
       <div id="product-toolbar" class="prod-toolbar flex items-center gap-2 mb-3">
-      <div id="product-view-mode-wrap" class="seg hidden inline-flex min-w-0 max-w-full overflow-x-auto rounded-lg border border-graphite-700 bg-graphite-800 p-0.5">
+      <div id="product-view-mode-wrap" class="seg hidden inline-flex shrink-0 rounded-lg border border-graphite-700 bg-graphite-800 p-0.5">
         <span class="seg-indicator" aria-hidden="true"></span>
-        <button type="button" data-view-mode-tab="shelf" class="view-mode-tab view-mode-tab-active flex items-center justify-center gap-1.5 rounded-md px-2.5 sm:px-3 py-1.5 whitespace-nowrap text-xs font-display font-semibold uppercase tracking-wide min-h-[44px]">
+        <button type="button" data-view-mode-tab="shelf" class="view-mode-tab view-mode-tab-active flex items-center justify-center gap-1.5 rounded-md px-2 sm:px-3 py-1.5 whitespace-nowrap text-xs font-display font-semibold uppercase tracking-wide min-h-[44px]">
           <i data-lucide="layout-grid" class="w-3.5 h-3.5" stroke-width="2"></i>Scaffalatura<span class="area-chevron" hidden aria-hidden="true"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
         </button>
-        <button type="button" data-view-mode-tab="machine" class="view-mode-tab flex items-center justify-center gap-1.5 rounded-md px-2.5 sm:px-3 py-1.5 whitespace-nowrap text-xs font-display font-semibold uppercase tracking-wide min-h-[44px]">
+        <button type="button" data-view-mode-tab="machine" class="view-mode-tab flex items-center justify-center gap-1.5 rounded-md px-2 sm:px-3 py-1.5 whitespace-nowrap text-xs font-display font-semibold uppercase tracking-wide min-h-[44px]">
           <i data-lucide="wrench" class="w-3.5 h-3.5" stroke-width="2"></i>Macchina<span class="area-chevron" hidden aria-hidden="true"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
         </button>
       </div>
       <button id="product-undo-btn" data-admin-only type="button" disabled aria-label="Annulla ultima modifica" title="Annulla"
-        class="hidden history-btn ml-auto shrink-0 w-10 h-10 rounded-lg bg-graphite-800 border border-graphite-700 text-graphite-400 hover:text-amber-400 hover:border-amber-400 flex items-center justify-center">
+        class="hidden history-btn ml-auto shrink w-10 min-w-[28px] h-10 rounded-lg bg-graphite-800 border border-graphite-700 text-graphite-400 hover:text-amber-400 hover:border-amber-400 flex items-center justify-center">
         <i data-lucide="undo-2" class="w-[18px] h-[18px]" stroke-width="2"></i>
       </button>
       <button id="product-redo-btn" data-admin-only type="button" disabled aria-label="Ripeti modifica annullata" title="Ripeti"
-        class="hidden history-btn shrink-0 w-10 h-10 rounded-lg bg-graphite-800 border border-graphite-700 text-graphite-400 hover:text-amber-400 hover:border-amber-400 flex items-center justify-center">
+        class="hidden history-btn shrink w-10 min-w-[28px] h-10 rounded-lg bg-graphite-800 border border-graphite-700 text-graphite-400 hover:text-amber-400 hover:border-amber-400 flex items-center justify-center">
         <i data-lucide="redo-2" class="w-[18px] h-[18px]" stroke-width="2"></i>
       </button>
       </div>
@@ -880,7 +888,18 @@
     <!-- ============ VISTA IMPOSTAZIONI ============ -->
     <section id="view-settings" class="hidden">
 
-      <!-- Report: in cima alle Impostazioni, grande e ben visibile (solo Admin) -->
+      <!-- Account: in cima, lontano dalle azioni che cancellano dati -->
+      <div class="set-account card-plate rounded-xl p-3.5 mb-5 flex items-center gap-3">
+        <span class="set-ico set-ico--lg"><i data-lucide="user-round" class="w-5 h-5" stroke-width="2"></i></span>
+        <div class="min-w-0 flex-1">
+          <p id="settings-user-name" class="font-medium text-graphite-100 truncate">—</p>
+          <p id="settings-user-role" class="text-xs text-graphite-500 mt-0.5">—</p>
+        </div>
+        <button id="logout-btn" type="button" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-rose-500/40 text-rose-700 hover:bg-rose-50 px-3 py-2 text-xs font-display font-semibold uppercase tracking-wide transition-colors min-h-[44px]">
+          <i data-lucide="log-out" class="w-4 h-4" stroke-width="2"></i>Esci
+        </button>
+      </div>
+
       <div data-admin-only class="hidden">
         <button id="settings-report-btn" type="button" class="settings-report-hero press-spring w-full flex items-center gap-3 rounded-xl px-4 py-3 mb-5 text-left text-white">
           <span class="relative shrink-0 w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center">
@@ -892,134 +911,99 @@
           </span>
           <i data-lucide="chevron-right" class="relative w-5 h-5 shrink-0 text-white/80"></i>
         </button>
-        <div class="card-plate rounded-xl p-4 mb-5">
-          <h3 class="font-display font-semibold uppercase tracking-wide text-sm text-graphite-400 mb-3">Gestione</h3>
-          <div class="space-y-2">
-            <button id="users-manage-btn" type="button" class="w-full flex items-center justify-between gap-2 rounded-lg border border-graphite-700 hover:bg-graphite-800 px-3.5 py-2.5 text-sm font-display font-semibold uppercase tracking-wide transition-colors min-h-[44px]">
-              <span class="flex items-center gap-2">
-                <i data-lucide="users" class="w-4 h-4"></i>
-                Gestione utenti
-              </span>
-              <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500"></i>
-            </button>
-            <button id="machines-manage-btn" type="button" class="w-full flex items-center justify-between gap-2 rounded-lg border border-graphite-700 hover:bg-graphite-800 px-3.5 py-2.5 text-sm font-display font-semibold uppercase tracking-wide transition-colors min-h-[44px]">
-              <span class="flex items-center gap-2">
-                <i data-lucide="cog" class="w-4 h-4"></i>
-                Gestione macchine
-              </span>
-              <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500"></i>
-            </button>
-            <button id="shelves-manage-btn" type="button" class="w-full flex items-center justify-between gap-2 rounded-lg border border-graphite-700 hover:bg-graphite-800 px-3.5 py-2.5 text-sm font-display font-semibold uppercase tracking-wide transition-colors min-h-[44px]">
-              <span class="flex items-center gap-2">
-                <i data-lucide="shelving-unit" class="w-4 h-4"></i>
-                Gestione scaffali
-              </span>
-              <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500"></i>
-            </button>
-            <button id="rapidi-manage-btn" type="button" class="w-full flex items-center justify-between gap-2 rounded-lg border border-graphite-700 hover:bg-graphite-800 px-3.5 py-2.5 text-sm font-display font-semibold uppercase tracking-wide transition-colors min-h-[44px]">
-              <span class="flex items-center gap-2">
-                <i data-lucide="zap" class="w-4 h-4"></i>
-                Interventi rapidi
-              </span>
-              <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500"></i>
-            </button>
-            <button id="operatori-manage-btn" type="button" class="w-full flex items-center justify-between gap-2 rounded-lg border border-graphite-700 hover:bg-graphite-800 px-3.5 py-2.5 text-sm font-display font-semibold uppercase tracking-wide transition-colors min-h-[44px]">
-              <span class="flex items-center gap-2">
-                <i data-lucide="hard-hat" class="w-4 h-4"></i>
-                Operatori
-              </span>
-              <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500"></i>
-            </button>
-            <button id="excel-import-manage-btn" type="button" class="w-full flex items-center justify-between gap-2 rounded-lg border border-graphite-700 hover:bg-graphite-800 px-3.5 py-2.5 text-sm font-display font-semibold uppercase tracking-wide transition-colors min-h-[44px]">
-              <span class="flex items-center gap-2">
-                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-                Carica da Excel
-              </span>
-              <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500"></i>
-            </button>
-          </div>
+      <div class="set-group">
+        <h3 class="set-group-title">Persone</h3>
+        <div class="card-plate rounded-xl overflow-hidden">
+          <button id="users-manage-btn" type="button" class="set-row">
+            <span class="set-ico"><i data-lucide="users" class="w-[18px] h-[18px]" stroke-width="2"></i></span>
+            <span class="set-text"><span class="set-title font-display">Gestione utenti</span></span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500 shrink-0"></i>
+          </button>
+          <button id="operatori-manage-btn" type="button" class="set-row">
+            <span class="set-ico"><i data-lucide="hard-hat" class="w-[18px] h-[18px]" stroke-width="2"></i></span>
+            <span class="set-text"><span class="set-title font-display">Operatori</span></span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500 shrink-0"></i>
+          </button>
         </div>
-
       </div>
-
-      <div class="card-plate rounded-xl p-4 mb-5">
-        <h3 class="font-display font-semibold uppercase tracking-wide text-sm text-graphite-400 mb-3">Impostazioni app</h3>
-
-        <label class="flex items-center justify-between gap-3 py-1.5 cursor-pointer select-none">
-          <span class="flex items-center gap-2.5 text-sm text-graphite-200">
-            <i data-lucide="volume-2" class="w-4 h-4 text-graphite-500 shrink-0"></i>
-            Suoni
-          </span>
-          <span class="relative inline-block w-11 h-6 shrink-0">
-            <input id="feedback-sound-toggle" type="checkbox" checked class="peer sr-only">
-            <span class="absolute inset-0 rounded-full bg-graphite-700 peer-checked:bg-amber-400 transition-colors"></span>
-            <span class="absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
-          </span>
-        </label>
-
-        <div id="feedback-haptics-row">
-          <label class="flex items-center justify-between gap-3 py-1.5 cursor-pointer select-none">
-            <span class="flex items-center gap-2.5 text-sm text-graphite-200">
-              <i data-lucide="vibrate" class="w-4 h-4 text-graphite-500 shrink-0"></i>
-              Vibrazione
+      <div class="set-group">
+        <h3 class="set-group-title">Reparto e magazzino</h3>
+        <div class="card-plate rounded-xl overflow-hidden">
+          <button id="machines-manage-btn" type="button" class="set-row">
+            <span class="set-ico"><i data-lucide="cog" class="w-[18px] h-[18px]" stroke-width="2"></i></span>
+            <span class="set-text"><span class="set-title font-display">Gestione macchine</span></span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500 shrink-0"></i>
+          </button>
+          <button id="shelves-manage-btn" type="button" class="set-row">
+            <span class="set-ico"><i data-lucide="shelving-unit" class="w-[18px] h-[18px]" stroke-width="2"></i></span>
+            <span class="set-text"><span class="set-title font-display">Gestione scaffali</span></span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500 shrink-0"></i>
+          </button>
+          <button id="rapidi-manage-btn" type="button" class="set-row">
+            <span class="set-ico"><i data-lucide="zap" class="w-[18px] h-[18px]" stroke-width="2"></i></span>
+            <span class="set-text"><span class="set-title font-display">Interventi rapidi</span></span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500 shrink-0"></i>
+          </button>
+          <button id="excel-import-manage-btn" type="button" class="set-row">
+            <span class="set-ico"><i data-lucide="file-spreadsheet" class="w-[18px] h-[18px]" stroke-width="2"></i></span>
+            <span class="set-text"><span class="set-title font-display">Carica da Excel</span></span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500 shrink-0"></i>
+          </button>
+        </div>
+      </div>
+      </div>
+      <div class="set-group">
+        <h3 class="set-group-title">Preferenze</h3>
+        <div class="card-plate rounded-xl overflow-hidden">
+          <label class="set-row cursor-pointer select-none">
+            <span class="set-ico"><i data-lucide="volume-2" class="w-[18px] h-[18px]" stroke-width="2"></i></span>
+            <span class="set-text"><span class="set-title font-display">Suoni</span></span>
+            <span class="relative inline-block w-11 h-6 shrink-0">
+              <input id="feedback-sound-toggle" type="checkbox" checked class="peer sr-only">
+              <span class="absolute inset-0 rounded-full bg-graphite-700 peer-checked:bg-amber-400 transition-colors"></span>
+              <span class="absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
             </span>
+          </label>
+          <div id="feedback-haptics-row">
+          <label class="set-row cursor-pointer select-none">
+            <span class="set-ico"><i data-lucide="vibrate" class="w-[18px] h-[18px]" stroke-width="2"></i></span>
+            <span class="set-text"><span class="set-title font-display">Vibrazione</span></span>
             <span class="relative inline-block w-11 h-6 shrink-0">
               <input id="feedback-haptics-toggle" type="checkbox" checked class="peer sr-only">
               <span class="absolute inset-0 rounded-full bg-graphite-700 peer-checked:bg-amber-400 transition-colors"></span>
               <span class="absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
             </span>
           </label>
+          </div>
         </div>
       </div>
-
-
-      <div class="card-plate rounded-xl p-4 mb-5">
-        <h3 class="font-display font-semibold uppercase tracking-wide text-sm text-graphite-400 mb-1">Aggiornamenti</h3>
-        <p class="text-xs text-graphite-500 mb-3">Ricarica i dati e controlla se è disponibile una nuova versione dell'app.</p>
-        <button id="settings-refresh-btn" type="button" class="w-full flex items-center justify-center gap-2 rounded-lg border border-graphite-700 hover:bg-graphite-800 px-3.5 py-2.5 text-sm font-display font-semibold uppercase tracking-wide transition-colors min-h-[44px]">
-          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-          Aggiorna
-        </button>
-        <p id="settings-refresh-status" class="text-xs text-graphite-500 mt-2 text-center"></p>
+      <div class="set-group">
+        <h3 class="set-group-title">App e dati</h3>
+        <div class="card-plate rounded-xl overflow-hidden">
+          <button id="settings-refresh-btn" type="button" class="set-row">
+            <span class="set-ico"><i data-lucide="refresh-cw" class="w-[18px] h-[18px]" stroke-width="2"></i></span>
+            <span class="set-text"><span class="set-title font-display">Aggiorna</span><span class="set-sub">Ricarica i dati e cerca una nuova versione dell'app</span></span>
+          </button>
+          <p id="settings-refresh-status" class="set-status"></p>
+          <button id="settings-pdf-cache-btn" type="button" class="set-row">
+            <span class="set-ico"><i data-lucide="trash-2" class="w-[18px] h-[18px]" stroke-width="2"></i></span>
+            <span class="set-text"><span class="set-title font-display">Svuota cache PDF</span><span class="set-sub">Libera spazio: i manuali si riscaricano al prossimo uso</span></span>
+          </button>
+          <p id="settings-pdf-cache-status" class="set-status"></p>
+        </div>
       </div>
-
-      <div class="card-plate rounded-xl p-4 mb-5">
-        <h3 class="font-display font-semibold uppercase tracking-wide text-sm text-graphite-400 mb-1">Cache PDF</h3>
-        <p class="text-xs text-graphite-500 mb-3">I manuali già aperti restano salvati sul telefono per riaprirsi subito. Svuota la cache per liberare spazio: al prossimo utilizzo verranno scaricati di nuovo.</p>
-        <button id="settings-pdf-cache-btn" type="button" class="w-full flex items-center justify-center gap-2 rounded-lg border border-graphite-700 hover:bg-graphite-800 px-3.5 py-2.5 text-sm font-display font-semibold uppercase tracking-wide transition-colors min-h-[44px]">
-          <i data-lucide="trash-2" class="w-4 h-4"></i>
-          Svuota cache PDF
-        </button>
-        <p id="settings-pdf-cache-status" class="text-xs text-graphite-500 mt-2 text-center"></p>
-      </div>
-
       <div data-admin-only class="hidden">
-        <h3 class="font-display font-semibold uppercase tracking-wide text-sm text-rose-700 mb-2 mt-2">Zona pericolosa</h3>
-        <div class="card-plate rounded-xl p-4 border-2 border-rose-500/25">
-          <p class="text-sm text-graphite-200 font-medium mb-1">Cronologia movimenti</p>
-          <p class="text-xs text-graphite-500 leading-relaxed mb-3">
-            Rivedi ed elimina singoli depositi/prelievi dallo storico, di uno o più articoli. La giacenza attuale non cambia: si tocca solo lo storico (eliminare un articolo elimina già in automatico i suoi movimenti collegati).
-          </p>
-          <button id="history-manage-btn" type="button"
-            class="w-full flex items-center justify-between gap-2 rounded-lg border border-rose-500/40 text-rose-700 hover:bg-rose-50 px-4 py-2.5 text-sm font-display font-semibold uppercase tracking-wide transition-colors min-h-[44px]">
-            <span class="flex items-center gap-2">
-              <i data-lucide="history" class="w-4 h-4" stroke-width="2"></i>
-              Gestione cronologia movimenti
-            </span>
-            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+      <div class="set-group">
+        <h3 class="set-group-title set-group-title--danger">Zona pericolosa</h3>
+        <div class="card-plate rounded-xl overflow-hidden border-2 border-rose-500/25">
+          <p class="px-3.5 pt-3 text-xs text-graphite-500 leading-relaxed">Rivedi ed elimina singoli depositi/prelievi dallo storico, di uno o più articoli. La giacenza attuale non cambia: si tocca solo lo storico (eliminare un articolo elimina già in automatico i suoi movimenti collegati).</p>
+          <button id="history-manage-btn" type="button" class="set-row set-row--danger">
+            <span class="set-ico"><i data-lucide="history" class="w-[18px] h-[18px]" stroke-width="2"></i></span>
+            <span class="set-text"><span class="set-title font-display">Gestione cronologia movimenti</span></span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500 shrink-0"></i>
           </button>
         </div>
-      
       </div>
-
-      <div class="card-plate rounded-xl p-4 mb-5 flex items-center justify-between gap-3">
-        <div class="min-w-0">
-          <p id="settings-user-name" class="font-medium text-graphite-100 truncate">—</p>
-          <p id="settings-user-role" class="text-xs text-graphite-500 mt-0.5">—</p>
-        </div>
-        <button id="logout-btn" type="button" class="shrink-0 rounded-lg border border-rose-500/40 text-rose-700 hover:bg-rose-50 px-3.5 py-2 text-xs font-display font-semibold uppercase tracking-wide transition-colors min-h-[44px]">
-          Esci
-        </button>
       </div>
     </section>
 
