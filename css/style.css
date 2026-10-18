@@ -51,6 +51,10 @@
   --dur-base: 240ms;
   --dur-slow: 340ms;
   --dur-page: 380ms; /* cambio di "pagina" (elenco macchine → dettaglio, in Manuali) */
+  /* Riempimento radiale degli scaffali: più lungo e con una curva più dolce di --ease-out
+     (che brucia quasi tutto il movimento nei primi fotogrammi e sembra "a scatti"). */
+  --dur-radial: 520ms;
+  --ease-radial: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);      /* comparse e movimenti in entrata */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* rimbalzo: tocchi e feedback */
   --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);    /* aperture e chiusure a fisarmonica */
@@ -208,15 +212,13 @@ input, textarea {
   to { opacity: 0; transform: translateY(8px) scale(0.97); }
 }
 
-/* ---- Bottom nav: effetto glass -------------------------------------
-   Sfondo satinato/traslucido con blur elevato, bordo superiore sottile
-   semi-trasparente. Nessuna animazione in loop: un elemento con backdrop-filter
-   che si anima obbliga a ricalcolare la sfocatura a ogni fotogramma. */
+/* ---- Bottom nav: sfondo pieno --------------------------------------
+   Niente effetto glass (backdrop-filter): la sfocatura del contenuto sottostante andava
+   ricalcolata a ogni fotogramma mentre si scorre. Sfondo opaco, bordo superiore sottile e ombra.
+   (La classe si chiama ancora .nav-glass per non toccare index.html e app.js.) */
 .nav-glass {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.66), rgba(238, 240, 243, 0.45));
-  backdrop-filter: blur(14px) saturate(160%);
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
-  border-top: 1px solid rgba(255, 255, 255, 0.6);
+  background: var(--paper);
+  border-top: 1px solid rgba(13, 17, 23, 0.08);
   box-shadow: 0 -8px 30px -10px rgba(13, 17, 23, 0.16);
   overflow: hidden;
   /* Sotto i pulsanti resta libera la zona dell'indicatore home / barra dei
@@ -1050,9 +1052,20 @@ button.category-tab-active:not(:disabled):active { background-color: transparent
   z-index: -1;
   background: var(--accent);
   /* Il cerchio nasce e si richiude SUL CENTRO DELL'ICONA dello scaffale (px-4 + metà del
-     riquadro da 36px = 34px da sinistra): chiudendo, il blu passa dietro l'icona e sparisce lì. */
-  clip-path: circle(0% at 34px 50%);
-  transition: clip-path var(--dur-slow) var(--ease-out);
+     riquadro da 36px = 34px da sinistra): chiudendo, il blu passa dietro l'icona e sparisce lì.
+     Cerchio vero (diametro = 2 × larghezza della testata, centro a 34px) animato con transform:
+     scale, che gira sul compositor/GPU a fotogrammi pieni; clip-path invece ridisegnava la
+     testata a ogni fotogramma. La testata (overflow: hidden) lo ritaglia. */
+  inset: auto;
+  left: calc(34px - 100%);
+  top: 50%;
+  width: 200%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translateY(-50%) scale(0);
+  transition: transform var(--dur-radial) var(--ease-radial);
+  will-change: transform;
+  backface-visibility: hidden;
   pointer-events: none;
 }
 .shelf-card.shelf-active .shelf-header { border-color: var(--accent); }
@@ -1081,8 +1094,8 @@ button.category-tab-active:not(:disabled):active { background-color: transparent
   background-clip: padding-box;
   box-shadow: 0 1px 2px rgba(13, 17, 23, 0.10), 0 8px 18px -8px rgba(13, 17, 23, 0.22);
 }
-/* 150% = raggio che raggiunge l'angolo opposto anche partendo dall'icona a sinistra */
-.shelf-card.shelf-active .shelf-header::before { clip-path: circle(150% at 34px 50%); }
+/* scala 1 = raggio pari alla larghezza: raggiunge l'angolo opposto anche partendo dall'icona a sinistra */
+.shelf-card.shelf-active .shelf-header::before { transform: translateY(-50%) scale(1); }
 .shelf-title, .shelf-sub, .shelf-low, .shelf-ico, .shelf-ico-box, .shelf-chevron, .shelf-area {
   transition: color var(--dur-base) ease, background-color var(--dur-base) ease, transform var(--dur-base) var(--ease-inout);
 }
@@ -1113,16 +1126,20 @@ button.category-tab-active:not(:disabled):active { background-color: transparent
 .shelf-body-track {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--dur-slow) var(--ease-inout);
+  /* Curva simmetrica e dolce (come il riempimento radiale): --ease-inout è molto ripida al centro
+     e concentra l'apertura in pochi fotogrammi. */
+  transition: grid-template-rows var(--dur-slow) var(--ease-radial);
 }
 .shelf-card.shelf-open .shelf-body-track { grid-template-rows: 1fr; }
-.shelf-body-inner { overflow: hidden; min-height: 0; }
+/* contain: il contenuto del cassetto non viene rimisurato ad ogni fotogramma in cui l'altezza cambia */
+.shelf-body-inner { overflow: hidden; min-height: 0; contain: layout style; }
 
 /* Gli item dentro allo scaffale entrano con un lieve stagger quando si apre,
    coerente con l'effetto "a strati" usato nella transizione tra le view */
 .shelf-item {
   opacity: 0;
   transform: translateY(-6px);
+  will-change: opacity, transform;
 }
 .shelf-card.shelf-open .shelf-item {
   animation: shelf-item-in var(--dur-base) var(--ease-out) forwards;
@@ -1139,7 +1156,7 @@ button.shelf-item:not(:disabled):active {
   background-color: var(--accent-tint-8);
 }
 @media (prefers-reduced-motion: reduce) {
-  .shelf-body-track, .shelf-header::before { transition-duration: 1ms; }
+  .shelf-body-track, .shelf-header::before, .shelf-group-header::before { transition-duration: 1ms; }
   .shelf-item { animation-duration: 1ms !important; animation-delay: 0ms !important; }
 }
 
@@ -1162,12 +1179,21 @@ button.shelf-item:not(:disabled):active {
   inset: 0;
   z-index: -1;
   background: var(--accent);
-  clip-path: circle(0% at 34px 50%);
-  transition: clip-path var(--dur-slow) var(--ease-out);
+  /* Stesso cerchio su transform: scale dello scaffale singolo (vedi .shelf-header::before) */
+  inset: auto;
+  left: calc(34px - 100%);
+  top: 50%;
+  width: 200%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translateY(-50%) scale(0);
+  transition: transform var(--dur-radial) var(--ease-radial);
+  will-change: transform;
+  backface-visibility: hidden;
   pointer-events: none;
 }
 .shelf-group.group-open > .shelf-group-header { border-color: var(--accent); }
-.shelf-group.group-open > .shelf-group-header::before { clip-path: circle(150% at 34px 50%); }
+.shelf-group.group-open > .shelf-group-header::before { transform: translateY(-50%) scale(1); }
 .shelf-group.group-open > .shelf-group-header .shelf-title { color: #ffffff; }
 .shelf-group.group-open > .shelf-group-header .shelf-sub { color: rgba(255, 255, 255, 0.75); }
 .shelf-group.group-open > .shelf-group-header .shelf-low { color: #ffd0d6; }
@@ -1179,7 +1205,7 @@ button.shelf-item:not(:disabled):active {
 .group-body-track {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--dur-slow) var(--ease-inout);
+  transition: grid-template-rows var(--dur-slow) var(--ease-radial);
 }
 .shelf-group.group-open > .group-body-track { grid-template-rows: 1fr; }
 /* Ritaglio solo durante l'animazione; a gruppo aperto del tutto (.group-settled) si toglie, così i
