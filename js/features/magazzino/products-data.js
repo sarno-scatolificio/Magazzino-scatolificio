@@ -144,7 +144,17 @@ async function fetchCurrentList() {
     if (state.lineaFilterValue) list = list.filter((p) => matchesLineaFilter(p.linea, state.lineaFilterValue));
     if (state.macchinaFilterValue) list = list.filter((p) => p.macchina === state.macchinaFilterValue);
   }
+  updateLowStockCount(list);
   return list;
+}
+
+/** Numero di articoli sotto scorta nell'elenco corrente, sul pulsante triangolo (nascosto se zero). */
+function updateLowStockCount(list) {
+  const badge = document.getElementById('product-lowstock-count');
+  if (!badge) return;
+  const n = list.filter((p) => p.quantita_disponibile < p.scorta_minima).length;
+  badge.textContent = n > 99 ? '99+' : String(n);
+  badge.hidden = n === 0;
 }
 
 function matchesLineaFilter(productLinea, wanted) {

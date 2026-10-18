@@ -97,15 +97,17 @@ function syncAreaFilter() {
 function renderAreaOptions() {
   if (!els.areaOptions) return;
   els.areaOptions.innerHTML = '';
+  // Tutte le aree su un'unica riga, a colonne uguali (come Scaffalatura/Macchina)
+  els.areaOptions.style.gridTemplateColumns = `repeat(${areasPresent.length + 1}, minmax(0, 1fr))`;
   ['', ...areasPresent].forEach((area) => {
     const on = area === areaFilter;
     const b = document.createElement('button');
     b.type = 'button';
     b.setAttribute('aria-pressed', String(on));
-    b.className = `rounded-lg border px-3 text-xs font-display font-semibold uppercase tracking-wide min-h-[44px] transition-colors ${
+    b.className = `rounded-lg border px-1.5 text-xs text-center leading-tight font-display font-semibold uppercase tracking-wide min-h-[44px] transition-colors ${
       on ? 'bg-amber-400 border-amber-400 text-white' : 'bg-graphite-800 border-graphite-700 text-graphite-300 hover:border-amber-400'
     }`;
-    b.textContent = area || 'Tutte le aree'; // testo, mai HTML
+    b.textContent = area || 'Tutte'; // testo, mai HTML
     b.addEventListener('click', () => applyAreaFilter(area));
     els.areaOptions.appendChild(b);
   });
@@ -258,6 +260,8 @@ export function setCategory(category) {
     state.macchinaFilterValue = '';
     updateFilterLabels();
   }
+  // La barra di ricerca in testata (global-search.js) segue la categoria: "Cerca in cinghie…"
+  document.dispatchEvent(new CustomEvent('products:category', { detail: category }));
   els.searchInput.placeholder = showLineaFilter
     ? 'Cerca per codice, locazione, macchina, punto utilizzo…'
     : 'Cerca per codice o scaffale…';
