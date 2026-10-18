@@ -1088,11 +1088,13 @@ export function initInventory() {
   if (icon) {
     const fresh = document.createElement('i');
     fresh.setAttribute('data-lucide', 'clipboard-check');
-    fresh.className = 'w-4 h-4';
+    fresh.setAttribute('stroke-width', '2');
+    fresh.className = 'w-[18px] h-[18px]';
     icon.replaceWith(fresh);
   }
-  const label = [...(btn.querySelector('span')?.childNodes || [])].find((n) => n.nodeType === 3 && n.textContent.trim());
-  if (label) label.textContent = '\n                Inventario\n              ';
+  // Il testo della voce sta in .set-title (nuove Impostazioni raggruppate)
+  const title = btn.querySelector('.set-title');
+  if (title) title.textContent = 'Inventario';
   btn.classList.toggle('hidden', !isAdmin());
   btn.addEventListener('click', openHome);
   ref.insertAdjacentElement('afterend', btn);
