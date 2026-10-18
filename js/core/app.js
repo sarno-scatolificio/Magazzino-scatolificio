@@ -368,6 +368,8 @@ export function switchView(view, { animate = true, onStart, fromBack = false } =
 
   currentView = view;
   setInterventiFab(view === 'interventi');
+  // Nelle Impostazioni la testata mostra il titolo al posto della ricerca e dello scanner
+  document.querySelector('header.app-header')?.classList.toggle('hdr-settings', view === 'settings');
   document.getElementById('product-new-btn')?.classList.toggle('int-fab--on', view === 'products'); // "+" tondo del Magazzino
   syncSearchContext(view);
   const headerTitle = document.getElementById('app-header-title');
@@ -469,11 +471,17 @@ export function animateFluidSwap(fromSection, toSection, forward, onSettled, { f
   const fromRect = fromSection.getBoundingClientRect();
   host.style.minHeight = `${fromSection.offsetHeight}px`;
 
-  // drop = 'down': la sezione entrante (Impostazioni) cade dall'alto SOPRA quella che resta ferma; nessuna dissolvenza.
-  // drop = 'up': al contrario, le Impostazioni (uscenti) risalgono e scoprono la sezione sottostante.
-  const exitClass = drop === 'down' ? 'view-drop-under' : drop === 'up' ? 'view-drop-out' : forward ? 'view-fluid-exit-left' : 'view-fluid-exit-right';
-  const enterClass = drop === 'down' ? 'view-drop-in' : drop === 'up' ? 'view-drop-reveal' : forward ? 'view-fluid-enter-right' : 'view-fluid-enter-left';
-  const animated = drop === 'up' ? fromSection : toSection; // quella che anima davvero: il suo animationend chiude la transizione
+  // drop = 'down': le Impostazioni entrano dall'alto e SPINGONO verso il basso la sezione corrente (scorrono insieme).
+  // drop = 'up': al contrario, le Impostazioni risalgono e la sezione sottostante rientra dal basso.
+  // Le due viste percorrono la stessa distanza, così il bordo che le separa resta sempre unito.
+  const exitClass = drop === 'down' ? 'view-push-down' : drop === 'up' ? 'view-push-up-out' : forward ? 'view-fluid-exit-left' : 'view-fluid-exit-right';
+  const enterClass = drop === 'down' ? 'view-push-from-top' : drop === 'up' ? 'view-push-up-in' : forward ? 'view-fluid-enter-right' : 'view-fluid-enter-left';
+  const animated = toSection; // il suo animationend chiude la transizione
+  if (drop) {
+    const dist = Math.max(window.innerHeight, (drop === 'down' ? toSection : fromSection).offsetHeight);
+    fromSection.style.setProperty('--push-dist', `${dist}px`);
+    toSection.style.setProperty('--push-dist', `${dist}px`);
+  }
 
   fromSection.style.position = 'absolute';
   fromSection.style.top = `${fromRect.top - hostRect.top}px`;
@@ -514,12 +522,14 @@ export function animateFluidSwap(fromSection, toSection, forward, onSettled, { f
     done = true;
     animated.removeEventListener('animationend', onEnterEnd); // niente listener residui se scatta prima il timer
     fromSection.classList.add('hidden');
-    fromSection.classList.remove('view-fluid-leaving', 'view-fluid-exit-left', 'view-fluid-exit-right', 'view-fluid-flat', 'view-drop-under', 'view-drop-out');
+    fromSection.classList.remove('view-fluid-leaving', 'view-fluid-exit-left', 'view-fluid-exit-right', 'view-fluid-flat', 'view-push-down', 'view-push-up-out');
+    fromSection.style.removeProperty('--push-dist');
+    toSection.style.removeProperty('--push-dist');
     fromSection.style.position = '';
     fromSection.style.top = '';
     fromSection.style.left = '';
     fromSection.style.width = '';
-    toSection.classList.remove('view-fluid-entering', 'view-fluid-enter-right', 'view-fluid-enter-left', 'view-fluid-flat', 'view-drop-in', 'view-drop-reveal');
+    toSection.classList.remove('view-fluid-entering', 'view-fluid-enter-right', 'view-fluid-enter-left', 'view-fluid-flat', 'view-push-from-top', 'view-push-up-in');
     host.style.minHeight = '';
     host.style.transition = '';
     host.style.position = hostHadPosition;
@@ -544,7 +554,7 @@ export function animateFluidSwap(fromSection, toSection, forward, onSettled, { f
   // lista, badge, stati vuoti...) risalgono fino a qui e finiscono prima,
   // chiudendo la transizione in anticipo.
   animated.addEventListener('animationend', onEnterEnd);
-  setTimeout(cleanup, drop ? 560 : 480); // rete di sicurezza se l'evento non scattasse
+  setTimeout(cleanup, drop ? 620 : 480); // rete di sicurezza se l'evento non scattasse
 }
 
 /**
