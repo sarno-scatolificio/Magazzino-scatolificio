@@ -152,6 +152,7 @@ function onSignedOut() {
     resetDashboard();
     resetManualsBrowser();
     resetInterventi();
+    document.getElementById('product-new-btn')?.classList.remove('int-fab--on');
     resetGlobalSearch();
     for (const v of VIEWS) {
       document.getElementById(`view-${v}`)?.classList.add('hidden');
@@ -367,6 +368,7 @@ export function switchView(view, { animate = true, onStart, fromBack = false } =
 
   currentView = view;
   setInterventiFab(view === 'interventi');
+  document.getElementById('product-new-btn')?.classList.toggle('int-fab--on', view === 'products'); // "+" tondo del Magazzino
   syncSearchContext(view);
   const headerTitle = document.getElementById('app-header-title');
   if (headerTitle) headerTitle.textContent = VIEW_TITLES[view] || VIEW_TITLES.scanner;
