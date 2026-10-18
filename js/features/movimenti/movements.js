@@ -88,12 +88,21 @@ export function movementRow(r, i, container = els.list, { compact = false } = {}
   wrap.className = 'list-item-in border-b border-graphite-800 last:border-0';
   wrap.style.setProperty('--i', staggerIndex(i));
 
+  // Tag della categoria; per i ricambi tecnici anche la descrizione (il solo codice non dice di che pezzo si tratta)
+  const cat = r.products?.categoria || '';
+  const tag = { cuscinetti: 'Cuscinetto', cinghie: 'Cinghia', pezzi_ricambio: 'Ricambio' }[cat] || '';
+  const desc = cat === 'pezzi_ricambio' ? (r.products?.descrizione || '').trim() : '';
+
   const head = document.createElement('button');
   head.type = 'button';
   head.className = `w-full flex items-center gap-3 ${compact ? 'py-1.5' : 'py-2.5'} px-1 text-left`;
   head.innerHTML = `
     <div class="min-w-0 flex-1">
-      <p class="text-sm text-graphite-100 truncate font-medium">${escapeHtml(r.products?.codice_articolo || '—')}</p>
+      <div class="flex items-center gap-1.5 min-w-0">
+        ${tag ? `<span class="mv-tag mv-tag--${escapeHtml(cat)}">${escapeHtml(tag)}</span>` : ''}
+        <p class="text-sm text-graphite-100 truncate font-medium">${escapeHtml(r.products?.codice_articolo || '—')}</p>
+      </div>
+      ${desc ? `<p class="text-xs text-graphite-300 truncate mt-0.5">${escapeHtml(desc)}</p>` : ''}
       <p class="ui-note text-graphite-500 mt-0.5 truncate">${escapeHtml(r.profiles?.full_name || 'Utente')} · ${date.toLocaleString('it-IT', {
     day: '2-digit',
     month: '2-digit',
