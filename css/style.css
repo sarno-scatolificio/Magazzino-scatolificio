@@ -2780,3 +2780,29 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
 #scan-prelievo-fields.is-prestito > :not(#scan-prestito-wrap) { display: none !important; }
 #scan-prestito-toggle[aria-checked="true"] { background: #2f4f92; border-color: #2f4f92; color: #ffffff; }
 #scan-prestito-toggle[aria-checked="true"] #scan-prestito-state { color: #ffffff; }
+
+
+/* ---- Magazzino: vista compatta ----------------------------------------
+   Riga Scaffalatura/Macchina + Annulla/Ripeti: se non ha nulla di visibile (operatore su Cuscinetti)
+   sparisce del tutto, senza lasciare spazio vuoto. */
+.prod-toolbar:not(:has(> :not(.hidden))) { display: none; }
+/* Pulsante "solo sotto scorta": quadrato con triangolo; rosso da attivo; numero degli articoli sotto scorta */
+.lowstock-btn { color: #6b7280; transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease; }
+.lowstock-btn:has(input:checked) { color: #c8283d; background-color: #fdecee; border-color: #c8283d; }
+.lowstock-btn:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lowstock-count {
+  position: absolute; top: -6px; right: -6px;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: #c8283d; color: #fff;
+  font-size: 11px; font-weight: 600; line-height: 1;
+}
+.lowstock-count[hidden] { display: none; }
+/* Tag della categoria negli elenchi di movimenti */
+.mv-tag {
+  flex: none; padding: 1px 6px; border-radius: 5px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1.2;
+  background: #e3e9f6; color: #243767;
+}
+.mv-tag--cinghie { background: #dff3ec; color: #0b4f3d; }
+.mv-tag--pezzi_ricambio { background: #fbe9c9; color: #6a3a05; }
