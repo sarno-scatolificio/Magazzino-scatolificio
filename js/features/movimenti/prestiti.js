@@ -56,10 +56,6 @@ export async function refreshPrestitiCount() {
   try {
     const n = await countPrestitiAperti();
     els.count.textContent = n ? String(n) : '0';
-    els.count.classList.toggle('bg-amber-400', n > 0);
-    els.count.classList.toggle('text-white', n > 0);
-    els.count.classList.toggle('bg-graphite-800', n === 0);
-    els.count.classList.toggle('text-graphite-400', n === 0);
   } catch (err) {
     console.warn('Conteggio prestiti non disponibile.', err);
   }
