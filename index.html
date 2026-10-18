@@ -482,22 +482,6 @@
 
     <!-- ============ VISTA MAGAZZINO (consultazione + admin CRUD + import Excel) ============ -->
     <section id="view-products" class="hidden">
-      <div class="flex items-center justify-end mb-3 gap-2">
-        <div class="flex items-center gap-1.5">
-          <button id="product-undo-btn" data-admin-only type="button" disabled aria-label="Annulla ultima modifica" title="Annulla"
-            class="hidden history-btn w-11 h-11 rounded-lg bg-graphite-800 border border-graphite-700 text-graphite-400 hover:text-amber-400 hover:border-amber-400 flex items-center justify-center">
-            <i data-lucide="undo-2" class="w-5 h-5" stroke-width="2"></i>
-          </button>
-          <button id="product-redo-btn" data-admin-only type="button" disabled aria-label="Ripeti modifica annullata" title="Ripeti"
-            class="hidden history-btn w-11 h-11 rounded-lg bg-graphite-800 border border-graphite-700 text-graphite-400 hover:text-amber-400 hover:border-amber-400 flex items-center justify-center">
-            <i data-lucide="redo-2" class="w-5 h-5" stroke-width="2"></i>
-          </button>
-          <button id="product-new-btn" data-admin-only class="press-spring hidden rounded-lg bg-amber-400 hover:bg-amber-300 text-white font-display font-semibold uppercase text-xs tracking-wide px-3 py-2 shadow-edge min-h-[44px]">
-            + Nuovo
-          </button>
-        </div>
-      </div>
-
       <!-- Tab categorie: un'unica riga segmentata, il rettangolo blu scorre tra i tre pulsanti -->
       <div id="product-category-seg" class="seg flex w-full rounded-lg border border-graphite-700 bg-graphite-800 p-0.5 mb-3" role="tablist">
         <span class="seg-indicator" aria-hidden="true"></span>
@@ -509,7 +493,9 @@
       <!-- Toggle modalità di visualizzazione: scaffalatura per locazione (default) o
            riordino per macchina. Visibile solo per Cinghie e Ricambi tecnici: i Cuscinetti
            mostrano sempre la scaffalatura, senza selettore (gestito via JS in base alla categoria) -->
-      <div id="product-view-mode-wrap" class="seg hidden inline-flex max-w-full overflow-x-auto rounded-lg border border-graphite-700 bg-graphite-800 p-0.5 mb-4">
+      <!-- Riga compatta: Scaffalatura/Macchina a sinistra, Annulla/Ripeti a destra (il "+" nuovo articolo è il pulsante tondo in basso, come negli Interventi) -->
+      <div id="product-toolbar" class="prod-toolbar flex items-center gap-2 mb-3">
+      <div id="product-view-mode-wrap" class="seg hidden inline-flex min-w-0 max-w-full overflow-x-auto rounded-lg border border-graphite-700 bg-graphite-800 p-0.5">
         <span class="seg-indicator" aria-hidden="true"></span>
         <button type="button" data-view-mode-tab="shelf" class="view-mode-tab view-mode-tab-active flex items-center justify-center gap-1.5 rounded-md px-2.5 sm:px-3 py-1.5 whitespace-nowrap text-xs font-display font-semibold uppercase tracking-wide min-h-[44px]">
           <i data-lucide="layout-grid" class="w-3.5 h-3.5" stroke-width="2"></i>Scaffalatura<span class="area-chevron" hidden aria-hidden="true"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
@@ -518,13 +504,22 @@
           <i data-lucide="wrench" class="w-3.5 h-3.5" stroke-width="2"></i>Macchina<span class="area-chevron" hidden aria-hidden="true"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
         </button>
       </div>
+      <button id="product-undo-btn" data-admin-only type="button" disabled aria-label="Annulla ultima modifica" title="Annulla"
+        class="hidden history-btn ml-auto shrink-0 w-10 h-10 rounded-lg bg-graphite-800 border border-graphite-700 text-graphite-400 hover:text-amber-400 hover:border-amber-400 flex items-center justify-center">
+        <i data-lucide="undo-2" class="w-[18px] h-[18px]" stroke-width="2"></i>
+      </button>
+      <button id="product-redo-btn" data-admin-only type="button" disabled aria-label="Ripeti modifica annullata" title="Ripeti"
+        class="hidden history-btn shrink-0 w-10 h-10 rounded-lg bg-graphite-800 border border-graphite-700 text-graphite-400 hover:text-amber-400 hover:border-amber-400 flex items-center justify-center">
+        <i data-lucide="redo-2" class="w-[18px] h-[18px]" stroke-width="2"></i>
+      </button>
+      </div>
 
       <!-- Filtro per area (Magazzino / Ufficio tecnico): compare solo se nell'elenco ci sono scaffali di più aree.
            Si apre toccando il tab già attivo (freccia), a fisarmonica; scelta un'area si richiude e resta il chip -->
       <div id="product-area-block" class="hidden">
         <div id="product-area-panel" class="area-panel-track" inert>
           <div class="area-panel-inner">
-            <div id="product-area-options" class="flex flex-wrap gap-2 pb-4" role="group" aria-label="Filtra per area"></div>
+            <div id="product-area-options" class="grid gap-2 pb-3" role="group" aria-label="Filtra per area"></div>
           </div>
         </div>
         <button id="product-area-chip" type="button" hidden aria-label="Togli il filtro per area"
@@ -534,17 +529,9 @@
         </button>
       </div>
 
-      <div class="flex gap-2 mb-3">
-        <div class="relative flex-1">
-          <i data-lucide="search" class="w-4 h-4 text-graphite-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" stroke-width="2"></i>
-          <input id="product-search-input" type="text" placeholder="Cerca per codice, locazione, macchina, punto utilizzo…"
-            class="w-full rounded-lg bg-graphite-800 border border-graphite-700 pl-9 pr-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors">
-        </div>
-        <button id="product-scan-search-btn" type="button" aria-label="Cerca scansionando un codice a barre" title="Cerca da barcode"
-          class="camera-only shrink-0 rounded-lg bg-graphite-800 border border-graphite-700 hover:border-amber-400 w-11 flex items-center justify-center transition-colors min-h-[44px]">
-          <i data-lucide="barcode" class="w-4 h-4 text-graphite-400" stroke-width="1.8"></i>
-        </button>
-      </div>
+      <!-- La ricerca del Magazzino è la barra in testata (global-search.js): scrive qui il testo, che
+           products-data.js legge come prima (codice, locazione, macchina, punto di utilizzo). -->
+      <input id="product-search-input" type="text" class="hidden" tabindex="-1" aria-hidden="true" autocomplete="off">
 
       <!-- Mini-lettore per la ricerca da barcode: nascosto finché non richiesto -->
       <div id="product-search-scanner-wrap" class="hidden mb-3 card-plate rounded-xl p-3">
@@ -554,30 +541,25 @@
         </button>
       </div>
 
-      <div id="product-linea-filter-wrap" class="hidden mb-3 grid grid-cols-2 gap-2">
-        <button type="button" id="product-linea-filter-btn" class="w-full flex items-center justify-between rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm text-left hover:border-amber-400 transition-colors min-h-[44px]">
-          <span id="product-linea-filter-value" class="text-graphite-400 truncate">Tutte le linee</span>
-          <i data-lucide="chevrons-up-down" class="w-4 h-4 text-graphite-400 shrink-0" stroke-width="2"></i>
-        </button>
-        <button type="button" id="product-macchina-filter-btn" class="w-full flex items-center justify-between rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm text-left hover:border-amber-400 transition-colors min-h-[44px]">
-          <span id="product-macchina-filter-value" class="text-graphite-400 truncate">Tutte le macchine</span>
-          <i data-lucide="chevrons-up-down" class="w-4 h-4 text-graphite-400 shrink-0" stroke-width="2"></i>
-        </button>
+      <!-- Filtri Linea/Macchina e "solo sotto scorta" su un'unica riga. La casella vera (peer sr-only)
+           resta nel DOM, quindi products-data.js la legge come prima; il numero è degli articoli sotto scorta. -->
+      <div class="flex items-center gap-2 mb-4">
+        <div id="product-linea-filter-wrap" class="hidden flex-1 min-w-0 grid grid-cols-2 gap-2">
+          <button type="button" id="product-linea-filter-btn" class="w-full min-w-0 flex items-center justify-between gap-1 rounded-lg bg-graphite-800 border border-graphite-700 px-3 py-2.5 text-[13px] text-left hover:border-amber-400 transition-colors min-h-[44px]">
+            <span id="product-linea-filter-value" class="text-graphite-400 truncate">Tutte le linee</span>
+            <i data-lucide="chevrons-up-down" class="w-4 h-4 text-graphite-400 shrink-0" stroke-width="2"></i>
+          </button>
+          <button type="button" id="product-macchina-filter-btn" class="w-full min-w-0 flex items-center justify-between gap-1 rounded-lg bg-graphite-800 border border-graphite-700 px-3 py-2.5 text-[13px] text-left hover:border-amber-400 transition-colors min-h-[44px]">
+            <span id="product-macchina-filter-value" class="text-graphite-400 truncate">Tutte le macchine</span>
+            <i data-lucide="chevrons-up-down" class="w-4 h-4 text-graphite-400 shrink-0" stroke-width="2"></i>
+          </button>
+        </div>
+        <label class="lowstock-btn ml-auto relative shrink-0 w-11 h-11 rounded-lg bg-graphite-800 border border-graphite-700 flex items-center justify-center cursor-pointer select-none" title="Solo articoli sotto scorta minima">
+          <input id="product-lowstock-toggle" type="checkbox" class="peer sr-only" aria-label="Solo articoli sotto scorta minima">
+          <i data-lucide="alert-triangle" class="w-5 h-5" stroke-width="2"></i>
+          <span id="product-lowstock-count" class="lowstock-count" hidden aria-hidden="true"></span>
+        </label>
       </div>
-
-      <!-- Filtro "sotto scorta": lo stesso interruttore usato nelle Impostazioni. La casella
-           vera (peer sr-only) resta nel DOM, quindi products.js la legge come prima. -->
-      <label class="flex items-center justify-between gap-3 min-h-[44px] mb-4 rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 cursor-pointer select-none">
-        <span class="flex items-center gap-2.5 min-w-0 text-sm text-graphite-200">
-          <i data-lucide="alert-triangle" class="w-4 h-4 text-graphite-500 shrink-0"></i>
-          Solo articoli sotto scorta minima
-        </span>
-        <span class="relative inline-block w-11 h-6 shrink-0">
-          <input id="product-lowstock-toggle" type="checkbox" class="peer sr-only">
-          <span class="absolute inset-0 rounded-full bg-graphite-700 peer-checked:bg-amber-400 transition-colors"></span>
-          <span class="absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
-        </span>
-      </label>
 
       <div id="product-list-skeleton" class="space-y-2">
         <div class="skeleton h-16 w-full"></div>
@@ -1449,6 +1431,12 @@
     </div>
   </div>
 </div>
+
+<!-- Pulsante "+" del Magazzino (nuovo articolo, solo Admin): stesso pulsante tondo degli interventi,
+     fuori dalla vista per lo stesso motivo; compare solo nella sezione Magazzino. -->
+<button type="button" id="product-new-btn" data-admin-only aria-label="Nuovo articolo" title="Nuovo articolo" class="hidden int-fab fab-round press-spring w-14 h-14 rounded-full bg-amber-400 text-white flex items-center justify-center">
+  <i data-lucide="plus" class="w-7 h-7" stroke-width="2.6"></i>
+</button>
 
 <!-- Pulsante "+" degli interventi: fuori dalla vista, perché le animazioni di cambio sezione
      (transform) spostano i figli "fixed" e lo farebbero comparire in alto prima di scendere. -->
