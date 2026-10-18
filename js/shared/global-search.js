@@ -57,11 +57,45 @@ const STATO_BADGE = {
 export function syncSearchContext(view) {
   const input = document.getElementById('hsearch-input');
   if (!input) return;
-  const on = view ? view === 'interventi' : inInterventi();
-  input.placeholder = on ? 'Cerca intervento…' : 'Cerca articolo…';
-  input.setAttribute('aria-label', on ? 'Cerca intervento' : 'Cerca articolo');
+  const next = view
+    ? (view === 'interventi' ? 'interventi' : view === 'products' ? 'products' : 'altro')
+    : inInterventi() ? 'interventi' : inProducts() ? 'products' : 'altro';
+  if (next !== ctx) {
+    // Cambio di sezione: nel Magazzino la barra riprende il filtro dell'elenco, altrove riparte vuota
+    input.value = next === 'products' ? (document.getElementById('product-search-input')?.value || '') : '';
+    document.getElementById('hsearch-clear')?.classList.toggle('on', input.value !== '');
+    ctx = next;
+  }
+  const on = next === 'interventi';
+  let label = on ? 'Cerca intervento' : 'Cerca articolo';
+  // Nel Magazzino la barra filtra l'elenco della categoria aperta (codice, locazione, macchina, punto di utilizzo)
+  if (next === 'products') label = `Cerca in ${(CATEGORY_LABELS[prodCategory] || 'magazzino').toLowerCase()}`;
+  input.placeholder = `${label}…`;
+  input.setAttribute('aria-label', label);
   const scan = document.getElementById('hsearch-scan-btn');
   if (scan) scan.style.display = on ? 'none' : '';
+}
+
+const inProducts = () => {
+  const v = document.getElementById('view-products');
+  return !!v && !v.classList.contains('hidden');
+};
+
+// Sezione a cui la barra è agganciata ('interventi' | 'products' | 'altro') e categoria aperta nel Magazzino
+let ctx = '';
+let prodCategory = 'cuscinetti';
+document.addEventListener('products:category', (e) => {
+  prodCategory = e.detail || prodCategory;
+  if (ctx === 'products') syncSearchContext('products');
+});
+
+/** Nel Magazzino la barra in testata non apre il pannello: filtra direttamente l'elenco sotto. */
+function filterProducts() {
+  el.clear.classList.toggle('on', el.input.value !== '');
+  const pi = document.getElementById('product-search-input');
+  if (!pi) return;
+  pi.value = el.input.value;
+  pi.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 const inMovements = () => {
@@ -87,10 +121,17 @@ export function initGlobalSearch() {
   if (!el.input || !el.panel) return;
   syncSearchContext();
 
-  el.input.addEventListener('focus', openPanel);
+  el.input.addEventListener('focus', () => {
+    if (ctx !== 'products') openPanel();
+  });
   el.input.addEventListener('input', onInput);
   el.input.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closePanel();
+    if (e.key === 'Enter' && ctx === 'products') {
+      e.preventDefault();
+      el.input.blur(); // "Fine" sulla tastiera: l'elenco è già filtrato
+      return;
+    }
     if (e.key === 'Enter' && results[0]) {
       e.preventDefault();
       if (resultsKind === 'interventi') {
@@ -109,7 +150,7 @@ export function initGlobalSearch() {
   el.backdrop.addEventListener('click', () => closePanel());
   el.panel.addEventListener('click', onPanelClick);
   el.scanBtn?.addEventListener('click', () => {
-    closePanel({ clear: true });
+    closePanel({ clear: ctx !== 'products' });
     openQuickScan();
   });
   window.visualViewport?.addEventListener('resize', fitPanel);
@@ -126,6 +167,9 @@ export function initGlobalSearch() {
 
 /** Chiude e azzera la ricerca (logout). */
 export function resetGlobalSearch() {
+  ctx = ''; // logout: la barra si svuota anche se era agganciata al Magazzino
+  const pi = document.getElementById('product-search-input');
+  if (pi) pi.value = '';
   closePanel({ clear: true, silent: true });
   clearTimeout(debounce);
   seq += 1;
@@ -159,7 +203,7 @@ export function closePanel({ clear = false, fromBack = false, silent = false } =
     if (!silent) feedback.overlayClose();
   }
   el.input.blur();
-  if (clear) {
+  if (clear && ctx !== 'products') {
     el.input.value = '';
     el.clear?.classList.remove('on');
     results = [];
@@ -175,6 +219,10 @@ function fitPanel() {
 }
 
 function onInput() {
+  if (ctx === 'products') {
+    filterProducts();
+    return;
+  }
   const term = el.input.value.trim();
   el.clear.classList.toggle('on', el.input.value !== '');
   clearTimeout(debounce);
