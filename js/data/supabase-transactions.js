@@ -33,7 +33,7 @@ export async function processTransaction({ productId, tipo, quantita, puntoUtili
 export async function listTransactions({ from, to, productId, limit = 200 } = {}) {
   let query = supabase
     .from('transactions')
-    .select('id, tipo, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, locazione, note, product_id, user_id, products(codice_articolo), profiles(full_name)')
+    .select('id, tipo, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, locazione, note, product_id, user_id, products(codice_articolo, categoria, descrizione), profiles(full_name)')
     .order('data_ora', { ascending: false })
     .limit(limit);
 
