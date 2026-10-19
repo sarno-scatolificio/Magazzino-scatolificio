@@ -2896,3 +2896,42 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
 .prod-toolbar:not(:has(#product-view-mode-wrap:not(.hidden))) .lowstock-label { display: inline; }
 .prod-toolbar:not(:has(#product-view-mode-wrap:not(.hidden))) .lowstock-count { position: static; margin-left: 0.125rem; }
 .prod-filters:not(:has(> :not(.hidden))) { display: none; }
+
+/* ---- Magazzino: cambio categoria ---------------------------------------
+   Gli elementi della barra strumenti che compaiono (filtri Linea/Macchina, selettore) entrano con una
+   dissolvenza breve invece di materializzarsi di colpo. Attivo solo durante lo scambio. */
+@keyframes prod-bar-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+#view-products.cat-switching #product-linea-filter-wrap:not(.hidden),
+#view-products.cat-switching #product-view-mode-wrap:not(.hidden) { animation: prod-bar-in var(--dur-base) var(--ease-out) both; }
+@media (prefers-reduced-motion: reduce) {
+  #view-products.cat-switching #product-linea-filter-wrap:not(.hidden),
+  #view-products.cat-switching #product-view-mode-wrap:not(.hidden) { animation: none; }
+}
+
+/* Inventario, conteggio: la barra dei pulsanti resta ferma in alto e si stacca dall'elenco che scorre sotto
+   (bordo e ombra leggera; l'elenco passa dietro, non più a filo dei pulsanti). */
+.inv-bar {
+  position: relative;
+  z-index: 2;
+  border-bottom: 1px solid var(--graphite-700, #d5dae0);
+  box-shadow: 0 10px 14px -12px rgba(15, 23, 42, 0.45);
+}
+
+/* ---- Magazzino: le tre categorie restano ferme sotto la testata -------------------------------
+   Stessa cornice della barra inferiore: fondo pieno della pagina, bordo e ombra sottili, e dentro
+   il controllo segmentato bianco con il rettangolo blu. Altezza fissa (--prod-bar-h) così gli
+   scaffali aperti, che restano anch'essi fermi, si agganciano subito sotto. */
+:root { --prod-bar-h: 66px; }
+.prod-cat-bar {
+  position: sticky;
+  top: var(--header-h, 56px);
+  z-index: 8;
+  box-sizing: border-box;
+  height: var(--prod-bar-h);
+  margin: 0 -1rem 0.75rem;
+  padding: 8px 1rem 7px; /* 8 + 50 (controllo) + 7 + 1 (bordo) = 66 */
+  background: var(--paper);
+  border-bottom: 1px solid rgba(13, 17, 23, 0.08);
+  box-shadow: 0 8px 24px -12px rgba(13, 17, 23, 0.18);
+}
+#view-products .shelf-card.shelf-open .shelf-header-sticky { top: calc(var(--header-h, 56px) + var(--prod-bar-h)); }
