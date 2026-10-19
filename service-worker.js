@@ -18,7 +18,7 @@
 // non succede nulla di grave: semplicemente niente copia offline.
 // =============================================================
 
-const CACHE_NAME = 'magazzino-shell-v228';
+const CACHE_NAME = 'magazzino-shell-v230';
 const APP_SHELL = [
   './',
   './index.html',
@@ -223,7 +223,9 @@ async function saveCdnCopy(request) {
 }
 
 function fetchAndCache(request) {
-  return fetch(request).then((response) => {
+  // cache: 'no-cache' = si chiede sempre al server se il file è cambiato (risposta 304 leggera se è uguale):
+  // senza, la cache HTTP del browser poteva servire per un po' una versione appena sostituita di un file.
+  return fetch(request, { cache: 'no-cache' }).then((response) => {
     if (isCacheable(response)) {
       const clone = response.clone();
       caches.open(CACHE_NAME).then((cache) => cache.put(request, clone)).catch(() => {});
