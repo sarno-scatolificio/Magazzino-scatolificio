@@ -513,11 +513,11 @@
         </button>
       </div>
       <button id="product-undo-btn" data-admin-only type="button" disabled aria-label="Annulla ultima modifica" title="Annulla"
-        class="hidden history-btn ml-auto shrink w-10 min-w-[28px] h-10 rounded-lg bg-graphite-800 border border-graphite-700 text-graphite-400 hover:text-amber-400 hover:border-amber-400 flex items-center justify-center">
+        class="hidden history-btn history-off shrink w-10 min-w-[28px] h-10 rounded-lg bg-graphite-800 border border-graphite-700 text-graphite-400 hover:text-amber-400 hover:border-amber-400 flex items-center justify-center">
         <i data-lucide="undo-2" class="w-[18px] h-[18px]" stroke-width="2"></i>
       </button>
       <button id="product-redo-btn" data-admin-only type="button" disabled aria-label="Ripeti modifica annullata" title="Ripeti"
-        class="hidden history-btn shrink w-10 min-w-[28px] h-10 rounded-lg bg-graphite-800 border border-graphite-700 text-graphite-400 hover:text-amber-400 hover:border-amber-400 flex items-center justify-center">
+        class="hidden history-btn history-off shrink w-10 min-w-[28px] h-10 rounded-lg bg-graphite-800 border border-graphite-700 text-graphite-400 hover:text-amber-400 hover:border-amber-400 flex items-center justify-center">
         <i data-lucide="redo-2" class="w-[18px] h-[18px]" stroke-width="2"></i>
       </button>
       </div>
@@ -562,8 +562,8 @@
             <i data-lucide="chevrons-up-down" class="w-4 h-4 text-graphite-400 shrink-0" stroke-width="2"></i>
           </button>
         </div>
-        <label class="lowstock-btn ml-auto relative shrink-0 w-11 h-11 rounded-lg bg-graphite-800 border border-graphite-700 flex items-center justify-center cursor-pointer select-none" title="Solo articoli sotto scorta minima">
-          <input id="product-lowstock-toggle" type="checkbox" class="peer sr-only" aria-label="Solo articoli sotto scorta minima">
+        <label class="lowstock-btn relative shrink-0 w-11 h-11 rounded-lg bg-graphite-800 border border-graphite-700 flex items-center justify-center cursor-pointer select-none" title="Solo articoli sotto scorta minima">
+          <input id="product-lowstock-toggle" type="checkbox" class="sr-only" aria-label="Solo articoli sotto scorta minima">
           <i data-lucide="alert-triangle" class="w-5 h-5 shrink-0" stroke-width="2"></i>
           <span class="lowstock-label font-display">Solo sotto scorta</span>
           <span id="product-lowstock-count" class="lowstock-count" hidden aria-hidden="true"></span>
