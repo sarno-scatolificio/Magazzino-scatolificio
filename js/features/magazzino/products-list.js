@@ -545,6 +545,24 @@ function renderByMachine() {
     unassignedLabel: 'Nessuna macchina assegnata',
     iconName: 'wrench',
   });
+  fillMachineIcons();
+}
+
+/** Nella vista Macchina ogni scheda mostra l'icona della macchina (quella dei Manuali e degli Interventi); senza icona, l'ingranaggio. */
+function fillMachineIcons() {
+  const boxes = els.machineView.querySelectorAll('[data-machine-ico]');
+  if (!boxes.length) return;
+  const paint = () => {
+    els.machineView.querySelectorAll('[data-machine-ico]').forEach((box) => {
+      const url = machineIconMap?.get(box.dataset.machineIco.trim().toLowerCase());
+      if (!url) return;
+      box.classList.remove('w-9', 'h-9');
+      box.classList.add('w-14', 'h-10', 'p-0.5', 'overflow-hidden');
+      box.innerHTML = `<img src="${escapeHtml(url)}" alt="" loading="lazy" decoding="async" class="w-full h-full object-contain">`;
+    });
+  };
+  if (machineIconMap) paint();
+  else loadMachineEntries().then(paint).catch(() => {});
 }
 
 /**
@@ -637,10 +655,10 @@ function renderGroupedCards({ wrapEl, openSet, entriesFn, titleField, subtitleFi
     card.innerHTML = `
       <div class="shelf-header-sticky"><div class="shelf-header flex items-center justify-between gap-3 px-4 py-3.5 border-2 border-graphite-700 rounded-xl">
         <div class="flex items-center gap-3 min-w-0">
-          <span class="shelf-ico-box shrink-0 w-9 h-9 rounded-lg bg-graphite-700/50 flex items-center justify-center">
+          <span class="shelf-ico-box shrink-0 w-9 h-9 rounded-lg bg-graphite-700/50 flex items-center justify-center"${iconName === 'wrench' && key !== unassignedLabel ? ` data-machine-ico="${escapeHtml(key)}"` : ''}>
             ${iconName === 'shelving-unit' && key !== unassignedLabel && areaOfShelf(key) === 'Ufficio tecnico'
               ? binIconHtml('shelf-ico')
-              : `<i data-lucide="${iconName}" class="shelf-ico w-[18px] h-[18px] text-graphite-400" stroke-width="1.8"></i>`}
+              : `<i data-lucide="${iconName === 'wrench' ? 'cog' : iconName}" class="shelf-ico w-[18px] h-[18px] text-graphite-400" stroke-width="1.8"></i>`}
           </span>
           <div class="min-w-0">
             <p class="shelf-title font-display font-bold uppercase tracking-wide truncate">${escapeHtml(key)}</p>
