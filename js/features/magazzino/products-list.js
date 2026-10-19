@@ -249,12 +249,21 @@ export function initProductsList() {
   });
 }
 
+/** "Solo sotto scorta" sta accanto ai filtri Linea/Macchina quando ci sono; altrimenti sale nella riga degli strumenti
+ *  (niente riga a sé con un solo pulsante). Si sposta lo stesso elemento: la casella e i suoi listener restano. */
+function placeLowStock(filtersVisible) {
+  const btn = document.querySelector('.lowstock-btn');
+  const target = filtersVisible ? document.querySelector('.prod-filters') : document.getElementById('product-toolbar');
+  if (btn && target && btn.parentElement !== target) target.appendChild(btn);
+}
+
 export function setCategory(category) {
   state.currentCategory = category;
   els.categoryTabs.forEach((btn) => btn.classList.toggle('category-tab-active', btn.dataset.categoryTab === category));
 
   const showLineaFilter = category === 'cinghie' || category === 'pezzi_ricambio';
   els.lineaFilterWrap.classList.toggle('hidden', !showLineaFilter);
+  placeLowStock(showLineaFilter);
   if (!showLineaFilter) {
     state.lineaFilterValue = '';
     state.macchinaFilterValue = '';

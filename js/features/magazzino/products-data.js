@@ -246,9 +246,18 @@ export function pushHistory(action) {
   updateHistoryButtons();
 }
 
+/** Annulla/Ripeti compaiono solo quando l'operazione è possibile (.history-off li nasconde). */
 function updateHistoryButtons() {
-  if (els.undoBtn) els.undoBtn.disabled = undoStack.length === 0;
-  if (els.redoBtn) els.redoBtn.disabled = redoStack.length === 0;
+  const noUndo = undoStack.length === 0;
+  const noRedo = redoStack.length === 0;
+  if (els.undoBtn) {
+    els.undoBtn.disabled = noUndo;
+    els.undoBtn.classList.toggle('history-off', noUndo);
+  }
+  if (els.redoBtn) {
+    els.redoBtn.disabled = noRedo;
+    els.redoBtn.classList.toggle('history-off', noRedo);
+  }
 }
 
 export async function undo() {
