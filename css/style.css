@@ -2884,13 +2884,15 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
 
 .set-group .card-plate > .set-status { border-top: 0; }
 
-/* "Solo sotto scorta": quando non ha accanto i filtri Linea/Macchina diventa un'etichetta (icona + testo + numero)
-   invece di un quadrato solo con l'icona isolato in fondo alla riga. */
+/* Riga strumenti: Scaffalatura/Macchina a sinistra, Annulla/Ripeti/Sotto scorta a destra; se non c'è spazio vanno a capo
+   (mai scorrimento orizzontale). Con il selettore nascosto (Cuscinetti) "Solo sotto scorta" diventa un'etichetta a sinistra
+   con icona, testo e numero; accanto ai filtri Linea/Macchina resta il quadrato con la sola icona. */
+.prod-toolbar { flex-wrap: wrap; justify-content: flex-end; }
+.prod-toolbar > #product-view-mode-wrap { margin-right: auto; }
+.prod-toolbar:not(:has(#product-view-mode-wrap:not(.hidden))) > .lowstock-btn {
+  order: -1; margin-right: auto; width: auto; padding: 0 0.875rem; gap: 0.5rem;
+}
 .lowstock-label { display: none; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-.prod-filters:not(:has(#product-linea-filter-wrap:not(.hidden))) .lowstock-btn {
-  width: auto; margin-left: 0; padding: 0 0.875rem; gap: 0.5rem;
-}
-.prod-filters:not(:has(#product-linea-filter-wrap:not(.hidden))) .lowstock-label { display: inline; }
-.prod-filters:not(:has(#product-linea-filter-wrap:not(.hidden))) .lowstock-count {
-  position: static; margin-left: 0.125rem;
-}
+.prod-toolbar:not(:has(#product-view-mode-wrap:not(.hidden))) .lowstock-label { display: inline; }
+.prod-toolbar:not(:has(#product-view-mode-wrap:not(.hidden))) .lowstock-count { position: static; margin-left: 0.125rem; }
+.prod-filters:not(:has(> :not(.hidden))) { display: none; }
