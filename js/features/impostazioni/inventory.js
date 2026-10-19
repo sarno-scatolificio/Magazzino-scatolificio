@@ -22,7 +22,16 @@ import { closeOverlay, enableSheetDrag, loadLib, modalCloseMs, openOverlay, setB
 import { escapeHtml } from '../../shared/html-utils.js';
 import { isAdmin } from '../../core/auth.js';
 import { startCamera, stopCamera } from '../../shared/camera.js';
-import { getCachedProductByBarcode, getProductByBarcode, getProductLocations, listProducts, searchCachedProducts } from '../../data/supabase-products.js';
+import {
+  cacheProductsList,
+  getCachedProductByBarcode,
+  getProductByBarcode,
+  getProductById,
+  getProductLocations,
+  listProducts,
+  searchCachedProducts,
+  setProductBarcodes,
+} from '../../data/supabase-products.js';
 import { isNetworkError } from '../../core/offline-queue.js';
 import { toastError, toastInfo, toastSuccess, toastWarning } from '../../shared/toast.js';
 import {
@@ -47,6 +56,12 @@ const BTN_STEP =
 const BTN_STEP_OK = BTN_STEP.replace('hover:bg-graphite-700 ', 'inv-ok ');
 const BTN_TOOL =
   'press-spring flex-1 min-h-[44px] rounded-lg border border-graphite-700 bg-graphite-800 hover:bg-graphite-700 px-3 flex items-center justify-center gap-1.5 text-xs font-display font-semibold uppercase tracking-wide';
+// Barra fissa del conteggio: tre pulsanti di pari larghezza (testo e icona centrati, mai a capo)
+const BTN_BAR =
+  'press-spring min-w-0 min-h-[44px] rounded-lg border border-graphite-700 bg-graphite-800 hover:bg-graphite-700 px-1.5 flex items-center justify-center gap-1.5 text-xs font-display font-semibold uppercase tracking-wide whitespace-nowrap transition-colors';
+// Chip "aggiungi codice a barre" dentro la riga di un articolo che non ne ha
+const BTN_CODE =
+  'press-spring inline-flex items-center gap-1.5 min-h-[34px] rounded-full border border-amber-400/50 bg-amber-400/10 px-3 text-[11px] font-display font-semibold uppercase tracking-wide text-amber-300';
 const ROW_BASE = 'inv-row rounded-xl border p-3 transition-colors';
 const ROW_STATE = {
   todo: 'border-graphite-700 bg-graphite-800/40',
@@ -534,18 +549,18 @@ function buildCount() {
       </div>
       <span data-role="progress" class="shrink-0 font-display font-bold text-sm rounded-full px-3 py-1 bg-graphite-800 border border-graphite-700"></span>
     </div>
-    <div class="px-4 pt-3 shrink-0 space-y-2">
-      <div class="flex gap-2">
-        <button type="button" data-act="scan" class="${BTN_TOOL}"><i data-lucide="scan-barcode" class="w-4 h-4"></i>Scansiona</button>
-        <button type="button" data-act="add" class="${BTN_TOOL}"><i data-lucide="plus" class="w-4 h-4"></i>Aggiungi</button>
-        <button type="button" data-act="todo" aria-pressed="false" class="${BTN_TOOL}">Da contare</button>
+    <div class="inv-bar bg-graphite-900 px-4 pt-3 pb-3 shrink-0 space-y-2">
+      <div class="grid grid-cols-3 gap-2">
+        <button type="button" data-act="scan" class="${BTN_BAR}"><i data-lucide="scan-barcode" class="w-4 h-4 shrink-0"></i>Scansiona</button>
+        <button type="button" data-act="add" class="${BTN_BAR}"><i data-lucide="plus" class="w-4 h-4 shrink-0"></i>Aggiungi</button>
+        <button type="button" data-act="todo" aria-pressed="false" class="${BTN_BAR}"><i data-lucide="list-checks" class="w-4 h-4 shrink-0"></i>Da contare</button>
       </div>
       <div data-role="cam" class="hidden">
         <div id="inv-reader" class="w-full h-52 rounded-lg overflow-hidden bg-black"></div>
         <p class="text-xs text-graphite-400 mt-1.5 text-center">Inquadra il codice a barre: si apre la riga dell'articolo.</p>
       </div>
     </div>
-    <div data-role="rows" class="flex-1 overflow-y-auto px-4 py-3 space-y-2"></div>
+    <div data-role="rows" class="flex-1 overflow-y-auto px-4 pt-3.5 pb-3 space-y-2"></div>
     <div class="px-4 pt-3 pb-5 border-t border-graphite-800 shrink-0">
       <button type="button" data-act="finish" class="press-spring w-full rounded-lg py-3 bg-amber-400 hover:bg-amber-300 text-white font-display font-semibold uppercase tracking-wide transition-colors">Concludi inventario</button>
     </div>`
@@ -579,6 +594,8 @@ function buildCount() {
       ev.target.closest('[data-act]')?.blur(); // niente stato "premuto" residuo dopo il rilascio
       // Toggle: primo tocco conferma la quantità attesa, secondo tocco annulla (torna "da contare")
       setContato(i, r.contato === r.atteso ? null : r.atteso);
+    } else if (act === 'barcode') {
+      openBarcodeSheet(i);
     } else if (act === 'zero') {
       feedback.tap();
       setContato(i, 0);
@@ -638,6 +655,7 @@ function rowHtml(r, i) {
       <div class="min-w-0">
         <p class="font-display font-bold leading-tight break-words">${e(r.codice)}</p>
         ${r.descr ? `<p class="text-xs text-graphite-400 mt-0.5 break-words">${e(r.descr)}</p>` : ''}
+        ${r.barcodes.length ? '' : `<button type="button" data-act="barcode" class="${BTN_CODE} mt-2"><i data-lucide="scan-barcode" class="w-4 h-4"></i>Aggiungi codice a barre</button>`}
       </div>
       <span class="shrink-0 text-[10px] uppercase tracking-wider font-display font-semibold rounded-full px-2 py-0.5 bg-graphite-700/60 text-graphite-300">${e(categoriaLabel(r.categoria))}${r.aggiunto ? ' · aggiunto' : ''}</span>
     </div>
@@ -661,6 +679,7 @@ function paintRows() {
   const rows = st.session.rows;
   els.todoBtn.setAttribute('aria-pressed', String(st.onlyTodo));
   els.todoBtn.classList.toggle('!border-amber-400', st.onlyTodo);
+  els.todoBtn.classList.toggle('!bg-amber-400/15', st.onlyTodo);
   els.todoBtn.classList.toggle('!text-amber-300', st.onlyTodo);
   const html = rows.map((r, i) => (st.onlyTodo && r.contato !== null ? '' : rowHtml(r, i))).join('');
   els.rows.innerHTML = html || noticeHtml(rows.length ? 'Hai contato tutti gli articoli.' : 'Nessun articolo registrato su questo scaffale: aggiungi quelli che trovi con Scansiona o Aggiungi.');
@@ -772,7 +791,20 @@ async function onScan(code) {
     }
     if (!product) {
       feedback.scanNotFound();
-      toastWarning('Codice non riconosciuto.');
+      if (!rows.some((r) => !r.barcodes.length)) {
+        toastWarning('Codice non riconosciuto.');
+        return;
+      }
+      // Codice nuovo: si può assegnare a un articolo dello scaffale che non ha ancora un codice a barre
+      const choice = await chooseDialog({
+        title: 'Codice non riconosciuto',
+        message: `Il codice ${c} non è associato a nessun articolo. Vuoi assegnarlo a un articolo senza codice a barre?`,
+        options: [
+          { label: 'Assegna a un articolo', value: 'assign', kind: 'primary' },
+          { label: 'Ignora', value: null },
+        ],
+      });
+      if (choice === 'assign') openAssignPicker(c);
       return;
     }
     feedback.scanFound();
@@ -806,6 +838,197 @@ async function addProductToSession(product) {
   saveDraft();
   feedback.confirmAction();
   focusRow(0);
+}
+
+// ---- Codici a barre nuovi per articoli che non ne hanno
+/** Salva il codice come principale dell'articolo della riga i. Lancia un Error con messaggio leggibile se non è possibile. */
+async function saveBarcode(i, code) {
+  const r = st.session.rows[i];
+  const c = String(code || '').trim();
+  if (!c) throw new Error('Scrivi o scansiona il codice.');
+  const usatoQui = st.session.rows.find((x, k) => k !== i && x.barcodes.some((b) => b.toLowerCase() === c.toLowerCase()));
+  if (usatoQui) throw new Error(`Codice già associato a ${usatoQui.codice}.`);
+  let altro = null;
+  try {
+    altro = await getProductByBarcode(c);
+  } catch {
+    /* senza rete il controllo lo fa il database al salvataggio */
+  }
+  if (altro && altro.id !== r.id) throw new Error(`Codice già associato a ${altro.codice_articolo}.`);
+  try {
+    await setProductBarcodes(r.id, { primary: c, primaryMaker: null, extras: [] });
+  } catch (err) {
+    console.error(err);
+    if (isNetworkError(err)) throw new Error('Serve la connessione per salvare il codice a barre.');
+    const msg = String(err?.message || '').toLowerCase();
+    throw new Error(msg.includes('duplicate') || msg.includes('già') ? 'Codice già usato da un altro articolo.' : 'Codice non salvato: riprova.');
+  }
+  r.barcodes = [c];
+  try {
+    cacheProductsList([await getProductById(r.id)]); // la scansione futura lo riconosce subito, anche offline
+  } catch {
+    /* la cache si aggiorna alla prossima lettura */
+  }
+  const el = rowEl(i);
+  if (el) {
+    el.outerHTML = rowHtml(r, i); // solo questa riga: scorrimento e tastiera restano com'erano
+    paintDelta(i);
+    window.lucide?.createIcons();
+  }
+  saveDraft();
+  feedback.confirmAction();
+  toastSuccess(`Codice a barre assegnato a ${r.codice}.`, 3000);
+}
+
+/** Finestra per scrivere o scansionare il codice da assegnare a un articolo senza codice a barre */
+function openBarcodeSheet(i) {
+  const r = st.session.rows[i];
+  feedback.tap();
+  setCameraVisible(false); // una sola fotocamera alla volta
+  const overlay = makeOverlay(
+    97,
+    'sm:max-w-md',
+    `
+    <div data-sheet-drag class="sheet-grabber sm:hidden"><span class="sheet-grabber-pill"></span></div>
+    <div data-sheet-drag class="flex items-center justify-between px-5 pb-3 pt-1 sm:pt-3 border-b border-graphite-800 shrink-0">
+      <h3 class="font-display font-bold text-lg uppercase tracking-wide">Codice a barre</h3>
+      <button type="button" data-act="close" aria-label="Chiudi" class="modal-close modal-close--on-light"><i data-lucide="x" class="w-6 h-6" stroke-width="2.5"></i></button>
+    </div>
+    <div class="px-5 pt-3 shrink-0 space-y-3">
+      <p class="text-sm"><span class="font-display font-bold">${e(r.codice)}</span>${r.descr ? `<span class="text-graphite-400"> · ${e(r.descr)}</span>` : ''}</p>
+      <div class="flex gap-2">
+        <input data-role="code" data-no-clear type="text" autocomplete="off" autocapitalize="off" placeholder="Scrivi o scansiona il codice"
+          class="min-w-0 flex-1 h-11 rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 text-sm focus:border-amber-400 outline-none transition-colors" />
+        <button type="button" data-act="scan" aria-label="Scansiona" class="${BTN_STEP}"><i data-lucide="scan-barcode" class="w-5 h-5"></i></button>
+      </div>
+      <div data-role="cam" class="hidden">
+        <div id="inv-bc-reader" class="w-full h-48 rounded-lg overflow-hidden bg-black"></div>
+      </div>
+      <p data-role="err" class="hidden text-xs text-rose-700"></p>
+    </div>
+    <div class="px-5 pt-3 pb-5 shrink-0">
+      <button type="button" data-act="save" class="press-spring w-full rounded-lg py-3 bg-amber-400 hover:bg-amber-300 text-white font-display font-semibold uppercase tracking-wide transition-colors">Salva codice</button>
+    </div>`
+  );
+  const input = overlay.querySelector('[data-role="code"]');
+  const cam = overlay.querySelector('[data-role="cam"]');
+  const err = overlay.querySelector('[data-role="err"]');
+  const saveBtn = overlay.querySelector('[data-act="save"]');
+  const showErr = (msg) => {
+    err.textContent = msg || '';
+    err.classList.toggle('hidden', !msg);
+  };
+  const stopCam = () => {
+    cam.classList.add('hidden');
+    stopCamera().catch(() => {});
+  };
+  let closed = false;
+  const cleanup = () => {
+    if (closed) return;
+    closed = true;
+    stopCam();
+    setTimeout(() => overlay.remove(), modalCloseMs() + 60);
+  };
+  const close = () => {
+    cleanup();
+    closeOverlay(overlay);
+  };
+  overlay.addEventListener('click', (ev) => ev.target === overlay && close());
+  overlay.addEventListener('overlay-cancel', cleanup); // tasto indietro del telefono
+  overlay.querySelector('[data-act="close"]').addEventListener('click', close);
+  enableSheetDrag(overlay.querySelector('.modal-panel'), close);
+  input.addEventListener('input', () => showErr(''));
+
+  overlay.querySelector('[data-act="scan"]').addEventListener('click', async () => {
+    feedback.tap();
+    if (!cam.classList.contains('hidden')) {
+      stopCam();
+      return;
+    }
+    cam.classList.remove('hidden');
+    const ok = await startCamera(
+      'inv-bc-reader',
+      (code) => {
+        input.value = String(code || '').trim();
+        showErr('');
+        feedback.scanFound();
+        stopCam();
+      },
+      {}
+    );
+    if (ok === false) {
+      stopCam();
+      toastError('Fotocamera non disponibile. Controlla i permessi del browser.');
+    }
+  });
+
+  const save = async () => {
+    showErr('');
+    setButtonBusy(saveBtn, true, 'Salvataggio…');
+    try {
+      await saveBarcode(i, input.value);
+      close();
+    } catch (ex) {
+      feedback.errorAction();
+      showErr(ex.message);
+    } finally {
+      setButtonBusy(saveBtn, false);
+    }
+  };
+  saveBtn.addEventListener('click', save);
+  input.addEventListener('keydown', (ev) => ev.key === 'Enter' && save());
+
+  openOverlay(overlay);
+  window.lucide?.createIcons();
+}
+
+/** Scelta dell'articolo (tra quelli dello scaffale senza codice a barre) a cui assegnare un codice appena scansionato */
+function openAssignPicker(code) {
+  const overlay = makeOverlay(
+    96,
+    'sm:max-w-md max-h-[85vh]',
+    `
+    <div data-sheet-drag class="sheet-grabber sm:hidden"><span class="sheet-grabber-pill"></span></div>
+    <div data-sheet-drag class="flex items-center justify-between px-5 pb-3 pt-1 sm:pt-3 border-b border-graphite-800 shrink-0">
+      <h3 class="font-display font-bold text-lg uppercase tracking-wide">Assegna il codice</h3>
+      <button type="button" data-act="close" aria-label="Chiudi" class="modal-close modal-close--on-light"><i data-lucide="x" class="w-6 h-6" stroke-width="2.5"></i></button>
+    </div>
+    <p class="px-5 pt-3 text-xs text-graphite-400 shrink-0">Codice <strong class="text-graphite-200">${e(code)}</strong> · scegli l'articolo senza codice a barre.</p>
+    <div data-role="list" class="flex-1 overflow-y-auto px-5 py-3 space-y-2"></div>`
+  );
+  const list = overlay.querySelector('[data-role="list"]');
+  const close = () => {
+    closeOverlay(overlay);
+    setTimeout(() => overlay.remove(), modalCloseMs() + 60);
+  };
+  overlay.addEventListener('click', (ev) => ev.target === overlay && close());
+  overlay.querySelector('[data-act="close"]').addEventListener('click', close);
+  enableSheetDrag(overlay.querySelector('.modal-panel'), close);
+
+  const candidates = st.session.rows.map((r, i) => ({ r, i })).filter(({ r }) => !r.barcodes.length);
+  list.innerHTML = candidates
+    .map(
+      ({ r, i }) => `<button type="button" data-i="${i}" class="press-spring w-full text-left rounded-lg border border-graphite-700 bg-graphite-800/40 hover:bg-graphite-800 px-3.5 py-2.5 transition-colors">
+        <span class="block font-display font-bold leading-tight">${e(r.codice)}</span>
+        <span class="block text-xs text-graphite-400 mt-0.5">${e(categoriaLabel(r.categoria))}${r.descr ? ` · ${e(r.descr)}` : ''}</span>
+      </button>`
+    )
+    .join('');
+  list.addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-i]');
+    if (!b || b.disabled) return;
+    b.disabled = true;
+    try {
+      await saveBarcode(Number(b.dataset.i), code);
+      close();
+    } catch (ex) {
+      feedback.errorAction();
+      toastError(ex.message, 4500);
+      b.disabled = false;
+    }
+  });
+  openOverlay(overlay);
+  window.lucide?.createIcons();
 }
 
 // ---- Aggiungi a mano (ricerca)

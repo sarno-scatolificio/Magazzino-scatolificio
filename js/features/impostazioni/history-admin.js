@@ -74,7 +74,7 @@ function render() {
   const rows = filteredHistory();
   els.list.innerHTML = '';
   if (rows.length === 0) {
-    els.list.innerHTML = emptyStateHtml('inbox', 'Nessun movimento', 'Non risultano movimenti per questo filtro.');
+    els.list.innerHTML = emptyStateHtml('inbox', 'Nessun movimento', '');
     window.lucide?.createIcons();
     updateActionBar();
     return;
@@ -131,7 +131,7 @@ async function handleDeleteSelected() {
   if (!ids.length) return;
   const ok = await confirmDialog({
     title: ids.length === 1 ? 'Eliminare il movimento?' : `Eliminare ${ids.length} movimenti?`,
-    message: 'Verranno cancellati per sempre dallo storico. La giacenza attuale non cambia. L\'operazione non è reversibile.',
+    message: 'Eliminati per sempre dallo storico. La giacenza non cambia.',
     confirmLabel: 'Elimina',
     danger: true,
   });
