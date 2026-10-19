@@ -133,7 +133,7 @@
       <div id="hsearch" class="hsearch relative flex-1 min-w-0" role="search">
         <i data-lucide="search" class="hsearch-icon w-[18px] h-[18px]" stroke-width="2.2"></i>
         <input id="hsearch-input" type="text" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="none" spellcheck="false" data-no-clear
-          placeholder="Cerca articolo…" aria-label="Cerca articolo" aria-controls="hsearch-panel" class="hsearch-input">
+          placeholder="Cerca articoli…" aria-label="Cerca articoli" aria-controls="hsearch-panel" class="hsearch-input">
         <button id="hsearch-clear" type="button" tabindex="-1" aria-label="Cancella testo" class="hsearch-clear">
           <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
@@ -220,7 +220,7 @@
             <i data-lucide="handshake" class="w-[18px] h-[18px] text-amber-400" stroke-width="1.8"></i>
           </span>
           <div class="mvt-txt">
-            <p id="scanner-prestiti-count" class="font-display font-bold text-2xl leading-none">0</p>
+            <p id="scanner-prestiti-count" class="font-display font-bold text-2xl leading-none">—</p>
             <p class="ui-note text-graphite-500 mt-1">Prestiti in sospeso</p>
           </div>
           <i data-lucide="chevron-right" class="mvt-chev w-5 h-5 text-graphite-400 shrink-0" stroke-width="2"></i>
@@ -491,11 +491,13 @@
     <!-- ============ VISTA MAGAZZINO (consultazione + admin CRUD + import Excel) ============ -->
     <section id="view-products" class="hidden">
       <!-- Tab categorie: un'unica riga segmentata, il rettangolo blu scorre tra i tre pulsanti -->
-      <div id="product-category-seg" class="seg flex w-full rounded-lg border border-graphite-700 bg-graphite-800 p-0.5 mb-3" role="tablist">
+      <div class="prod-cat-bar">
+      <div id="product-category-seg" class="seg flex w-full rounded-lg border border-graphite-700 bg-graphite-800 p-0.5" role="tablist">
         <span class="seg-indicator" aria-hidden="true"></span>
         <button type="button" data-category-tab="cuscinetti" class="category-tab flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">Cuscinetti</button>
         <button type="button" data-category-tab="cinghie" class="category-tab flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">Cinghie</button>
         <button type="button" data-category-tab="pezzi_ricambio" class="category-tab flex-1 min-w-0 rounded-md min-h-[44px] px-1.5 py-1.5 flex items-center justify-center text-center leading-tight text-xs font-display font-semibold uppercase tracking-wide">Ricambi tecnici</button>
+      </div>
       </div>
 
       <!-- Toggle modalità di visualizzazione: scaffalatura per locazione (default) o
@@ -558,7 +560,10 @@
             <i data-lucide="chevrons-up-down" class="w-4 h-4 text-graphite-400 shrink-0" stroke-width="2"></i>
           </button>
           <button type="button" id="product-macchina-filter-btn" class="w-full min-w-0 flex items-center justify-between gap-1 rounded-lg bg-graphite-800 border border-graphite-700 px-3 py-2.5 text-[13px] text-left hover:border-amber-400 transition-colors min-h-[44px]">
-            <span id="product-macchina-filter-value" class="text-graphite-400 truncate">Tutte le macchine</span>
+            <span class="flex items-center gap-2 min-w-0">
+              <span id="product-macchina-filter-ico" class="hidden shrink-0 w-8 h-6 rounded bg-graphite-700/50 overflow-hidden items-center justify-center p-px"></span>
+              <span id="product-macchina-filter-value" class="text-graphite-400 truncate">Tutte le macchine</span>
+            </span>
             <i data-lucide="chevrons-up-down" class="w-4 h-4 text-graphite-400 shrink-0" stroke-width="2"></i>
           </button>
         </div>
@@ -997,7 +1002,6 @@
       <div class="set-group">
         <h3 class="set-group-title set-group-title--danger">Zona pericolosa</h3>
         <div class="card-plate rounded-xl overflow-hidden border-2 border-rose-500/25">
-          <p class="px-3.5 pt-3 text-xs text-graphite-500 leading-relaxed">Rivedi ed elimina singoli depositi/prelievi dallo storico, di uno o più articoli. La giacenza attuale non cambia: si tocca solo lo storico (eliminare un articolo elimina già in automatico i suoi movimenti collegati).</p>
           <button id="history-manage-btn" type="button" class="set-row set-row--danger">
             <span class="set-ico"><i data-lucide="history" class="w-[18px] h-[18px]" stroke-width="2"></i></span>
             <span class="set-text"><span class="set-title font-display">Gestione cronologia movimenti</span></span>
@@ -1140,7 +1144,6 @@
           <button type="button" data-history-manage-tab="deposito" class="history-tab flex-1 rounded-lg py-2 px-1 whitespace-nowrap text-xs font-display font-semibold uppercase tracking-wide border border-graphite-700 min-h-[44px]">Depositi</button>
           <button type="button" data-history-manage-tab="prelievo" class="history-tab flex-1 rounded-lg py-2 px-1 whitespace-nowrap text-xs font-display font-semibold uppercase tracking-wide border border-graphite-700 min-h-[44px]">Prelievi</button>
         </div>
-        <p class="text-xs text-graphite-500 leading-relaxed px-5 pt-2">Seleziona uno o più movimenti da eliminare dallo storico. La giacenza attuale non viene toccata.</p>
         <div id="history-manage-skeleton" class="space-y-2 px-4 py-3">
           <div class="skeleton h-14 w-full"></div>
           <div class="skeleton h-14 w-full"></div>
