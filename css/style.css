@@ -2913,8 +2913,9 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
 .inv-bar {
   position: relative;
   z-index: 2;
+  border-top: 1px solid var(--graphite-700, #d5dae0);
   border-bottom: 1px solid var(--graphite-700, #d5dae0);
-  box-shadow: 0 10px 14px -12px rgba(15, 23, 42, 0.45);
+  box-shadow: 0 8px 16px -8px rgba(15, 23, 42, 0.5);
 }
 
 /* ---- Magazzino: le tre categorie restano ferme sotto la testata -------------------------------
