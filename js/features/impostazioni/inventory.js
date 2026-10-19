@@ -58,7 +58,7 @@ const BTN_TOOL =
   'press-spring flex-1 min-h-[44px] rounded-lg border border-graphite-700 bg-graphite-800 hover:bg-graphite-700 px-3 flex items-center justify-center gap-1.5 text-xs font-display font-semibold uppercase tracking-wide';
 // Barra fissa del conteggio: tre pulsanti di pari larghezza (testo e icona centrati, mai a capo)
 const BTN_BAR =
-  'press-spring min-w-0 min-h-[44px] rounded-lg border border-graphite-700 bg-graphite-800 hover:bg-graphite-700 px-1.5 flex items-center justify-center gap-1.5 text-xs font-display font-semibold uppercase tracking-wide whitespace-nowrap transition-colors';
+  'press-spring min-w-0 min-h-[44px] rounded-lg border border-graphite-700 bg-graphite-900 hover:bg-graphite-700 px-1.5 flex items-center justify-center gap-1.5 text-xs font-display font-semibold uppercase tracking-wide whitespace-nowrap transition-colors';
 // Chip "aggiungi codice a barre" dentro la riga di un articolo che non ne ha
 const BTN_CODE =
   'press-spring inline-flex items-center gap-1.5 min-h-[34px] rounded-full border border-amber-400/50 bg-amber-400/10 px-3 text-[11px] font-display font-semibold uppercase tracking-wide text-amber-300';
@@ -143,6 +143,43 @@ function clearDraft(nome) {
   }
 }
 const contati = (rows) => rows.filter((r) => r.contato !== null).length;
+
+/** Tutti gli inventari in corso salvati sul telefono (uno per scaffale) */
+function allDrafts() {
+  const out = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(DRAFT_PREFIX)) continue;
+      try {
+        const d = JSON.parse(localStorage.getItem(key));
+        if (d && Array.isArray(d.rows) && d.shelf) out.push({ key, shelf: d.shelf });
+      } catch {
+        /* bozza illeggibile: non si conta */
+      }
+    }
+  } catch {
+    /* memoria locale non disponibile */
+  }
+  return out;
+}
+
+/** Cancella i conteggi di uno o tutti gli inventari in corso (solo sul telefono: il database non viene toccato) */
+async function discardDrafts(list, { title, message, confirmLabel }) {
+  const ok = await confirmDialog({ title, message, confirmLabel, cancelLabel: 'No, tienili', danger: true });
+  if (!ok) return false;
+  clearTimeout(saveTimer);
+  list.forEach((d) => {
+    try {
+      localStorage.removeItem(d.key);
+    } catch {
+      /* niente da fare */
+    }
+  });
+  feedback.confirmAction();
+  toastSuccess(list.length === 1 ? `Inventario ${list[0].shelf} annullato.` : `${list.length} inventari annullati.`, 3500);
+  return true;
+}
 
 // ---------------------------------------------------------------
 // Finestra di scelta (più opzioni)
@@ -266,6 +303,15 @@ function buildHome() {
       inv.querySelector('[data-chevron]')?.classList.toggle('rotate-180');
       return;
     }
+    if (ev.target.closest('[data-act="discard-all"]')) {
+      const bozze = allDrafts();
+      discardDrafts(bozze, {
+        title: bozze.length === 1 ? 'Annullare l\'inventario in corso?' : `Annullare i ${bozze.length} inventari in corso?`,
+        message: 'Tutti i conteggi fatti finora vanno persi. Le giacenze non cambiano: non è stato registrato nulla.',
+        confirmLabel: 'Annulla inventari',
+      }).then((done) => done && paintHome());
+      return;
+    }
     if (ev.target.closest('[data-act="export"]')) exportExcel(ev.target.closest('[data-act="export"]'));
     if (ev.target.closest('[data-act="reload"]')) (st.tab === 'storico' ? loadStorico() : loadShelves());
   });
@@ -334,7 +380,11 @@ function paintHome() {
     )
     .join('');
 
-  let html = areas.length > 1 ? `<div class="flex gap-2 mb-3">${areaBtns}</div>` : '';
+  const bozze = allDrafts();
+  let html = bozze.length
+    ? `<button type="button" data-act="discard-all" class="${BTN_TOOL} w-full mb-3 !text-rose-700 !border-rose-500/50"><i data-lucide="trash-2" class="w-4 h-4"></i>Annulla ${bozze.length === 1 ? "l'inventario in corso" : `i ${bozze.length} inventari in corso`}</button>`
+    : '';
+  html += areas.length > 1 ? `<div class="flex gap-2 mb-3">${areaBtns}</div>` : '';
   if (!list.length) {
     els.homeBody.innerHTML = html + noticeHtml('Nessuno scaffale registrato. Si creano da Impostazioni → Gestione scaffali.');
     return;
@@ -487,14 +537,24 @@ async function startShelf(shelf, btnEl) {
         message: `Hai già contato ${contati(draft.rows)} articoli su ${draft.rows.length}. Vuoi riprendere da dove eri rimasto?`,
         options: [
           { label: 'Riprendi', value: 'resume', kind: 'primary' },
-          { label: 'Ricomincia da capo', value: 'reset', kind: 'danger', hint: 'Il conteggio già fatto va perso.' },
-          { label: 'Annulla', value: null },
+          { label: 'Ricomincia da capo', value: 'reset', hint: 'Il conteggio già fatto va perso.' },
+          { label: 'Annulla inventario', value: 'discard', kind: 'danger', hint: 'Cancella i conteggi fatti e non ne inizia un altro.' },
+          { label: 'Chiudi', value: null },
         ],
       });
       if (!choice) return;
       if (choice === 'resume') {
         st.session = draft;
         openCount();
+        return;
+      }
+      if (choice === 'discard') {
+        const done = await discardDrafts([{ key: draftKey(shelf.nome), shelf: shelf.nome }], {
+          title: `Annullare l'inventario ${shelf.nome}?`,
+          message: `I ${contati(draft.rows)} articoli già contati vanno persi. La giacenza non cambia.`,
+          confirmLabel: 'Annulla inventario',
+        });
+        if (done) paintHome();
         return;
       }
       clearDraft(shelf.nome);
@@ -547,9 +607,12 @@ function buildCount() {
         <p class="text-[11px] font-display font-semibold uppercase tracking-wider text-graphite-500">Inventario</p>
         <h3 data-role="shelf" class="font-display font-bold text-lg leading-tight truncate"></h3>
       </div>
+      <button type="button" data-act="discard" aria-label="Annulla inventario" title="Annulla inventario" class="modal-close modal-close--on-light !text-rose-700">
+        <i data-lucide="trash-2" class="w-5 h-5" stroke-width="2"></i>
+      </button>
       <span data-role="progress" class="shrink-0 font-display font-bold text-sm rounded-full px-3 py-1 bg-graphite-800 border border-graphite-700"></span>
     </div>
-    <div class="inv-bar bg-graphite-900 px-4 pt-3 pb-3 shrink-0 space-y-2">
+    <div class="inv-bar bg-graphite-800 px-4 pt-3 pb-3 shrink-0 space-y-2">
       <div class="grid grid-cols-3 gap-2">
         <button type="button" data-act="scan" class="${BTN_BAR}"><i data-lucide="scan-barcode" class="w-4 h-4 shrink-0"></i>Scansiona</button>
         <button type="button" data-act="add" class="${BTN_BAR}"><i data-lucide="plus" class="w-4 h-4 shrink-0"></i>Aggiungi</button>
@@ -575,6 +638,7 @@ function buildCount() {
   els.count.addEventListener('overlay-cancel', cleanupCount); // tasto indietro del telefono
   els.count.querySelector('[data-act="back"]').addEventListener('click', closeCount);
   els.count.querySelector('[data-act="scan"]').addEventListener('click', toggleCamera);
+  els.count.querySelector('[data-act="discard"]').addEventListener('click', discardCurrent);
   els.count.querySelector('[data-act="add"]').addEventListener('click', openAddSheet);
   els.count.querySelector('[data-act="finish"]').addEventListener('click', openSummary);
   els.todoBtn.addEventListener('click', () => {
@@ -634,6 +698,24 @@ function cleanupCount() {
   setCameraVisible(false);
   flushDraft();
   if (st.tab === 'scaffali' && els.home.dataset.modalOpen) paintHome(); // la bozza compare nell'elenco
+}
+
+/** Annulla l'inventario aperto: cancella i conteggi fatti e torna all'elenco scaffali */
+async function discardCurrent() {
+  if (!st.session) return;
+  feedback.tap();
+  const shelf = st.session.shelf;
+  const fatti = contati(st.session.rows);
+  const done = await discardDrafts([{ key: draftKey(shelf), shelf }], {
+    title: `Annullare l'inventario ${shelf}?`,
+    message: fatti ? `I ${fatti} articoli già contati vanno persi. La giacenza non cambia.` : 'Non è stato registrato nulla: la giacenza non cambia.',
+    confirmLabel: 'Annulla inventario',
+  });
+  if (!done || !st.session) return;
+  st.session = null; // dopo la cancellazione nulla deve riscrivere la bozza
+  setCameraVisible(false);
+  closeOverlay(els.count);
+  if (els.home.dataset.modalOpen && st.tab === 'scaffali') paintHome();
 }
 
 function closeCount() {
