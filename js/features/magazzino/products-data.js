@@ -9,7 +9,7 @@ import { toastSuccess, toastError, toastWarning } from '../../shared/toast.js';
 import feedback from '../../shared/feedback.js';
 import { replayAnimation, openOverlay, closeOverlay, loadLib } from '../../shared/ui-utils.js';
 import { els, state, CATEGORY_LABELS } from './products-shared.js';
-import { renderCurrentList, setListStatic } from './products-list.js';
+import { renderCurrentList, setListStatic, renderCategorySwap } from './products-list.js';
 
 // --- Caricamento della lista: completo solo una volta per accesso ---------
 // Al primo ingresso nel Magazzino dopo l'accesso si vede il caricamento; ai rientri
@@ -200,6 +200,23 @@ async function silentRefresh() {
     markListLoaded();
   } catch (err) {
     console.warn('Aggiornamento silenzioso del Magazzino non riuscito, resta l\'elenco attuale.', err);
+  }
+}
+
+/** Cambio categoria: l'elenco vecchio resta visibile finché arrivano i nuovi dati, poi i due si scambiano con animazione. */
+export async function refreshCategory(forward, applyChrome) {
+  const seq = ++refreshSeq;
+  try {
+    const [list] = await Promise.all([fetchCurrentList(), loadShelfAreas()]);
+    if (seq !== refreshSeq) return;
+    state.currentList = list;
+    renderCategorySwap(forward, applyChrome);
+    markListLoaded();
+  } catch (err) {
+    if (seq !== refreshSeq) return;
+    console.warn('Cambio categoria: caricamento non riuscito, ripiego sul caricamento normale.', err);
+    applyChrome();
+    refresh();
   }
 }
 

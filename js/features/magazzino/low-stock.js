@@ -53,10 +53,45 @@ export function initLowStock() {
 }
 
 function setCardOpen(open) {
-  els.track.classList.toggle('acc-open', open);
-  els.card.classList.toggle('lowstock-card-open', open);
+  flipTiles(() => {
+    els.track.classList.toggle('acc-open', open);
+    els.card.classList.toggle('lowstock-card-open', open);
+  });
   els.openBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
   if (open) syncSegIndicator(els.seg);
+}
+
+/**
+ * Aprendo/chiudendo la scheda, lei e la tessera Prestiti cambiano riga e larghezza nella griglia (mezza
+ * riga ↔ riga intera): CSS non anima il cambio di colonna, quindi le due tessere si spostano da sole
+ * dalla vecchia alla nuova posizione (tecnica FLIP: misura prima/dopo, poi anima posizione e larghezza).
+ */
+function flipTiles(mutate) {
+  const items = [els.card, document.getElementById('scanner-prestiti-btn')].filter((el) => el && !el.classList.contains('hidden'));
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || !items.length || typeof items[0].animate !== 'function') {
+    mutate();
+    return;
+  }
+  const first = items.map((el) => el.getBoundingClientRect());
+  mutate();
+  const css = getComputedStyle(document.documentElement);
+  const duration = parseFloat(css.getPropertyValue('--dur-base')) || 240;
+  const easing = css.getPropertyValue('--ease-inout').trim() || 'ease-in-out';
+  items.forEach((el, k) => {
+    const a = first[k];
+    const b = el.getBoundingClientRect();
+    const dx = a.left - b.left;
+    const dy = a.top - b.top;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(a.width - b.width) < 1) return;
+    el.animate(
+      [
+        { transform: `translate(${dx}px, ${dy}px)`, width: `${a.width}px` },
+        { transform: 'translate(0, 0)', width: `${b.width}px` },
+      ],
+      { duration, easing }
+    );
+  });
 }
 
 async function refresh() {

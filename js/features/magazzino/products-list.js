@@ -7,9 +7,9 @@
 import { openPicker } from '../../shared/picker.js';
 import { animateFluidSwap } from '../../core/app.js';
 import { staggerIndex, syncSegIndicator, modalCloseMs } from '../../shared/ui-utils.js';
-import { listDistinctMacchine, getProductLocations, areaOfShelf, SHELF_AREAS } from '../../data/supabase.js';
+import { listDistinctMacchine, listMachineEntries, machineOnLinea, getSectionIconUrl, getProductLocations, areaOfShelf, SHELF_AREAS } from '../../data/supabase.js';
 import { els, state, LINEA_OPTIONS, MACHINE_VIEW_CATEGORIES, escapeHtml, shelfLabel, hasMultipleShelves, binIconHtml } from './products-shared.js';
-import { refresh } from './products-data.js';
+import { refresh, refreshCategory } from './products-data.js';
 import { openDetail } from './products-detail.js';
 
 const openShelves = new Set(); // locazioni espanse, persiste tra i refresh (una sola alla volta per gruppo, salvo durante la ricerca)
@@ -217,6 +217,7 @@ export function initProductsList() {
   els.lineaFilterValue = document.getElementById('product-linea-filter-value');
   els.macchinaFilterBtn = document.getElementById('product-macchina-filter-btn');
   els.macchinaFilterValue = document.getElementById('product-macchina-filter-value');
+  els.macchinaFilterIco = document.getElementById('product-macchina-filter-ico');
 
   els.lineaFilterBtn?.addEventListener('click', pickLineaFilter);
   els.macchinaFilterBtn?.addEventListener('click', pickMacchinaFilter);
@@ -257,39 +258,115 @@ function placeLowStock(filtersVisible) {
   if (btn && target && btn.parentElement !== target) target.appendChild(btn);
 }
 
+const CATEGORY_ORDER = ['cuscinetti', 'cinghie', 'pezzi_ricambio']; // determina la direzione dello scivolamento
+
 export function setCategory(category) {
+  const previous = state.currentCategory;
   state.currentCategory = category;
   els.categoryTabs.forEach((btn) => btn.classList.toggle('category-tab-active', btn.dataset.categoryTab === category));
+  syncSegs(); // il rettangolo blu scorre subito: è il feedback del tocco
 
   const showLineaFilter = category === 'cinghie' || category === 'pezzi_ricambio';
-  els.lineaFilterWrap.classList.toggle('hidden', !showLineaFilter);
-  placeLowStock(showLineaFilter);
   if (!showLineaFilter) {
     state.lineaFilterValue = '';
     state.macchinaFilterValue = '';
     updateFilterLabels();
   }
-  // La barra di ricerca in testata (global-search.js) segue la categoria: "Cerca in cinghie…"
+  // La barra di ricerca in testata ha una sola dicitura: l'evento resta per eventuali ascoltatori
   document.dispatchEvent(new CustomEvent('products:category', { detail: category }));
   els.searchInput.placeholder = showLineaFilter
     ? 'Cerca per codice, locazione, macchina, punto utilizzo…'
     : 'Cerca per codice o scaffale…';
 
-  // Selettore Scaffalatura/Macchina: solo per le categorie dove l'associazione a una
-  // macchina ha senso (cinghie, pezzi di ricambio). I cuscinetti mostrano sempre la
-  // scaffalatura, senza selettore.
-  const showViewToggle = MACHINE_VIEW_CATEGORIES.includes(category);
-  els.viewModeWrap?.classList.toggle('hidden', !showViewToggle);
-  if (!showViewToggle && viewMode !== 'shelf') {
-    // La categoria appena scelta non supporta il riordino per macchina: si torna
-    // silenziosamente alla scaffalatura, senza animazione (cambio di contesto, non
-    // un'azione dell'utente sul selettore).
+  const host = document.getElementById('view-products');
+  const visible = host && !host.classList.contains('hidden') && [els.shelfView, els.machineView].some((e) => !e.classList.contains('hidden'));
+  if (previous !== category && visible) {
+    // Cambio categoria con un elenco già a schermo: barra strumenti ed elenco cambiano nello stesso
+    // istante, a dati arrivati, e l'elenco scivola (prima sparivano di colpo e il resto della pagina saltava).
+    const forward = CATEGORY_ORDER.indexOf(category) > CATEGORY_ORDER.indexOf(previous);
+    refreshCategory(forward, applyCategoryChrome);
+  } else {
+    applyCategoryChrome();
+    refresh();
+  }
+}
+
+/** Parte della schermata che dipende dalla categoria (filtri, pulsante sotto scorta, selettore Scaffalatura/Macchina). */
+function applyCategoryChrome() {
+  const category = state.currentCategory;
+  const showLineaFilter = category === 'cinghie' || category === 'pezzi_ricambio';
+  els.lineaFilterWrap.classList.toggle('hidden', !showLineaFilter);
+  placeLowStock(showLineaFilter);
+
+  // Selettore Scaffalatura/Macchina: solo per le categorie dove l'associazione a una macchina ha senso.
+  // La sua visibilità finale (con più aree compare anche per i Cuscinetti) la decide syncAreaFilter()
+  // a elenco disegnato: qui non lo si nasconde, altrimenti compariva e riscompariva a ogni cambio.
+  if (!MACHINE_VIEW_CATEGORIES.includes(category) && viewMode !== 'shelf') {
     viewMode = 'shelf';
     els.viewModeTabs.forEach((btn) => btn.classList.toggle('view-mode-tab-active', btn.dataset.viewModeTab === 'shelf'));
   }
-
   syncSegs();
-  refresh();
+}
+
+/** Ogni categoria riparte con tutto chiuso: gli scaffali aperti in un'altra categoria non devono riaprirsi. */
+function resetOpenState() {
+  closeAreaPanel();
+  cancelAnimationFrame(followRaf);
+  scopes.forEach((sc) => clearTimeout(sc.swapTimer));
+  scopes.clear();
+  openShelves.clear();
+  openGroups.clear();
+  openMachines.clear();
+}
+
+/**
+ * Disegna la nuova categoria facendo scivolare via la vecchia (una copia ferma dell'elenco appena
+ * lasciato) — stesso movimento "piatto" di Scaffalatura ↔ Macchina. Se un'altra transizione è già in
+ * corso, o non c'è nulla da far uscire, si disegna e basta.
+ */
+export function renderCategorySwap(forward, applyChrome) {
+  const host = document.getElementById('view-products');
+  const active = [els.shelfView, els.machineView].find((e) => !e.classList.contains('hidden'));
+  const busy = viewModeBusy || document.querySelector('.view-fluid-entering, .view-fluid-leaving');
+  resetOpenState();
+  if (!host || !active || busy || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    setListStatic(false);
+    applyChrome();
+    renderCurrentList();
+    return;
+  }
+  const ghost = active.cloneNode(true);
+  ghost.removeAttribute('id');
+  ghost.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
+  ghost.setAttribute('inert', '');
+  ghost.setAttribute('aria-hidden', 'true');
+  active.before(ghost); // prima dell'elenco nuovo: la sua posizione coincide con quella di partenza
+
+  host.classList.add('cat-switching');
+  setListStatic(true);
+  applyChrome();
+  renderCurrentList();
+  const toEl = [els.shelfView, els.machineView].find((e) => !e.classList.contains('hidden'));
+  const finish = () => {
+    ghost.remove();
+    host.classList.remove('cat-switching');
+    setListStatic(false);
+  };
+  if (!toEl) {
+    finish();
+    return;
+  }
+  viewModeBusy = true;
+  animateFluidSwap(ghost, toEl, forward, () => {
+    viewModeBusy = false;
+    finish();
+    if (queuedViewMode) {
+      const next = queuedViewMode;
+      queuedViewMode = null;
+      if (next !== viewMode) applyViewMode(next);
+    }
+  }, { flat: true });
+  setTimeout(() => { if (ghost.isConnected) { viewModeBusy = false; finish(); } }, 900); // rete di sicurezza
 }
 
 /** Riallinea i rettangoli blu scorrevoli dei due controlli segmentati al pulsante attivo. */
@@ -745,10 +822,21 @@ async function pickLineaFilter() {
   refresh();
 }
 
+// Icone delle macchine (le stesse dei Manuali e degli Interventi): nome minuscolo -> URL, '' = ingranaggio
+let machineIconMap = null;
+async function loadMachineEntries() {
+  const entries = await listMachineEntries();
+  machineIconMap = new Map(entries.map((e) => [e.nome.toLowerCase(), e.icon_storage_path ? getSectionIconUrl(e.icon_storage_path) : '']));
+  return entries;
+}
+
 async function pickMacchinaFilter() {
   let options = [];
+  let icons = {};
   try {
-    options = await listDistinctMacchine({ linea: state.lineaFilterValue });
+    const entries = (await loadMachineEntries()).filter((en) => machineOnLinea(en, state.lineaFilterValue));
+    options = entries.map((en) => en.nome);
+    icons = Object.fromEntries(entries.map((en) => [en.nome, machineIconMap.get(en.nome.toLowerCase()) || '']));
   } catch (err) {
     console.warn('Impossibile caricare l\'elenco delle macchine registrate.', err);
   }
@@ -757,12 +845,36 @@ async function pickMacchinaFilter() {
     options,
     keepOrder: true,
     allowCustom: false,
+    icons,
     currentValue: state.macchinaFilterValue,
   });
   if (val === null) return; // annullato
   state.macchinaFilterValue = val;
   updateFilterLabels();
   refresh();
+}
+
+/** Icona della macchina scelta accanto al nome nel filtro (immagine dei Manuali, altrimenti l'ingranaggio). */
+function paintMacchinaFilterIcon() {
+  const box = els.macchinaFilterIco;
+  if (!box) return;
+  const name = state.macchinaFilterValue.trim();
+  if (!name) {
+    box.classList.add('hidden');
+    box.classList.remove('flex');
+    box.innerHTML = '';
+    return;
+  }
+  if (!machineIconMap) {
+    loadMachineEntries().then(paintMacchinaFilterIcon).catch(() => {}); // filtro già attivo ma icone non ancora lette
+  }
+  const url = machineIconMap?.get(name.toLowerCase()) || '';
+  box.innerHTML = url
+    ? `<img src="${escapeHtml(url)}" alt="" decoding="async" class="w-full h-full object-contain">`
+    : '<i data-lucide="cog" class="w-3.5 h-3.5 text-graphite-400" stroke-width="1.8"></i>';
+  box.classList.remove('hidden');
+  box.classList.add('flex');
+  window.lucide?.createIcons();
 }
 
 function updateFilterLabels() {
@@ -776,4 +888,5 @@ function updateFilterLabels() {
     els.macchinaFilterValue.classList.toggle('text-graphite-400', !state.macchinaFilterValue);
     els.macchinaFilterValue.classList.toggle('text-graphite-100', !!state.macchinaFilterValue);
   }
+  paintMacchinaFilterIcon();
 }
