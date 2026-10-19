@@ -67,11 +67,9 @@ export function syncSearchContext(view) {
     ctx = next;
   }
   const on = next === 'interventi';
-  let label = on ? 'Cerca intervento' : 'Cerca articolo';
-  // Nel Magazzino la barra filtra l'elenco della categoria aperta (codice, locazione, macchina, punto di utilizzo)
-  // (testo breve, senza puntini: nel campo ci stanno circa 16 caratteri)
-  if (next === 'products') label = `Cerca ${PROD_SHORT[prodCategory] || 'articoli'}`;
-  input.placeholder = next === 'products' ? label : `${label}…`;
+  // Una sola dicitura per gli articoli, in qualsiasi sezione e categoria
+  const label = on ? 'Cerca interventi' : 'Cerca articoli';
+  input.placeholder = `${label}…`;
   input.setAttribute('aria-label', label);
   const scan = document.getElementById('hsearch-scan-btn');
   if (scan) scan.style.display = on ? 'none' : '';
@@ -84,12 +82,6 @@ const inProducts = () => {
 
 // Sezione a cui la barra è agganciata ('interventi' | 'products' | 'altro') e categoria aperta nel Magazzino
 let ctx = '';
-let prodCategory = 'cuscinetti';
-const PROD_SHORT = { cuscinetti: 'cuscinetti', cinghie: 'cinghie', pezzi_ricambio: 'ricambi' };
-document.addEventListener('products:category', (e) => {
-  prodCategory = e.detail || prodCategory;
-  if (ctx === 'products') syncSearchContext('products');
-});
 
 /** Nel Magazzino la barra in testata non apre il pannello: filtra direttamente l'elenco sotto. */
 function filterProducts() {

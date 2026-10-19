@@ -12,6 +12,7 @@ const els = {};
 let resolveFn = null;
 let allOptions = [];
 let allowCustomValue = false;
+let optionIcons = null; // facoltativo: nome opzione -> URL icona ('' = ingranaggio)
 
 export function initPicker() {
   els.modal = document.getElementById('field-picker-modal');
@@ -38,13 +39,14 @@ export function initPicker() {
  * @param {{title:string, options:string[], allowCustom?:boolean, currentValue?:string, keepOrder?:boolean}} opts
  * @returns {Promise<string|null>} valore selezionato, '' se svuotato, null se annullato
  */
-export function openPicker({ title, options, allowCustom = false, currentValue = '', keepOrder = false }) {
+export function openPicker({ title, options, allowCustom = false, currentValue = '', keepOrder = false, icons = null }) {
   return new Promise((resolve) => {
     resolveFn = resolve;
     // keepOrder: l'elenco ha già un ordine voluto (es. macchine ordinate dall'admin): non si riordina in alfabetico
     const unique = [...new Set(options.filter(Boolean))];
     allOptions = keepOrder ? unique : unique.sort((a, b) => a.localeCompare(b, 'it'));
     allowCustomValue = allowCustom;
+    optionIcons = icons;
 
     els.title.textContent = title;
     els.searchWrap.classList.toggle('hidden', !allowCustom && allOptions.length <= 6);
@@ -74,7 +76,14 @@ function renderList(filterText, currentValue) {
     row.type = 'button';
     row.className =
       'w-full text-left px-4 py-3 rounded-lg hover:bg-graphite-700/50 transition-colors flex items-center justify-between gap-2';
-    row.innerHTML = `<span class="text-graphite-100">${escapeHtml(opt)}</span>${
+    const label = optionIcons
+      ? `<span class="flex items-center gap-3 min-w-0"><span class="shrink-0 w-12 h-9 rounded-lg bg-graphite-700/50 flex items-center justify-center overflow-hidden p-0.5">${
+          optionIcons[opt]
+            ? `<img src="${escapeHtml(optionIcons[opt])}" alt="" loading="lazy" decoding="async" class="w-full h-full object-contain">`
+            : '<i data-lucide="cog" class="w-[18px] h-[18px] text-graphite-400" stroke-width="1.8"></i>'
+        }</span><span class="text-graphite-100 truncate">${escapeHtml(opt)}</span></span>`
+      : `<span class="text-graphite-100">${escapeHtml(opt)}</span>`;
+    row.innerHTML = `${label}${
       opt === currentValue
         ? '<i data-lucide="check" class="w-4 h-4 text-amber-400 shrink-0" stroke-width="2.5"></i>'
         : ''
