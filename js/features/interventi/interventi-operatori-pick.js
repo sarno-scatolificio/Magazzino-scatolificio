@@ -42,6 +42,19 @@ export function createOperatoriPicker(prefix, { get, set, onChange = () => {} })
     '<p class="ui-note text-graphite-500 mt-1">Scrivi «Nome Cognome». Il nome vale solo per questo intervento e non viene salvato in elenco.</p>';
   empty.insertAdjacentElement('afterend', manual);
   const input = manual.querySelector('input');
+  const actionBtn = manual.querySelector('button');
+  manual.classList.remove('hidden');
+
+  // Accordion: elenco, avviso e campo del nome stanno in un contenitore che si apre/chiude con animazione
+  const wrap = document.createElement('div');
+  wrap.className = 'punti-expand';
+  wrap.setAttribute('aria-hidden', 'true');
+  wrap.inert = true;
+  const inner = document.createElement('div');
+  inner.className = 'punti-expand-inner';
+  btn.insertAdjacentElement('afterend', wrap);
+  wrap.appendChild(inner);
+  inner.append(list, empty, manual);
 
   function addManual() {
     const name = cleanName(input.value);
@@ -56,11 +69,29 @@ export function createOperatoriPicker(prefix, { get, set, onChange = () => {} })
     paint();
     onChange();
   }
-  manual.querySelector('button').addEventListener('click', addManual);
+  // Il pulsante cambia con lo stato: nome scritto → «Aggiungi»; campo vuoto → «Conferma operatori» (se ce n'è di scelti) oppure «Chiudi»
+  const BASE = 'press-spring shrink-0 rounded-lg font-display font-semibold uppercase tracking-wide text-xs px-4 min-h-[44px] ';
+  const PRIMARY = BASE + 'bg-amber-400 hover:bg-amber-300 text-white';
+  const NEUTRAL = BASE + 'border border-graphite-700 text-graphite-400 hover:bg-graphite-800';
+  function paintAction() {
+    const typed = !!cleanName(input.value);
+    actionBtn.textContent = typed ? 'Aggiungi' : get().length ? 'Conferma operatori' : 'Chiudi';
+    actionBtn.className = typed || get().length ? PRIMARY : NEUTRAL;
+  }
+  actionBtn.addEventListener('click', () => {
+    if (cleanName(input.value)) {
+      addManual();
+      return;
+    }
+    open = false; // campo vuoto: conferma la scelta (o chiude se non c'è nessun operatore)
+    feedback.tap();
+    paint();
+  });
+  input.addEventListener('input', paintAction);
   input.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     e.preventDefault();
-    addManual();
+    if (cleanName(input.value)) addManual();
   });
 
   btn.addEventListener('click', () => {
@@ -80,7 +111,7 @@ export function createOperatoriPicker(prefix, { get, set, onChange = () => {} })
     btn.setAttribute('aria-expanded', String(open));
     chevron.style.transform = open ? 'rotate(180deg)' : '';
 
-    list.classList.toggle('hidden', !open || !names.length);
+    list.classList.toggle('hidden', !names.length);
     list.innerHTML = '';
     names.forEach((n, idx) => {
       if (idx > 0) {
@@ -106,8 +137,11 @@ export function createOperatoriPicker(prefix, { get, set, onChange = () => {} })
       });
       list.appendChild(row);
     });
-    empty.classList.toggle('hidden', !open || state.operatori.length > 0);
-    manual.classList.toggle('hidden', !open);
+    empty.classList.toggle('hidden', state.operatori.length > 0);
+    wrap.classList.toggle('is-open', open);
+    wrap.setAttribute('aria-hidden', String(!open));
+    wrap.inert = !open; // chiusa: i campi non si raggiungono con la tastiera
+    paintAction();
   }
 
   return {
