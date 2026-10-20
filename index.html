@@ -166,6 +166,19 @@
     <section id="view-scanner">
 
 
+      <!-- Solo desktop: postazione rapida. Il lettore barcode (o la tastiera) scrive qui, Invio apre il movimento. D / P cambiano modalità. -->
+      <div id="scanner-desk" class="hidden lg:block">
+        <div class="card-plate rounded-xl p-4">
+          <p class="font-display font-bold text-xs uppercase tracking-wide text-graphite-400 mb-2">Scansiona o cerca un articolo</p>
+          <div class="flex gap-2">
+            <input id="scanner-desk-input" type="text" autocomplete="off" spellcheck="false" data-no-clear placeholder="Codice articolo o barcode, poi Invio" aria-label="Scansiona o cerca un articolo" class="flex-1 min-w-0 rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 text-base focus:border-amber-400 outline-none transition-colors min-h-[52px]">
+            <button type="button" data-desk-mode="deposito" class="desk-mode desk-mode--deposito press-spring"><i data-lucide="arrow-down-to-line" class="w-5 h-5" stroke-width="2"></i><span>Deposito</span><kbd>D</kbd></button>
+            <button type="button" data-desk-mode="prelievo" class="desk-mode desk-mode--prelievo press-spring"><i data-lucide="arrow-up-from-line" class="w-5 h-5" stroke-width="2"></i><span>Prelievo</span><kbd>P</kbd></button>
+          </div>
+          <p class="ui-note text-graphite-500 mt-2">Il lettore barcode scrive qui e conferma da solo con Invio. Se il codice non è esatto si apre la ricerca per testo.</p>
+        </div>
+      </div>
+
       <!-- Pannello a colpo d'occhio, visibile solo prima di scegliere Deposito/Prelievo:
            riempie lo spazio vuoto con informazioni utili invece di lasciarlo bianco. -->
       <div id="scanner-idle-panel" class="space-y-3 mb-4">
