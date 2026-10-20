@@ -12,6 +12,7 @@ import { enableSheetDrag } from '../../shared/ui-utils.js';
 import feedback from '../../shared/feedback.js';
 import { getQueueCount, onQueueChange } from '../../core/offline-queue.js';
 import { initCodeSearch } from './scanner-search.js';
+import { initScannerDesktop } from './scanner-desktop.js';
 import { loadIdlePanel } from './scanner-idle.js';
 import { paintPunti, pickMacchinario, refreshPuntiSuggeriti, syncMacchinarioBtn } from './scanner-punti.js';
 import { stopCamera, switchCamera as switchCameraShared, toggleTorch } from '../../shared/camera.js';
@@ -125,6 +126,7 @@ els.macchinarioValue = document.getElementById('scan-macchinario-value');
     if (!els.codeSearchInput.value.trim()) toggleScanCameraSection(true);
   });
   initCodeSearch();
+  initScannerDesktop(); // solo desktop: campo di scansione sempre pronto e scorciatoie da tastiera
   els.cancelBtn.addEventListener('click', () => {
     feedback.cancelAction();
     resetResult();
