@@ -1446,6 +1446,7 @@
       </div>
     </div>
     <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+      <div class="int-col space-y-4">
       <!-- Tipo: da fare (promemoria) oppure già effettuato (inserimento rapido, non preventivato) -->
       <div id="int-step-mode">
         <div id="int-new-mode-seg" class="seg flex w-full rounded-lg border border-graphite-700 bg-graphite-800 p-0.5" role="group" aria-label="Tipo di intervento">
@@ -1486,6 +1487,8 @@
         <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="int-new-desc" id="int-new-desc-label">3 · Intervento</label>
         <textarea id="int-new-desc" rows="2" maxlength="300" placeholder="Cosa va fatto?" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors resize-none"></textarea>
       </div>
+      </div>
+      <div class="int-col space-y-4">
       <!-- Dettagli: informazioni in più per chi farà il lavoro (solo per gli interventi da effettuare; non compaiono nel rapporto degli effettuati) -->
       <div class="int-step" id="int-step-dettagli" data-locked="true">
         <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="int-new-dettagli">Dettagli <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(facoltativi)</span></label>
@@ -1515,6 +1518,7 @@
           <input id="int-new-photo-input-cam" type="file" accept="image/*" capture="environment" class="hidden">
           <input id="int-new-photo-input-gal" type="file" accept="image/*" class="hidden">
         </div>
+      </div>
       </div>
     </div>
     <div class="shrink-0 px-5 py-3 border-t border-graphite-800">
