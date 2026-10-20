@@ -80,3 +80,52 @@
 @media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
   .modal-overlay .modal-panel, .nav-item, .nav-item.nav-active::before { transition-duration: 1ms !important; animation: none !important; }
 }
+
+/* =============================================================
+   Magazzino desktop: tabella articoli + pannello di dettaglio (products-table.js)
+   ============================================================= */
+@media (min-width: 1024px) {
+  #product-table-view:not(.hidden) { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+  .pt-card { background: #fff; border: 1px solid #dde2ec; border-radius: 14px; overflow: hidden; }
+  .pt-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 190px 80px; align-items: center; gap: 12px; min-height: 52px; padding: 0 18px; font-size: 14px; }
+  .pt-head { min-height: 42px; font: 600 11px 'Space Grotesk', sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #6b7488; }
+  .pt-item { border-top: 1px solid #edf0f6; cursor: pointer; transition: background .14s ease, box-shadow .14s ease; }
+  .pt-item:hover { background: #f5f7fc; }
+  .pt-item.pt-sel { background: #eef2fc; box-shadow: inset 3px 0 0 var(--accent, #1f3a8a); }
+  .pt-code { font: 600 13px 'JetBrains Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pt-sub, .pt-shelf { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #4a5468; }
+  .pt-shelf { font: 500 13px 'JetBrains Mono', monospace; color: #5b6579; }
+  .pt-num { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pt-low { color: #b42318; }
+  .pt-hint { margin: 12px 2px 0; font-size: 12px; color: #6b7488; }
+  .pt-hint kbd, .pt-btn kbd, .pt-link kbd { font: 600 .64rem 'JetBrains Mono', monospace; border: 1px solid #d3d9e4; border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; margin: 0 2px; color: #5b6579; background: #fff; }
+
+  .pt-panel { position: sticky; top: 88px; background: #fff; border: 1px solid #dde2ec; border-radius: 14px; padding: 22px; }
+  .pt-panel-in { animation: pt-in .22s cubic-bezier(.2, .8, .2, 1); }
+  @keyframes pt-in { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+  .pt-kicker { margin: 18px 0 6px; font: 600 11px 'Space Grotesk', sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #6b7488; }
+  .pt-kicker:first-child { margin-top: 0; }
+  .pt-title { margin: 6px 0 4px; font: 700 24px 'JetBrains Mono', monospace; overflow-wrap: anywhere; }
+  .pt-desc { font-size: 14px; color: #5b6579; }
+  .pt-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0 6px; }
+  .pt-stats > div { border: 1px solid #dde2ec; border-radius: 10px; padding: 12px; }
+  .pt-stats span { display: block; font-size: 11px; color: #6b7488; }
+  .pt-stats b { font: 700 24px 'Space Grotesk', sans-serif; }
+  .pt-line { font-size: 13px; color: #4a5468; margin-top: 10px; }
+  .pt-line span { color: #6b7488; margin-right: 8px; }
+  .pt-locs { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+  .pt-locs li { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid #edf0f6; }
+  .pt-locs li:first-child { border-top: 0; }
+  .pt-locs span { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+  .pt-actions { display: flex; gap: 8px; margin-top: 20px; }
+  .pt-btn { flex: 1; min-height: 44px; border-radius: 10px; border: 1px solid var(--accent, #1f3a8a); color: var(--accent, #1f3a8a); background: #fff; font: 600 12px 'Space Grotesk', sans-serif; letter-spacing: .06em; text-transform: uppercase; transition: transform .14s ease, background .14s ease; }
+  .pt-btn:hover { background: #eef2fc; }
+  .pt-btn:active { transform: scale(.97); }
+  .pt-btn--primary { background: var(--accent, #1f3a8a); color: #fff; }
+  .pt-btn--primary:hover { background: #2a4aa6; }
+  .pt-btn--primary kbd { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .5); }
+  .pt-link { display: block; width: 100%; margin-top: 12px; min-height: 40px; font-size: 13px; color: var(--accent, #1f3a8a); font-weight: 600; text-align: center; }
+  .pt-link:hover { text-decoration: underline; }
+  .pt-panel :focus-visible, .pt-item:focus-visible { outline: 2px solid var(--accent, #1f3a8a); outline-offset: 2px; }
+}
+@media (min-width: 1024px) and (prefers-reduced-motion: reduce) { .pt-panel-in { animation: none; } .pt-item, .pt-btn { transition-duration: 1ms; } }
