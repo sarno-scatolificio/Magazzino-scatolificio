@@ -1,15 +1,16 @@
 // =============================================================
 // products-table.js — Magazzino su desktop (≥1024px): tabella articoli + pannello di dettaglio a destra.
-// - Gli articoli sono RAGGRUPPATI: per scaffale (modalità «Scaffalatura») o per macchina (modalità «Macchina»);
-//   ogni gruppo ha la sua testata, con numero di articoli e pezzi, e si chiude/apre come un accordion.
+// - Gli articoli sono RAGGRUPPATI come su mobile: in «Scaffalatura» per sigla (Scaffale SA → SA001, SA002...) con
+//   gli scaffali dentro, ognuno a sua volta chiudibile (uno solo aperto per gruppo); in «Macchina» per macchina.
+//   Si parte sempre con tutto chiuso; ogni testata ha numero di articoli e pezzi e si apre/chiude come un accordion.
 // - Le colonne si RIDIMENSIONANO trascinando il bordo nella testata (doppio clic = larghezza iniziale);
-//   le larghezze restano salvate per la volta dopo.
+//   le larghezze restano salvate per la volta dopo. Inizio e fine di ogni colonna sono sempre ben visibili.
 // I dati sono quelli già caricati (state.currentList, con ricerca e filtri applicati): qui si disegnano soltanto.
 // Scheda completa, Deposito e Prelievo usano gli stessi flussi di sempre (openDetail, startMovement).
 // Tastiera: ↑ ↓ scorrono · Invio apre la scheda · P prelievo · D deposito
 // =============================================================
 
-import { escapeHtml } from './products-shared.js';
+import { els, escapeHtml } from './products-shared.js';
 import { openDetail } from './products-detail.js';
 import { startMovement } from '../movimenti/scanner.js';
 import { staggerIndex } from '../../shared/ui-utils.js';
@@ -28,7 +29,12 @@ let entries = []; // [{ key, p, group, third, qty, low, locs }]
 let selKey = null;
 let wired = false;
 let mode = 'shelf';
-const collapsed = new Set(); // `${mode}|${gruppo}` chiusi
+const opened = new Set(); // chiavi dei gruppi/scaffali APERTI: di partenza (e a ogni cambio di sezione) è tutto chiuso
+let allOpen = false; // con una ricerca attiva tutto si mostra aperto, come su mobile
+
+/** Sigla di serie di uno scaffale (SD002 → SD): stessa regola del Magazzino su mobile. 'Non assegnata' ha la sua. */
+const UNASSIGNED = 'Non assegnata';
+const seriesOf = (shelf) => (shelf === UNASSIGNED ? '~' : (String(shelf).match(/^([A-Za-z]+)/)?.[1] || '').toUpperCase());
 
 const natural = (a, b) => String(a || '').localeCompare(String(b || ''), 'it', { numeric: true, sensitivity: 'base' });
 
@@ -58,6 +64,7 @@ export function renderProductTable({ list, mode: m, locsOf }) {
   host = host || document.getElementById('product-table-view');
   if (!host) return;
   mode = m === 'machine' ? 'machine' : 'shelf';
+  allOpen = (els.searchInput?.value || '').trim().length > 0;
 
   entries = [];
   list.forEach((p) => {
@@ -66,7 +73,7 @@ export function renderProductTable({ list, mode: m, locsOf }) {
     if (mode === 'shelf') {
       // Un articolo presente su più scaffali compare in ognuno, con la quantità di quello scaffale
       (locs.length ? locs : [{ locazione: null, quantita: p.quantita_disponibile }]).forEach((l) => {
-        entries.push({ key: `${p.id}|${l.locazione || ''}`, p, locs, low, group: l.locazione || 'Non assegnata', third: p.linea || '—', qty: Number(l.quantita) || 0 });
+        entries.push({ key: `${p.id}|${l.locazione || ''}`, p, locs, low, group: l.locazione || UNASSIGNED, third: p.linea || '—', qty: Number(l.quantita) || 0 });
       });
     } else {
       entries.push({
@@ -75,30 +82,47 @@ export function renderProductTable({ list, mode: m, locsOf }) {
         locs,
         low,
         group: p.macchina || 'Senza macchina',
-        third: locs.map((l) => (l.locazione ? (locs.length > 1 ? `${l.locazione} (${l.quantita})` : l.locazione) : 'Non assegnata')).join(' · ') || '—',
+        third: locs.map((l) => (l.locazione ? (locs.length > 1 ? `${l.locazione} (${l.quantita})` : l.locazione) : UNASSIGNED)).join(' · ') || '—',
         qty: locs.reduce((s, l) => s + (Number(l.quantita) || 0), 0),
       });
     }
   });
-  const lastGroup = (g) => (g === 'Non assegnata' || g === 'Senza macchina' ? 1 : 0);
+  const lastGroup = (g) => (g === UNASSIGNED || g === 'Senza macchina' ? 1 : 0);
   entries.sort((a, b) => lastGroup(a.group) - lastGroup(b.group) || natural(a.group, b.group) || natural(a.p.codice_articolo, b.p.codice_articolo));
-  if (!entries.some((e) => e.key === selKey)) selKey = entries[0]?.key ?? null;
+  if (!entries.some((e) => e.key === selKey)) selKey = null; // tutto chiuso: nessuna riga scelta finché non si apre qualcosa
+
+  // Livelli: [sigla →] scaffale (o macchina) → righe. Una sigla con un solo scaffale (o «Non assegnata») resta una testata sola.
+  const series = new Map(); // sigla -> Map(scaffale -> voci)
+  entries.forEach((e) => {
+    const sg = mode === 'shelf' ? seriesOf(e.group) : e.group;
+    if (!series.has(sg)) series.set(sg, new Map());
+    const shelves = series.get(sg);
+    if (!shelves.has(e.group)) shelves.set(e.group, []);
+    shelves.get(e.group).push(e);
+  });
+  const isSolo = (sg) => mode !== 'shelf' || series.get(sg).size === 1;
+  const shelfKey = (g) => `${mode}|s|${g}`;
+  const groupKey = (sg) => `${mode}|g|${sg}`;
+  entries.forEach((e) => {
+    const sg = mode === 'shelf' ? seriesOf(e.group) : e.group;
+    e.keys = isSolo(sg) ? [shelfKey(e.group)] : [groupKey(sg), shelfKey(e.group)];
+  });
 
   const cols = loadCols();
-  const grip = (n) => `<i class="pt-grip" data-col="${n}" role="separator" aria-orientation="vertical" title="Trascina per ridimensionare · doppio clic per ripristinare"></i>`;
-  const head = `<div class="pt-row pt-head"><span class="pt-h">Codice${grip(1)}</span><span class="pt-h">Macchina · punto di utilizzo${grip(2)}</span><span class="pt-h">${mode === 'shelf' ? 'Linea' : 'Scaffale'}${grip(3)}</span><span class="pt-h pt-num">Giac.</span></div>`;
+  const grip = (n) => `<i class="pt-grip" data-col="${n}" role="separator" aria-orientation="vertical"></i>`;
+  const head = `<div class="pt-row pt-head"><span class="pt-h"><span class="pt-ht">Codice</span>${grip(1)}</span><span class="pt-h"><span class="pt-ht">Macchina · punto di utilizzo</span>${grip(2)}</span><span class="pt-h"><span class="pt-ht">${mode === 'shelf' ? 'Linea' : 'Scaffale'}</span>${grip(3)}</span><span class="pt-h pt-num"><span class="pt-ht">Giac.</span></span></div>`;
 
-  // Gruppi in ordine: testata + corpo che si chiude con un accordion
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const groupHtml = ({ k, level, titleHtml, countTxt, inner }) => {
+    const isOpen = allOpen || opened.has(k);
+    return `<div class="pt-g pt-lv${level}${isOpen ? '' : ' is-collapsed'}" data-k="${escapeHtml(k)}">
+      <button type="button" class="pt-group" aria-expanded="${isOpen}"><span class="pt-chev" aria-hidden="true">▾</span><b>${titleHtml}</b><span class="pt-gcount">${countTxt}</span></button>
+      <div class="pt-gtrack"><div class="pt-gbody">${inner}</div></div></div>`;
+  };
+
   let i = 0;
-  let body = '';
-  for (let s = 0; s < entries.length; ) {
-    const g = entries[s].group;
-    let e = s;
-    while (e < entries.length && entries[e].group === g) e += 1;
-    const chunk = entries.slice(s, e);
-    const pieces = chunk.reduce((t, x) => t + x.qty, 0);
-    const isClosed = collapsed.has(`${mode}|${g}`);
-    const rowsHtml = chunk
+  const rowsHtml = (chunk) =>
+    chunk
       .map((r) => {
         const sub = [r.p.macchina, r.p.punto_utilizzo_standard].filter(Boolean).join(' · ');
         return `<div class="pt-row pt-item list-item-in${r.key === selKey ? ' pt-sel' : ''}" data-key="${escapeHtml(r.key)}" style="--i:${staggerIndex(Math.min(i++, 14))}">
@@ -106,14 +130,38 @@ export function renderProductTable({ list, mode: m, locsOf }) {
           <span class="pt-shelf">${escapeHtml(r.third)}</span><span class="pt-num${r.low ? ' pt-low' : ''}">${r.qty}${r.low ? ' ▾' : ''}</span></div>`;
       })
       .join('');
-    body += `<div class="pt-g${isClosed ? ' is-collapsed' : ''}" data-g="${escapeHtml(g)}">
-      <button type="button" class="pt-group" aria-expanded="${!isClosed}"><span class="pt-chev" aria-hidden="true">▾</span><b>${mode === 'shelf' && g !== 'Non assegnata' ? 'Scaffale ' : ''}${escapeHtml(g)}</b><span class="pt-gcount">${chunk.length} ${chunk.length === 1 ? 'articolo' : 'articoli'} · ${pieces} pezzi</span></button>
-      <div class="pt-gtrack"><div class="pt-gbody">${rowsHtml}</div></div></div>`;
-    s = e;
-  }
+  const sum = (chunk) => chunk.reduce((t, x) => t + x.qty, 0);
+  const countOf = (chunk) => `${plural(chunk.length, 'articolo', 'articoli')} · ${sum(chunk)} pezzi`;
+
+  let body = '';
+  series.forEach((shelves, sg) => {
+    if (isSolo(sg)) {
+      const [g, chunk] = [...shelves.entries()][0];
+      body += groupHtml({
+        k: shelfKey(g),
+        level: 0,
+        titleHtml: `${mode === 'shelf' && g !== UNASSIGNED ? 'Scaffale ' : ''}${escapeHtml(g)}`,
+        countTxt: countOf(chunk),
+        inner: rowsHtml(chunk),
+      });
+      return;
+    }
+    const all = [...shelves.values()].flat();
+    const articles = new Set(all.map((x) => x.p.id)).size;
+    const inner = [...shelves.entries()]
+      .map(([g, chunk]) => groupHtml({ k: shelfKey(g), level: 1, titleHtml: escapeHtml(g), countTxt: countOf(chunk), inner: rowsHtml(chunk) }))
+      .join('');
+    body += groupHtml({
+      k: groupKey(sg),
+      level: 0,
+      titleHtml: sg ? `Scaffale ${escapeHtml(sg)}` : 'Senza sigla',
+      countTxt: `${plural(shelves.size, 'scaffale', 'scaffali')} · ${plural(articles, 'articolo', 'articoli')} · ${sum(all)} pezzi`,
+      inner,
+    });
+  });
 
   host.innerHTML = `<div class="pt-main"><div class="pt-card" role="grid" aria-label="Articoli">${head}${body}</div>
-    <p class="pt-hint"><kbd>↑</kbd><kbd>↓</kbd> scorri &nbsp; <kbd>Invio</kbd> scheda completa &nbsp; <kbd>P</kbd> prelievo &nbsp; <kbd>D</kbd> deposito &nbsp; Trascina i bordi della testata per allargare le colonne</p></div>
+    <p class="pt-hint"><kbd>↑</kbd><kbd>↓</kbd> scorri &nbsp; <kbd>Invio</kbd> scheda completa &nbsp; <kbd>P</kbd> prelievo &nbsp; <kbd>D</kbd> deposito</p></div>
     <aside class="pt-panel" id="pt-panel" aria-live="polite"></aside>`;
   applyCols(host.querySelector('.pt-card'), cols);
   host.classList.remove('hidden');
@@ -122,13 +170,29 @@ export function renderProductTable({ list, mode: m, locsOf }) {
   window.lucide?.createIcons();
 }
 
+/** Richiude tutto di scatto (uscendo dal Magazzino o cambiando categoria): al rientro è tutto chiuso, senza animazioni visibili. */
+export function resetProductTable() {
+  opened.clear();
+  selKey = null;
+  if (!host) return;
+  host.classList.add('pt-instant');
+  host.querySelectorAll('.pt-g').forEach((g) => {
+    g.classList.add('is-collapsed');
+    g.querySelector(':scope > .pt-group')?.setAttribute('aria-expanded', 'false');
+  });
+  host.querySelectorAll('.pt-item.pt-sel').forEach((el) => el.classList.remove('pt-sel'));
+  paintPanel();
+  void host.offsetHeight;
+  requestAnimationFrame(() => requestAnimationFrame(() => host.classList.remove('pt-instant')));
+}
+
 export function hideProductTable() {
   (host || document.getElementById('product-table-view'))?.classList.add('hidden');
 }
 
 const selected = () => entries.find((r) => r.key === selKey) || null;
-/** Voci a vista (quelle dei gruppi aperti), nell'ordine in cui compaiono */
-const visibleEntries = () => entries.filter((e) => !collapsed.has(`${mode}|${e.group}`));
+/** Voci a vista (quelle con tutti i livelli aperti), nell'ordine in cui compaiono */
+const visibleEntries = () => entries.filter((e) => allOpen || e.keys.every((k) => opened.has(k)));
 
 function paintPanel() {
   const panel = document.getElementById('pt-panel');
@@ -196,6 +260,13 @@ function startResize(e, grip) {
   grip.addEventListener('pointercancel', end);
 }
 
+function setOpen(g, open) {
+  g.classList.toggle('is-collapsed', !open);
+  g.querySelector(':scope > .pt-group')?.setAttribute('aria-expanded', String(open));
+  if (open) opened.add(g.dataset.k);
+  else opened.delete(g.dataset.k);
+}
+
 function wire() {
   if (wired) return;
   wired = true;
@@ -220,13 +291,13 @@ function wire() {
     if (btn) return act(btn.dataset.act);
     const head = e.target.closest('.pt-group');
     if (head) {
-      // Accordion del gruppo: apre/chiude con animazione
+      // Accordion: apre/chiude con animazione. Dentro a una sigla resta aperto un solo scaffale alla volta (come su mobile)
       const g = head.closest('.pt-g');
-      const k = `${mode}|${g.dataset.g}`;
-      const closed = g.classList.toggle('is-collapsed');
-      head.setAttribute('aria-expanded', String(!closed));
-      if (closed) collapsed.add(k);
-      else collapsed.delete(k);
+      const willOpen = g.classList.contains('is-collapsed');
+      setOpen(g, willOpen);
+      if (willOpen && g.classList.contains('pt-lv1') && !allOpen) {
+        g.parentElement.querySelectorAll(':scope > .pt-g').forEach((o) => o !== g && setOpen(o, false));
+      }
       feedback.tap();
       return;
     }

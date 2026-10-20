@@ -11,7 +11,7 @@ import { listDistinctMacchine, listMachineEntries, machineOnLinea, getSectionIco
 import { els, state, LINEA_OPTIONS, MACHINE_VIEW_CATEGORIES, escapeHtml, shelfLabel, hasMultipleShelves, binIconHtml } from './products-shared.js';
 import { refresh, refreshCategory } from './products-data.js';
 import { openDetail } from './products-detail.js';
-import { hideProductTable, isDesktopTable, renderProductTable } from './products-table.js';
+import { hideProductTable, isDesktopTable, renderProductTable, resetProductTable } from './products-table.js';
 
 const openShelves = new Set(); // locazioni espanse, persiste tra i refresh (una sola alla volta per gruppo, salvo durante la ricerca)
 const openGroups = new Set(); // gruppi di scaffali (SA, SB...) espansi: indipendenti tra loro, ognuno si apre/chiude per conto suo
@@ -38,6 +38,7 @@ export function collapseAllShelves() {
   openShelves.clear();
   openGroups.clear();
   openMachines.clear();
+  resetProductTable(); // desktop: anche la tabella riparte con tutto chiuso
   const host = document.getElementById('view-products');
   if (!host) return;
   host.classList.add('shelf-reset-instant');
@@ -324,6 +325,7 @@ function resetOpenState() {
   openShelves.clear();
   openGroups.clear();
   openMachines.clear();
+  resetProductTable(); // desktop: anche la tabella riparte con tutto chiuso
 }
 
 /**
