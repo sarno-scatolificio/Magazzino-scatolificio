@@ -2039,8 +2039,8 @@ input:disabled + .input-clear { display: none; }
   padding: 0.7rem 1rem;
   border-radius: 1.375rem;
   color: #fff;
-  /* Carta millimetrata blu, rialzata come una targa: bordo alto chiaro, spessore e ombra sotto.
-     */
+  /* Scheda blu rialzata come una targa (bordo alto chiaro, spessore e ombra sotto); il video fa da sfondo.
+     Il gradiente resta come ripiego finché il video non si vede. */
   background: radial-gradient(90% 85% at 50% 42%, #0f58a6 0%, #0a4082 52%, #062c58 100%);
   border: 1px solid #0b2f5a;
   box-shadow:
@@ -2051,23 +2051,6 @@ input:disabled + .input-clear { display: none; }
     0 5px 0 -1px #05213f,
     0 7px 0 -1px #020e1c,
     0 16px 26px -8px rgba(0, 0, 0, 0.75);
-}
-/* Carta millimetrata: quadretti fini, riga marcata ogni 5 e croce centrale */
-.mate-brand::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    linear-gradient(rgba(200, 225, 255, 0.14), rgba(200, 225, 255, 0.14)) center / 100% 1px no-repeat,
-    linear-gradient(rgba(200, 225, 255, 0.14), rgba(200, 225, 255, 0.14)) center / 1px 100% no-repeat,
-    linear-gradient(rgba(190, 220, 255, 0.11) 1px, transparent 1px) center / 50px 50px,
-    linear-gradient(90deg, rgba(190, 220, 255, 0.11) 1px, transparent 1px) center / 50px 50px,
-    linear-gradient(rgba(190, 220, 255, 0.05) 1px, transparent 1px) center / 10px 10px,
-    linear-gradient(90deg, rgba(190, 220, 255, 0.05) 1px, transparent 1px) center / 10px 10px;
-  -webkit-mask-image: radial-gradient(85% 85% at 50% 45%, #000 35%, rgba(0, 0, 0, 0.4) 100%);
-  mask-image: radial-gradient(85% 85% at 50% 45%, #000 35%, rgba(0, 0, 0, 0.4) 100%);
 }
 .mate-title {
   position: relative;
@@ -2149,7 +2132,7 @@ input:disabled + .input-clear { display: none; }
 .mate-m { transform-origin: 49.6% 34%; scale: 0.84; translate: 0 3%; } /* M ridotta all'84% attorno al centro dell'ingranaggio: l'ingranaggio pesa di più */
 
 @media (prefers-reduced-motion: no-preference) {
-  /* Carta millimetrata e sfondo blu sono già presenti da subito (nessuna animazione) */
+  /* Sfondo blu e video sono già presenti da subito (nessuna animazione) */
   /* 1) L'ingranaggio intero arriva rotolando da sinistra, frena oltre il centro e torna a centrarsi */
   .mate-gear-pop { animation: mate-gear-roll 1.1s linear 0.6s both; }
   /* 0) Prima i testi: MATE compare e le due parole convergono verso il centro */
@@ -2251,32 +2234,39 @@ input:disabled + .input-clear { display: none; }
 /* Fermo e non trascinabile finché non parte da solo (login-carousel.js) */
 .login-carousel.is-locked { cursor: default; }
 
-/* ---- Video di presentazione: stessa cornice in acciaio scuro delle vecchie schede del carosello ---- */
+/* ---- Video di presentazione: sfondo della scheda del logo (.mate-brand), dietro al logo ----
+   .mate-brand ha overflow:hidden + isolation:isolate + angoli arrotondati: il video non esce mai.
+   z-index:-1 lo porta dietro a tutti i livelli del logo. */
 #auth-view .login-video {
-  align-self: center;
-  position: relative;
-  width: min(100%, 32rem);
-  aspect-ratio: 1694 / 720;
-  margin: 0.35rem 0 1.1rem;
-  border-radius: 22px;
-  border: 5px solid transparent;
-  background:
-    linear-gradient(#0d1117, #0d1117) padding-box,
-    linear-gradient(145deg, #8f949a 0%, #3b3e43 28%, #6a6e74 52%, #2f3237 78%, #5b5f65 100%) border-box;
-  box-shadow:
-    0 10px 16px -8px rgba(13, 17, 23, 0.55),
-    0 3px 6px -2px rgba(13, 17, 23, 0.3);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   overflow: hidden;
+  border-radius: inherit;
+  background: #062c58;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 #auth-view .login-video video {
+  position: absolute;
+  inset: -6px;                     /* margine extra: il blur non lascia bordi trasparenti */
+  width: calc(100% + 12px);
+  height: calc(100% + 12px);
   display: block;
-  width: 100%;
-  height: 100%;
   object-fit: cover;
-  border-radius: 16px;
   pointer-events: none;
+  /* Scuro e leggermente sfocato: il logo resta leggibile; la tinta blu lo integra nella palette */
+  filter: blur(2px) brightness(0.6) saturate(1.1);
+}
+/* Velo blu: porta i colori del video nella palette dell'app e dà contrasto al logo */
+#auth-view .login-video::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(90% 85% at 50% 42%, rgba(15, 88, 166, 0.55) 0%, rgba(10, 64, 130, 0.6) 55%, rgba(6, 44, 88, 0.75) 100%);
+  mix-blend-mode: soft-light;
 }
 
 /* ---- Scheda del modulo: sempre bianca ---- */
