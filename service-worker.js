@@ -18,11 +18,13 @@
 // non succede nulla di grave: semplicemente niente copia offline.
 // =============================================================
 
-const CACHE_NAME = 'magazzino-shell-v234';
+const CACHE_NAME = 'magazzino-shell-v235';
 const APP_SHELL = [
   './',
   './index.html',
   './css/style.css',
+  './css/desktop.css',
+  './js/shared/desktop.js',
   './config/tailwind.config.js',
   './manifest.json',
   './js/core/app.js',
