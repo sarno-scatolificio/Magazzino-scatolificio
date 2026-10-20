@@ -18,7 +18,7 @@
 // non succede nulla di grave: semplicemente niente copia offline.
 // =============================================================
 
-const CACHE_NAME = 'magazzino-shell-v243';
+const CACHE_NAME = 'magazzino-shell-v244';
 const APP_SHELL = [
   './',
   './index.html',
@@ -109,16 +109,12 @@ const APP_SHELL = [
   './js/features/manuali/manuals-section-modal.js',
   './js/features/manuali/manuals-data.js',
   './js/features/manuali/manuals-search.js',
-  './js/features/login/login-carousel.js',
+  './js/features/login/login-video.js',
   './js/features/login/login-mascotte.js',
   './assets/icons/mascotte.png',
   './js/features/report/lifespan.js',
   './js/shared/date-range-modal.js',
-  './assets/carousel/reparto.png',
-  './assets/carousel/forno.png',
-  './assets/carousel/uniformer.jpg',
-  './assets/carousel/saldatrice.jpg',
-  './assets/carousel/macchina.jpg',
+  './assets/login/video-login-poster.jpg',
   './assets/icons/logo-mate.png',
   './assets/icons/logo-m.png',
   './assets/icons/logo-gear.png',
@@ -177,6 +173,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
+
+  // Il video (20 MB) lo gestisce il browser da solo, a pezzi (richieste Range): mai intercettato né salvato in cache
+  if (request.destination === 'video' || request.headers.has('range')) return;
 
   const url = new URL(request.url);
   const isSameOrigin = url.origin === self.location.origin;

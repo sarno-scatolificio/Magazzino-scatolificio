@@ -64,7 +64,7 @@ Gli account non si creano da soli: li crea l'Admin, così l'accesso resta contro
 
 ## 3. Accesso e sicurezza
 
-- **Accesso** con email e password. La schermata di ingresso mostra il logo MATE, un carosello di foto e il modulo di accesso.
+- **Accesso** con email e password. La schermata di ingresso mostra il logo MATE, un video di presentazione e il modulo di accesso.
 - **Disconnessione automatica**: dopo 60 minuti senza utilizzo l'app esce da sola, avvisando un minuto prima. È pensata per i tablet condivisi in reparto.
 - **Protezione dei dati**: l'accesso ai dati è regolato direttamente dal database (permessi per riga). I movimenti si registrano solo tramite una funzione unica che aggiorna la giacenza e lo storico insieme, in modo atomico: la giacenza non può scendere sotto zero nemmeno se due persone prelevano nello stesso istante.
 - Maggiori dettagli tecnici nel file `SECURITY.md`.
@@ -333,7 +333,7 @@ css/                  style.css — stile dell'app
 config/               tailwind.config.js — configurazione dei colori e dei temi
 assets/
   icons/              logo, icone dell'app, favicon, mascotte
-  carousel/           foto del carosello nella schermata di accesso
+  login/              video e anteprima della schermata di accesso
 js/
   core/               avvio, accesso e sessione, tasto indietro, coda offline
   data/               collegamento a Supabase (un file per area: articoli, movimenti, manuali…)
@@ -343,7 +343,7 @@ js/
     movimenti/        scanner, depositi e prelievi, elenco movimenti
     manuali/          manuali PDF, sezioni, gruppi, cache dei PDF
     interventi/       blocco note interventi e PDF giornaliero
-    login/            carosello, ingranaggio e mascotte della schermata di accesso
+    login/            video, ingranaggio e mascotte della schermata di accesso
     report/           Report (vita utile dei ricambi, movimenti)
     impostazioni/     utenti, macchine, scaffali, inventario, cronologia
 database/             struttura del database Supabase (SQL di riferimento, vedi database/README.md)

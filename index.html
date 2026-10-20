@@ -83,9 +83,10 @@
     </div>
   </div>
 
-  <!-- Carosello a scorrimento orizzontale (login-carousel.js) -->
-  <div class="login-carousel" aria-hidden="false">
-    <div id="login-carousel-track" class="login-carousel-track"></div>
+  <!-- Video di presentazione (login-video.js): parte da solo, senza audio, in ciclo -->
+  <div id="login-video-box" class="login-video">
+    <video src="./assets/login/video-login.mp4" poster="./assets/login/video-login-poster.jpg" width="1694" height="720"
+      muted loop playsinline preload="metadata" disablepictureinpicture disableremoteplayback aria-label="Video di presentazione"></video>
   </div>
 
   <div class="w-full max-w-sm">
@@ -1954,7 +1955,7 @@
   </div>
 </div>
 
-<script type="module" src="./js/features/login/login-carousel.js"></script>
+<script type="module" src="./js/features/login/login-video.js"></script>
 <script type="module" src="./js/features/login/login-mascotte.js"></script>
 <script type="module" src="./js/shared/desktop.js"></script>
 <script type="module" src="./js/core/app.js"></script>
