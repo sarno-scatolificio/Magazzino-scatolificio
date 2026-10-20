@@ -51,7 +51,8 @@
   .app-header { left: var(--side-w) !important; }
   .hdr-row { max-width: 1480px !important; padding-left: 28px !important; padding-right: 28px !important; }
   #hsearch { max-width: 620px; }
-  .view-host { max-width: 1480px !important; padding: 24px 28px 40px !important; }
+  /* il padding in alto deve restare quello della testata fissa (--header-h), altrimenti il contenuto finisce sotto di essa */
+  .view-host { max-width: 1480px !important; padding: calc(var(--header-h, 56px) + 1.5rem) 28px 40px !important; }
   .int-fab { bottom: 28px !important; right: 32px !important; }
 
   /* ---------- Modali: finestre centrali fluttuanti ---------- */
@@ -100,7 +101,7 @@
   .pt-hint { margin: 12px 2px 0; font-size: 12px; color: #6b7488; }
   .pt-hint kbd, .pt-btn kbd, .pt-link kbd { font: 600 .64rem 'JetBrains Mono', monospace; border: 1px solid #d3d9e4; border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; margin: 0 2px; color: #5b6579; background: #fff; }
 
-  .pt-panel { position: sticky; top: 88px; background: #fff; border: 1px solid #dde2ec; border-radius: 14px; padding: 22px; }
+  .pt-panel { position: sticky; top: calc(var(--header-h, 56px) + var(--prod-bar-h, 0px) + 16px); background: #fff; border: 1px solid #dde2ec; border-radius: 14px; padding: 22px; }
   .pt-panel-in { animation: pt-in .22s cubic-bezier(.2, .8, .2, 1); }
   @keyframes pt-in { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
   .pt-kicker { margin: 18px 0 6px; font: 600 11px 'Space Grotesk', sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #6b7488; }
