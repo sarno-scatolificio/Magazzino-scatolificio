@@ -1179,6 +1179,22 @@
 
   <!-- Bottom navigation (mobile-first) -->
   <nav class="nav-glass fixed bottom-0 inset-x-0 z-40">
+    <!-- Solo desktop: logo MATE come nella schermata di accesso (ingranaggio/corona che ruota dietro la M). Stili: blocco ".mate-" in style.css + ".nav-brand" in desktop.css -->
+    <div class="nav-brand hidden lg:block">
+      <div class="mate-brand">
+        <div class="mate-title" role="img" aria-label="MATE, Magazzino Tecnico">
+          <span class="mate-logo-wrap">
+            <span class="mate-gear-win mate-gear-win-t" aria-hidden="true"><span class="mate-gear-pop"><span class="mate-gear-shadow"></span><img class="mate-gear" src="./assets/icons/logo-gear.png" alt="" width="560" height="560" decoding="async"></span></span>
+            <span class="mate-gear-win mate-gear-win-b" aria-hidden="true"><span class="mate-gear-pop"><span class="mate-gear-shadow"></span><img class="mate-gear" src="./assets/icons/logo-gear.png" alt="" width="560" height="560" decoding="async"></span></span>
+            <img class="mate-layer mate-m" src="./assets/icons/logo-m.png" alt="" width="743" height="839" decoding="async">
+            <img class="mate-layer mate-text" src="./assets/icons/logo-text.png" alt="" width="743" height="839" decoding="async">
+            <img class="mate-layer mate-sub mate-sub-l" src="./assets/icons/logo-sub.png" alt="" width="743" height="839" decoding="async">
+            <img class="mate-layer mate-sub mate-sub-r" src="./assets/icons/logo-sub.png" alt="" width="743" height="839" decoding="async">
+            <span class="mate-shine" aria-hidden="true"><span class="mate-beam"></span></span>
+          </span>
+        </div>
+      </div>
+    </div>
     <div class="nav-seg-wrap max-w-2xl mx-auto">
       <div id="nav-seg" class="nav-seg seg seg-optional flex rounded-lg border border-graphite-700 bg-graphite-800 p-0.5" role="tablist">
         <span class="seg-indicator" aria-hidden="true"></span>
