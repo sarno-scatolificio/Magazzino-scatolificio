@@ -87,17 +87,25 @@
   .pt-card { background: #fff; border: 1px solid #dde2ec; border-radius: 14px; overflow: hidden; }
   .pt-card { overflow-x: auto; }
   .pt-row { display: grid; grid-template-columns: var(--pt-c1, 170px) var(--pt-c2, 420px) var(--pt-c3, 220px) minmax(70px, 1fr); align-items: center; gap: 12px; min-height: 52px; padding: 0 18px; font-size: 14px; min-width: var(--pt-min, 100%); }
-  .pt-head { position: relative; z-index: 2; background: #fff; min-height: 42px; font: 600 11px 'Space Grotesk', sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #6b7488; border-bottom: 1px solid #edf0f6; }
-  .pt-h { position: relative; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 10px; }
-  .pt-grip { position: absolute; top: -12px; bottom: -12px; right: -8px; width: 14px; cursor: col-resize; touch-action: none; z-index: 3; }
-  .pt-grip::after { content: ''; position: absolute; top: 12px; bottom: 12px; left: 6px; width: 2px; border-radius: 2px; background: #d3d9e4; transition: background .14s ease, width .14s ease, left .14s ease; }
-  .pt-grip:hover::after, .pt-resizing .pt-grip:active::after { background: var(--accent, #1f3a8a); width: 3px; left: 5px; }
+  .pt-head { position: relative; z-index: 2; background: #f6f8fc; min-height: 48px; font: 600 11px 'Space Grotesk', sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #44506b; border-bottom: 1px solid #c9d2e3; }
+  /* Ogni colonna è un riquadro con inizio e fine ben marcati; la maniglia sta nello spazio tra un riquadro e l'altro */
+  .pt-h { position: relative; display: flex; align-items: center; min-width: 0; height: 30px; padding: 0 10px; background: #e9eef8; border: 1px solid #c3cde0; border-radius: 7px; }
+  .pt-h.pt-num { justify-content: flex-end; }
+  .pt-ht { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pt-grip { position: absolute; top: -8px; bottom: -8px; right: -12px; width: 12px; cursor: col-resize; touch-action: none; z-index: 3; }
+  .pt-grip::after { content: ''; position: absolute; top: 50%; left: 50%; width: 4px; height: 22px; margin: -11px 0 0 -2px; border-radius: 3px; background: #8c99b3; transition: background .14s ease, width .14s ease, margin .14s ease; }
+  .pt-grip:hover::after, .pt-resizing .pt-grip:active::after { background: var(--accent, #1f3a8a); width: 6px; margin-left: -3px; }
   .pt-resizing { user-select: none; cursor: col-resize; }
   /* Gruppi (scaffale / macchina): testata + corpo con accordion */
   .pt-g + .pt-g { border-top: 1px solid #dde2ec; }
   .pt-group { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; padding: 0 18px; text-align: left; background: #f0f3f9; transition: background .14s ease; position: sticky; left: 0; }
   .pt-group:hover { background: #e7ecf6; }
   .pt-group b { font: 700 13px 'Space Grotesk', sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #1f3a8a; }
+  .pt-lv1 > .pt-group { background: #f8f9fd; padding-left: 40px; border-top: 1px solid #e3e8f2; }
+  .pt-lv1 > .pt-group:hover { background: #eef2fa; }
+  .pt-lv1 > .pt-group b { font-size: 12px; }
+  .pt-instant .pt-gtrack, .pt-instant .pt-chev { transition: none !important; }
+  .pt-panel:empty { visibility: hidden; }
   .pt-gcount { margin-left: auto; font-size: 12px; color: #6b7488; }
   .pt-chev { display: inline-block; font-size: 12px; color: #5b6579; transition: transform .2s ease; }
   .pt-g.is-collapsed .pt-chev { transform: rotate(-90deg); }
@@ -105,9 +113,15 @@
   .pt-g.is-collapsed .pt-gtrack { grid-template-rows: 0fr; }
   .pt-gbody { overflow: hidden; min-height: 0; }
   .pt-gbody .pt-item:first-child { border-top: 0; }
-  .pt-item { border-top: 1px solid #edf0f6; cursor: pointer; transition: background .14s ease, box-shadow .14s ease; }
-  .pt-item:hover { background: #f5f7fc; }
-  .pt-item.pt-sel { background: #eef2fc; box-shadow: inset 3px 0 0 var(--accent, #1f3a8a); }
+  /* Linee guida sottili al centro dello spazio tra le colonne: si vede dove ogni colonna inizia e finisce anche nelle righe */
+  .pt-item {
+    --pt-x1: calc(18px + var(--pt-c1, 170px) + 6px); --pt-x2: calc(var(--pt-x1) + 12px + var(--pt-c2, 420px)); --pt-x3: calc(var(--pt-x2) + 12px + var(--pt-c3, 220px));
+    border-top: 1px solid #edf0f6; cursor: pointer; transition: background-color .14s ease, box-shadow .14s ease;
+    background-image: linear-gradient(#e3e8f1, #e3e8f1), linear-gradient(#e3e8f1, #e3e8f1), linear-gradient(#e3e8f1, #e3e8f1);
+    background-size: 1px 100%; background-repeat: no-repeat; background-position: var(--pt-x1) 0, var(--pt-x2) 0, var(--pt-x3) 0;
+  }
+  .pt-item:hover { background-color: #f5f7fc; }
+  .pt-item.pt-sel { background-color: #eef2fc; box-shadow: inset 3px 0 0 var(--accent, #1f3a8a); }
   .pt-code { font: 600 13px 'JetBrains Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pt-sub, .pt-shelf { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #4a5468; }
   .pt-shelf { font: 500 13px 'JetBrains Mono', monospace; color: #5b6579; }
