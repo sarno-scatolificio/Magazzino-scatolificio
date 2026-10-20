@@ -114,10 +114,7 @@ html {
 }
 html::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
-/* Sfondo "lamiera forata": file di piccoli fori sfalsati su fondo grigio
-   chiaro. Sta su un livello fisso separato (body::before) invece che come
-   background-attachment: fixed del body: il disegno non viene ridisegnato
-   durante lo scorrimento e vale uguale su Android, iPhone e computer. */
+/* Sfondo a tinta unica (--paper): nessun disegno, nessun livello fisso da ridisegnare. */
 body {
   font-family: 'Inter', sans-serif;
   background-color: var(--paper);
@@ -127,16 +124,6 @@ body {
      Riabilitata sotto solo dove serve davvero (campi di input). */
   -webkit-user-select: none;
   user-select: none;
-}
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-color: var(--paper);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Ccircle cx='4' cy='4' r='1.7' fill='%2313223f' fill-opacity='.045'/%3E%3Ccircle cx='12' cy='12' r='1.7' fill='%2313223f' fill-opacity='.045'/%3E%3C/svg%3E");
-  background-size: 16px 16px;
 }
 input, textarea {
   -webkit-user-select: text;
@@ -1212,14 +1199,22 @@ button.shelf-item:not(:disabled):active {
    banner degli scaffali interni restano fermi sotto la testata dell'app (sticky) mentre si scorre. */
 .group-body-inner { min-height: 0; overflow: hidden; }
 .shelf-group.group-settled > .group-body-track > .group-body-inner { overflow: visible; }
+/* Gruppo aperto: gli scaffali stanno in un vassoio azzurrino attaccato all'intestazione blu del gruppo
+   (stessa cornice blu, angoli bassi arrotondati). Niente più filo verticale. Dentro al vassoio il "fondo pagina"
+   per gli angoli dei banner fissi (--paper) è il colore del vassoio, così gli angoli non fanno macchia. */
+.shelf-group-header { transition: border-color var(--dur-base) ease, transform var(--dur-slow) var(--ease-spring), border-radius var(--dur-base) ease; }
+.shelf-group.group-open > .shelf-group-header { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .group-shelves {
-  margin-left: 0.5rem;
-  padding: 0.625rem 0 0 0.625rem;
-  border-left: 2px solid rgba(var(--accent-rgb), 0.28);
+  --paper: #e8ecf4;
+  padding: 0.625rem;
+  background: #e8ecf4;
+  border: 2px solid var(--accent);
+  border-top: 0;
+  border-radius: 0 0 0.75rem 0.75rem;
 }
 .group-shelves > .shelf-card { margin-top: 0; }
 /* Gruppo dentro un altro gruppo (macchina dentro Linea, negli Interventi): niente rientro né filo laterale */
-.group-shelves--flat { margin-left: 0; padding: 0.5rem 0 0 0; border-left: 0; }
+.group-shelves--flat { --paper: #f4f5f8; margin-left: 0; padding: 0.5rem 0 0 0; border: 0; background: none; border-radius: 0; }
 /* «N nuovi» (interventi inseriti da altri, non ancora visti) nell'intestazione di un gruppo chiuso */
 .ig-new {
   display: inline-flex; align-items: center; gap: 0.3rem;
@@ -2811,11 +2806,31 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
 #view-products { padding-bottom: 7.5rem; }
 
 /* ---- Testata nelle Impostazioni: titolo al posto di ricerca e scanner ---- */
-.hdr-settings-title { display: none; }
-.app-header.hdr-settings #hsearch, .app-header.hdr-settings #hsearch-scan-btn { display: none; }
+/* Il titolo sta sopra la riga della testata (posizione assoluta): ricerca e scanner mantengono il loro posto,
+   così la testata non cambia altezza. Entrata: la ricerca sale e sparisce, POI il titolo scorre da sinistra.
+   Uscita: prima il titolo esce verso sinistra, POI la ricerca ridiscende dall'alto. Il "poi" è il ritardo
+   (transition-delay) della proprietà che compare, quindi la sequenza è tutta qui, senza timer in JS. */
+.hdr-row { position: relative; clip-path: inset(0 -12px); }
+#hsearch, #hsearch-scan-btn {
+  transition: transform var(--dur-base) var(--ease-out) var(--dur-base),
+    opacity var(--dur-base) ease var(--dur-base), visibility 0s linear var(--dur-base);
+}
+.app-header.hdr-settings #hsearch, .app-header.hdr-settings #hsearch-scan-btn {
+  transform: translateY(-160%); opacity: 0; visibility: hidden; pointer-events: none;
+  transition: transform var(--dur-base) var(--ease-in) 0s,
+    opacity var(--dur-base) ease 0s, visibility 0s linear var(--dur-base);
+}
+.hdr-settings-title {
+  position: absolute; inset: 0; padding: 0 8.5rem 0 1rem;
+  display: flex; align-items: center; gap: 0.625rem; pointer-events: none;
+  transform: translateX(-130%); opacity: 0; visibility: hidden;
+  transition: transform var(--dur-base) var(--ease-in) 0s,
+    opacity var(--dur-base) ease 0s, visibility 0s linear var(--dur-base);
+}
 .app-header.hdr-settings .hdr-settings-title {
-  display: flex; align-items: center; gap: 0.625rem; flex: 1; min-width: 0;
-  animation: hdr-title-in var(--dur-base) var(--ease-out) both;
+  transform: none; opacity: 1; visibility: visible;
+  transition: transform var(--dur-slow) var(--ease-out) var(--dur-base),
+    opacity var(--dur-base) ease var(--dur-base), visibility 0s linear var(--dur-base);
 }
 .hdr-settings-ico {
   width: 40px; height: 40px; border-radius: 0.75rem; flex: none;
@@ -2826,8 +2841,9 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
   font-weight: 700; font-size: 1.125rem;
   letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.1; white-space: nowrap;
 }
-@keyframes hdr-title-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .app-header.hdr-settings .hdr-settings-title { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  #hsearch, #hsearch-scan-btn, .hdr-settings-title { transition-duration: 0s !important; transition-delay: 0s !important; }
+}
 
 /* ---- Impostazioni: voci raggruppate per tipologia ---- */
 .set-group { margin-bottom: 1.25rem; }
