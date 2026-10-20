@@ -9,6 +9,7 @@ import { emptyStateHtml, modalCloseMs, staggerIndex, syncSegIndicator } from '..
 import { escapeHtml } from '../magazzino/products-shared.js';
 import feedback from '../../shared/feedback.js';
 import { openDetail } from './interventi-detail.js';
+import { bindDesktopChange, isDesktopInterventi, renderInterventiDesktop } from './interventi-desktop.js';
 import { openPhotoViewer } from './interventi-photo.js';
 import { UNSEEN_DOT_HTML, dismissDot, isUnseen, markSeen } from './interventi-unseen.js';
 import { toastError } from '../../shared/toast.js';
@@ -172,6 +173,24 @@ export function renderList() {
 
   const rows = applyFilters(state.tab === 'open' ? state.open : state.done);
   els.list.innerHTML = '';
+  // Desktop: Da fare = elenco + riepilogo; Effettuati = calendario + giorno (interventi-desktop.js)
+  if (isDesktopInterventi()) {
+    const filtered = state.filterLinea || state.filterMacchina;
+    renderInterventiDesktop({
+      rows,
+      banner: ricambiBanner(),
+      empty: {
+        title: filtered ? 'Nessun intervento con questi filtri' : state.tab === 'open' ? 'Nessun intervento da fare' : 'Nessun intervento effettuato in questo giorno',
+        sub: filtered ? 'Cambia o togli i filtri di linea e macchina.' : state.tab === 'open' ? 'Premi N per annotarne uno nuovo.' : 'Scegli un giorno con il pallino blu nel calendario.',
+      },
+      selectDay,
+      stepDay,
+      dayLabel,
+      fmtDateTime,
+    });
+    window.lucide?.createIcons();
+    return;
+  }
   if (!rows.length) {
     const filtered = state.filterLinea || state.filterMacchina;
     els.list.innerHTML = emptyStateHtml(
@@ -524,3 +543,8 @@ async function loadThumbs(rows) {
     console.warn('Miniature non disponibili.', err);
   }
 }
+
+// Passando dalla soglia desktop (finestra ridimensionata) l'elenco si ridisegna nella forma giusta
+bindDesktopChange(() => {
+  if (els.list?.offsetParent !== null) renderList();
+});
