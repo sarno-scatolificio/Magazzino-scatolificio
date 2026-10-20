@@ -11,6 +11,7 @@ import { getSectionIconUrl, updateMachinesOrder } from '../../data/supabase.js';
 import { isAdmin } from '../../core/auth.js';
 import { makeTileDraggable } from './manuals-reorder.js';
 import { openMachineDetail } from './manuals-detail.js';
+import { manualsDesktopSync } from './manuals-desktop.js';
 import { openMachineIconModal } from './manuals-icon.js';
 import { pushLayer, releaseLayer } from '../../core/nav-history.js';
 import { staggerIndex } from '../../shared/ui-utils.js';
@@ -104,6 +105,7 @@ export function renderList() {
 
     const row = document.createElement('button');
     row.type = 'button';
+    row.dataset.machineId = machine.id;
     row.className = 'list-item-in press-spring w-full flex items-center justify-between gap-3 px-4 py-3 card-plate rounded-xl';
     row.style.setProperty('--i', staggerIndex(i));
     row.innerHTML = `
@@ -120,6 +122,7 @@ export function renderList() {
 
   els.list.classList.remove('hidden');
   window.lucide?.createIcons();
+  manualsDesktopSync(); // desktop: evidenzia la macchina scelta, ricerca rapida, apre la prima se nessuna è aperta
 }
 
 // ---------------------------------------------------------------- modifica elenco macchine (Admin) --
