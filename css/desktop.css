@@ -1,0 +1,82 @@
+/* =============================================================
+   desktop.css — Layer desktop (≥1024px). Caricato solo su schermi larghi (media nel <link>).
+   Non tocca la logica: riorganizza la shell (sidebar, testata, contenuto) e porta le modali
+   da cassetto a finestre centrali. Tutte le funzioni e animazioni dell'app restano quelle mobile.
+   ============================================================= */
+@media (min-width: 1024px) {
+  :root { --side-w: 232px; }
+
+  /* ---------- Shell: navigazione a barra laterale ---------- */
+  body { padding-left: var(--side-w); }
+  .nav-glass {
+    top: 0 !important; bottom: 0 !important; left: 0 !important; right: auto !important;
+    width: var(--side-w); padding: 0 !important; border-top: 0 !important;
+    border-right: 1px solid var(--graphite-700, #d9dee8);
+    background: var(--graphite-900, #fff) !important;
+    transform: none !important; opacity: 1 !important; visibility: visible !important; /* anche nel dettaglio manuale */
+    display: flex; flex-direction: column;
+  }
+  .nav-glass::before { /* marchio */
+    content: 'MATE'; display: block; padding: 22px 22px 4px;
+    font: 700 1.5rem/1 'Space Grotesk', sans-serif; letter-spacing: .06em; color: var(--accent, #1f3a8a);
+  }
+  .nav-glass::after {
+    content: 'Magazzino • Tecnica'; display: block; padding: 0 22px 18px;
+    font: 500 .68rem/1 'Inter', sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #8a93a5;
+  }
+  .nav-seg-wrap { max-width: none !important; margin: 0 !important; padding: 0 12px; }
+  .nav-seg { flex-direction: column !important; border: 0 !important; background: transparent !important; padding: 0 !important; gap: 4px; }
+  .nav-seg .seg-indicator { display: none !important; }
+  .nav-item {
+    flex: none !important; flex-direction: row !important; justify-content: flex-start !important;
+    min-height: 46px !important; padding: 0 14px !important; gap: 14px !important; position: relative;
+    border-radius: 10px !important; transition: background .16s ease, color .16s ease, transform .16s ease;
+  }
+  .nav-item .ui-label { font-size: .8rem; letter-spacing: .08em; }
+  .nav-item:hover { background: rgba(31, 58, 138, .07); }
+  .nav-item:active { transform: scale(.98); }
+  .nav-item.nav-active { background: var(--accent-tint-soft, rgba(31, 58, 138, .1)); color: var(--accent, #1f3a8a) !important; }
+  .nav-item.nav-active::before { /* barretta d'accento che scorre in ingresso */
+    content: ''; position: absolute; left: -12px; top: 10px; bottom: 10px; width: 4px; border-radius: 0 4px 4px 0;
+    background: var(--accent, #1f3a8a); animation: dk-bar .22s ease-out;
+  }
+  .nav-item[data-kbd]::after {
+    content: attr(data-kbd); margin-left: auto; font: 600 .62rem/1 'JetBrains Mono', monospace; color: #8a93a5;
+    border: 1px solid #d3d9e4; border-radius: 5px; padding: 3px 5px; opacity: 0; transition: opacity .16s ease;
+  }
+  .nav-item:hover[data-kbd]::after, .nav-item:focus-visible[data-kbd]::after { opacity: 1; }
+  @keyframes dk-bar { from { transform: scaleY(.2); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* ---------- Testata e contenuto ---------- */
+  .app-header { left: var(--side-w) !important; }
+  .hdr-row { max-width: 1480px !important; padding-left: 28px !important; padding-right: 28px !important; }
+  #hsearch { max-width: 620px; }
+  .view-host { max-width: 1480px !important; padding: 24px 28px 40px !important; }
+  .int-fab { bottom: 28px !important; right: 32px !important; }
+
+  /* ---------- Modali: finestre centrali fluttuanti ---------- */
+  .modal-overlay { align-items: center !important; padding: 24px !important; }
+  .modal-overlay .modal-panel {
+    max-width: 640px !important; width: 100%; max-height: min(88vh, 860px) !important; border-radius: 16px !important;
+    transform: translateY(14px) scale(.97); opacity: 0;
+    transition: transform .22s cubic-bezier(.2, .8, .2, 1), opacity .18s ease !important;
+    box-shadow: 0 30px 80px -20px rgba(13, 17, 23, .5), 0 0 0 1px rgba(13, 17, 23, .06) !important;
+  }
+  .modal-overlay.modal-visible .modal-panel { transform: none; opacity: 1; }
+  .modal-overlay .modal-panel { padding-bottom: 0 !important; }
+  .sheet-grabber { display: none !important; }
+  #int-new-modal .modal-panel, #int-detail-modal .modal-panel { max-width: 720px !important; }
+
+  /* ---------- Tastiera: focus ben visibile e suggerimenti ---------- */
+  .modal-panel :is(input, textarea, select, button, [role="checkbox"], [role="option"]):focus-visible {
+    outline: 2px solid var(--accent, #1f3a8a); outline-offset: 2px; border-radius: 8px;
+  }
+  .modal-panel [role="checkbox"]:hover, .modal-panel [role="option"]:hover { background: var(--accent-tint-soft, rgba(31, 58, 138, .08)); }
+  .dk-hint { /* riga suggerimenti in fondo alle modali */
+    display: flex; gap: 14px; justify-content: flex-end; padding: 6px 20px 10px; font-size: .68rem; color: #8a93a5;
+  }
+  .dk-hint kbd { font: 600 .64rem 'JetBrains Mono', monospace; border: 1px solid #d3d9e4; border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; margin-right: 4px; color: #5b6579; }
+}
+@media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
+  .modal-overlay .modal-panel, .nav-item, .nav-item.nav-active::before { transition-duration: 1ms !important; animation: none !important; }
+}
