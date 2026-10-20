@@ -61,10 +61,15 @@
 <!-- =================== VISTA LOGIN =================== -->
 <div id="auth-view" class="min-h-screen flex flex-col items-center justify-center px-6">
   <div class="w-full max-w-sm">
-    <!-- Testata login: scheda blu con carta millimetrata e logo MATE a livelli (ingranaggio, M, corona,
+    <!-- Testata login: scheda blu con video di sfondo e logo MATE a livelli (ingranaggio, M, corona,
          MATE, Magazzino Tecnico) che compaiono in sequenza (prima i testi, poi l'ingranaggio rotola, infine la M cade e rimbalza su MATE), poi luce e ingranaggio in rotazione.
          Stili: blocco ".mate-" in style.css. Il logo è ritagliato dallo screenshot dell'utente. -->
     <div class="mate-brand mb-3">
+      <!-- Video di presentazione (login-video.js): sfondo della scheda, dietro al logo. Parte da solo, senza audio, in ciclo -->
+      <div id="login-video-box" class="login-video" aria-hidden="true">
+        <video src="./assets/login/video-login.mp4" poster="./assets/login/video-login-poster.jpg" width="1694" height="720"
+          muted loop playsinline preload="metadata" disablepictureinpicture disableremoteplayback></video>
+      </div>
       <h1 class="mate-title" aria-label="MATE, Magazzino Tecnico">
         <span class="mate-logo-wrap">
           <!-- Ingranaggio: immagine metallica unica, dietro alla M. Due finestre identiche (parte superiore = "corona",
@@ -83,11 +88,6 @@
     </div>
   </div>
 
-  <!-- Video di presentazione (login-video.js): parte da solo, senza audio, in ciclo -->
-  <div id="login-video-box" class="login-video">
-    <video src="./assets/login/video-login.mp4" poster="./assets/login/video-login-poster.jpg" width="1694" height="720"
-      muted loop playsinline preload="metadata" disablepictureinpicture disableremoteplayback aria-label="Video di presentazione"></video>
-  </div>
 
   <div class="w-full max-w-sm">
     <form id="login-form" class="login-card card-plate rounded-2xl p-5 space-y-4">
