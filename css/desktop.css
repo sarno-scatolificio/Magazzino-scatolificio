@@ -16,14 +16,10 @@
     transform: none !important; opacity: 1 !important; visibility: visible !important; /* anche nel dettaglio manuale */
     display: flex; flex-direction: column;
   }
-  .nav-glass::before { /* marchio */
-    content: 'MATE'; display: block; padding: 22px 22px 4px;
-    font: 700 1.5rem/1 'Space Grotesk', sans-serif; letter-spacing: .06em; color: var(--accent, #1f3a8a);
-  }
-  .nav-glass::after {
-    content: 'Magazzino • Tecnica'; display: block; padding: 0 22px 18px;
-    font: 500 .68rem/1 'Inter', sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #8a93a5;
-  }
+  /* Marchio: lo stesso logo animato della schermata di accesso, in una targa blu compatta */
+  .nav-brand { padding: 16px 12px 14px; }
+  .nav-brand .mate-brand { margin: 0; padding: .55rem .75rem; border-radius: 1.1rem; }
+  .nav-brand .mate-logo-wrap { height: 7.4rem; }
   .nav-seg-wrap { max-width: none !important; margin: 0 !important; padding: 0 12px; }
   .nav-seg { flex-direction: column !important; border: 0 !important; background: transparent !important; padding: 0 !important; gap: 4px; }
   .nav-seg .seg-indicator { display: none !important; }
@@ -89,8 +85,26 @@
 @media (min-width: 1024px) {
   #product-table-view:not(.hidden) { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
   .pt-card { background: #fff; border: 1px solid #dde2ec; border-radius: 14px; overflow: hidden; }
-  .pt-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 190px 80px; align-items: center; gap: 12px; min-height: 52px; padding: 0 18px; font-size: 14px; }
-  .pt-head { min-height: 42px; font: 600 11px 'Space Grotesk', sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #6b7488; }
+  .pt-card { overflow-x: auto; }
+  .pt-row { display: grid; grid-template-columns: var(--pt-c1, 170px) var(--pt-c2, 420px) var(--pt-c3, 220px) minmax(70px, 1fr); align-items: center; gap: 12px; min-height: 52px; padding: 0 18px; font-size: 14px; min-width: var(--pt-min, 100%); }
+  .pt-head { position: relative; z-index: 2; background: #fff; min-height: 42px; font: 600 11px 'Space Grotesk', sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #6b7488; border-bottom: 1px solid #edf0f6; }
+  .pt-h { position: relative; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 10px; }
+  .pt-grip { position: absolute; top: -12px; bottom: -12px; right: -8px; width: 14px; cursor: col-resize; touch-action: none; z-index: 3; }
+  .pt-grip::after { content: ''; position: absolute; top: 12px; bottom: 12px; left: 6px; width: 2px; border-radius: 2px; background: #d3d9e4; transition: background .14s ease, width .14s ease, left .14s ease; }
+  .pt-grip:hover::after, .pt-resizing .pt-grip:active::after { background: var(--accent, #1f3a8a); width: 3px; left: 5px; }
+  .pt-resizing { user-select: none; cursor: col-resize; }
+  /* Gruppi (scaffale / macchina): testata + corpo con accordion */
+  .pt-g + .pt-g { border-top: 1px solid #dde2ec; }
+  .pt-group { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; padding: 0 18px; text-align: left; background: #f0f3f9; transition: background .14s ease; position: sticky; left: 0; }
+  .pt-group:hover { background: #e7ecf6; }
+  .pt-group b { font: 700 13px 'Space Grotesk', sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #1f3a8a; }
+  .pt-gcount { margin-left: auto; font-size: 12px; color: #6b7488; }
+  .pt-chev { display: inline-block; font-size: 12px; color: #5b6579; transition: transform .2s ease; }
+  .pt-g.is-collapsed .pt-chev { transform: rotate(-90deg); }
+  .pt-gtrack { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .24s cubic-bezier(.2, .8, .2, 1); }
+  .pt-g.is-collapsed .pt-gtrack { grid-template-rows: 0fr; }
+  .pt-gbody { overflow: hidden; min-height: 0; }
+  .pt-gbody .pt-item:first-child { border-top: 0; }
   .pt-item { border-top: 1px solid #edf0f6; cursor: pointer; transition: background .14s ease, box-shadow .14s ease; }
   .pt-item:hover { background: #f5f7fc; }
   .pt-item.pt-sel { background: #eef2fc; box-shadow: inset 3px 0 0 var(--accent, #1f3a8a); }
@@ -231,4 +245,29 @@
   .desk-mode.is-on.desk-mode--deposito { background: #176a3d; border-color: #176a3d; color: #fff; }
   .desk-mode.is-on.desk-mode--prelievo { background: var(--accent, #1f3a8a); border-color: var(--accent, #1f3a8a); color: #fff; }
   #scanner-desk-input:focus { box-shadow: 0 0 0 3px #e4e9f6; }
+}
+
+/* =============================================================
+   Manuali desktop (manuals-desktop.js): elenco macchine + indice sempre insieme
+   ============================================================= */
+@media (min-width: 1024px) {
+  #view-manuals:not(.hidden) { display: grid; grid-template-columns: 340px minmax(0, 1fr); column-gap: 24px; align-items: start; overflow: visible; }
+  /* niente scambio a scorrimento: i due pannelli restano affiancati, qualunque sia lo stato «dettaglio aperto» */
+  #view-manuals .manuals-panel, #view-manuals.manuals-detail-open #manuals-list-panel, #view-manuals.manuals-detail-open .manuals-panel-detail, #view-manuals.manuals-list-editing .manuals-panel-detail {
+    position: relative !important; inset: auto !important; transform: none !important; opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; overflow: visible !important;
+  }
+  #manuals-list-panel { position: sticky !important; top: calc(var(--header-h, 56px) + 16px); max-height: calc(100vh - var(--header-h, 56px) - 32px); overflow-y: auto !important; scrollbar-width: thin; padding-right: 2px; }
+  #manuals-list-panel > .card-plate:first-child { flex-direction: row; justify-content: flex-start; text-align: left; padding: 14px 16px; margin-bottom: 12px; gap: 14px; }
+  #manuals-list-panel > .card-plate:first-child > span { width: 48px; height: 48px; }
+  #manuals-detail-back { display: none !important; }
+  #manuals-detail-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  #manuals-browser-list > button .w-24 { width: 64px; height: 46px; }
+  #manuals-browser-list > button { transition: background .14s ease, border-color .14s ease, box-shadow .14s ease, transform .14s ease; }
+  #manuals-browser-list > .mn-sel { border-color: var(--accent, #1f3a8a); background: #eef2fc; box-shadow: inset 3px 0 0 var(--accent, #1f3a8a); }
+
+  .mn-search { position: relative; margin-bottom: 12px; }
+  .mn-search input { width: 100%; min-height: 46px; border-radius: 12px; border: 1px solid #dde2ec; background: #fff; padding: 0 44px 0 14px; font-size: 14px; outline: none; transition: border-color .16s ease, box-shadow .16s ease; }
+  .mn-search input:focus { border-color: var(--accent, #1f3a8a); box-shadow: 0 0 0 3px #e4e9f6; }
+  .mn-search kbd { position: absolute; right: 12px; top: 12px; font: 600 .66rem 'JetBrains Mono', monospace; border: 1px solid #d3d9e4; border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; color: #5b6579; background: #fff; pointer-events: none; }
+  .mn-search-note { margin: 6px 2px 0; font-size: 12px; color: #6b7488; }
 }
