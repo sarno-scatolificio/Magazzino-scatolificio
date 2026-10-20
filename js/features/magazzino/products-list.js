@@ -11,6 +11,7 @@ import { listDistinctMacchine, listMachineEntries, machineOnLinea, getSectionIco
 import { els, state, LINEA_OPTIONS, MACHINE_VIEW_CATEGORIES, escapeHtml, shelfLabel, hasMultipleShelves, binIconHtml } from './products-shared.js';
 import { refresh, refreshCategory } from './products-data.js';
 import { openDetail } from './products-detail.js';
+import { hideProductTable, isDesktopTable, renderProductTable } from './products-table.js';
 
 const openShelves = new Set(); // locazioni espanse, persiste tra i refresh (una sola alla volta per gruppo, salvo durante la ricerca)
 const openGroups = new Set(); // gruppi di scaffali (SA, SB...) espansi: indipendenti tra loro, ognuno si apre/chiude per conto suo
@@ -208,6 +209,10 @@ let viewModeBusy = false; // true mentre una animateFluidSwap tra scaffalatura/m
 let queuedViewMode = null; // ultima modalità richiesta mentre viewModeBusy era true
 
 export function initProductsList() {
+  // Passando dalla soglia desktop (finestra ridimensionata) l'elenco si ridisegna nella forma giusta
+  window.matchMedia('(min-width: 1024px)').addEventListener('change', () => {
+    if (!document.getElementById('view-products')?.classList.contains('hidden')) renderCurrentList();
+  });
   els.categoryTabs = document.querySelectorAll('[data-category-tab]');
   els.viewModeTabs = document.querySelectorAll('[data-view-mode-tab]');
   els.categorySeg = document.getElementById('product-category-seg');
@@ -397,6 +402,10 @@ function applyViewMode(mode) {
   syncAreaFilter(); // la freccia delle aree passa sul tab appena attivato (e riallinea il selettore)
 
   if (state.currentList.length === 0) return; // l'empty state resta cosí com'è, nulla da animare
+  if (isDesktopTable()) {
+    renderCurrentList(); // desktop: la tabella cambia solo l'ordinamento (scaffale / macchina)
+    return;
+  }
 
   // Direzione della transizione coerente con l'ordine dei tab: Scaffalatura →
   // Macchina scivola "avanti", il percorso inverso "indietro".
@@ -468,6 +477,7 @@ export function renderCurrentList(opts = {}) {
   els.shelfView.classList.add('hidden');
   els.machineView.classList.add('hidden');
   els.emptyState.classList.add('hidden');
+  hideProductTable();
 
   if (opts.connectionError) {
     els.emptyState.innerHTML = CONNECTION_ERROR_HTML;
@@ -483,6 +493,11 @@ export function renderCurrentList(opts = {}) {
     return;
   }
 
+  // Desktop: tabella + pannello di dettaglio al posto delle schede per scaffale/macchina
+  if (isDesktopTable()) {
+    renderProductTable({ list: state.currentList, mode: viewMode, locsOf: locationsInArea });
+    return;
+  }
   renderModeContent(viewMode);
 }
 
