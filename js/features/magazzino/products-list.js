@@ -338,6 +338,8 @@ export function renderCategorySwap(forward, applyChrome) {
   const active = [els.shelfView, els.machineView].find((e) => !e.classList.contains('hidden'));
   const busy = viewModeBusy || document.querySelector('.view-fluid-entering, .view-fluid-leaving');
   resetOpenState();
+  // Cambiando categoria da molto in basso la pagina risale da sola in cima al nuovo elenco
+  if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   if (!host || !active || busy || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     setListStatic(false);
     applyChrome();

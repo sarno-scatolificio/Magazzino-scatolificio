@@ -30,6 +30,7 @@ let selKey = null;
 let wired = false;
 let mode = 'shelf';
 const opened = new Set(); // chiavi dei gruppi/scaffali APERTI: di partenza (e a ogni cambio di sezione) è tutto chiuso
+let followRaf = 0;
 let allOpen = false; // con una ricerca attiva tutto si mostra aperto, come su mobile
 
 /** Sigla di serie di uno scaffale (SD002 → SD): stessa regola del Magazzino su mobile. 'Non assegnata' ha la sua. */
@@ -160,7 +161,7 @@ export function renderProductTable({ list, mode: m, locsOf }) {
     });
   });
 
-  host.innerHTML = `<div class="pt-main"><div class="pt-card" role="grid" aria-label="Articoli">${head}${body}</div>
+  host.innerHTML = `<div class="pt-main"><div class="pt-card" role="grid" aria-label="Articoli"><div class="pt-headwrap"><div class="pt-headtrack">${head}</div></div><div class="pt-scroll">${body}</div></div>
     <p class="pt-hint"><kbd>↑</kbd><kbd>↓</kbd> scorri &nbsp; <kbd>Invio</kbd> scheda completa &nbsp; <kbd>P</kbd> prelievo &nbsp; <kbd>D</kbd> deposito</p></div>
     <aside class="pt-panel" id="pt-panel" aria-live="polite"></aside>`;
   applyCols(host.querySelector('.pt-card'), cols);
@@ -172,6 +173,7 @@ export function renderProductTable({ list, mode: m, locsOf }) {
 
 /** Richiude tutto di scatto (uscendo dal Magazzino o cambiando categoria): al rientro è tutto chiuso, senza animazioni visibili. */
 export function resetProductTable() {
+  cancelAnimationFrame(followRaf);
   opened.clear();
   selKey = null;
   if (!host) return;
@@ -260,6 +262,37 @@ function startResize(e, grip) {
   grip.addEventListener('pointercancel', end);
 }
 
+/**
+ * All'apertura di un gruppo/scaffale la sua testata sale subito sotto le barre fisse (testata app, categorie e intestazioni
+ * colonne). La posizione si ricalcola a ogni fotogramma finché le animazioni non sono concluse (sopra, un altro scaffale si
+ * sta chiudendo); un gesto dell'utente (rotella, tocco, tastiera) interrompe l'inseguimento.
+ */
+function followToTop(el) {
+  cancelAnimationFrame(followRaf);
+  const cs = getComputedStyle(document.documentElement);
+  const barsH = (parseFloat(cs.getPropertyValue('--header-h')) || 56) + (parseFloat(cs.getPropertyValue('--prod-bar-h')) || 0);
+  const headH = host?.querySelector('.pt-headwrap')?.offsetHeight || 0;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const endAt = performance.now() + 520;
+  const events = ['wheel', 'touchstart', 'keydown'];
+  let cancelled = false;
+  let still = 0;
+  const stop = () => { cancelled = true; };
+  const cleanup = () => events.forEach((ev) => window.removeEventListener(ev, stop));
+  events.forEach((ev) => window.addEventListener(ev, stop, { passive: true }));
+  const step = () => {
+    if (cancelled || !el.isConnected) return cleanup();
+    const target = Math.max(0, Math.round(el.getBoundingClientRect().top + window.scrollY - barsH - headH - 8));
+    const before = window.scrollY;
+    const diff = target - before;
+    if (Math.abs(diff) > 0.5) window.scrollTo(0, reduced ? target : before + diff * 0.22);
+    still = Math.abs(window.scrollY - before) < 0.5 ? still + 1 : 0; // pagina che non può scorrere oltre: si smette
+    if ((performance.now() < endAt || Math.abs(diff) > 1) && still < 12) followRaf = requestAnimationFrame(step);
+    else cleanup();
+  };
+  followRaf = requestAnimationFrame(step);
+}
+
 function setOpen(g, open) {
   g.classList.toggle('is-collapsed', !open);
   g.querySelector(':scope > .pt-group')?.setAttribute('aria-expanded', String(open));
@@ -270,6 +303,12 @@ function setOpen(g, open) {
 function wire() {
   if (wired) return;
   wired = true;
+  // Le intestazioni restano fisse in alto: scorrono in orizzontale insieme alle righe
+  host.addEventListener('scroll', (e) => {
+    if (!e.target.classList?.contains('pt-scroll')) return;
+    const track = host.querySelector('.pt-headtrack');
+    if (track) track.style.transform = `translateX(${-e.target.scrollLeft}px)`;
+  }, true);
   host.addEventListener('pointerdown', (e) => {
     const grip = e.target.closest('.pt-grip');
     if (grip) startResize(e, grip);
@@ -298,6 +337,7 @@ function wire() {
       if (willOpen && g.classList.contains('pt-lv1') && !allOpen) {
         g.parentElement.querySelectorAll(':scope > .pt-g').forEach((o) => o !== g && setOpen(o, false));
       }
+      if (willOpen) followToTop(head);
       feedback.tap();
       return;
     }
