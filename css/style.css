@@ -2251,6 +2251,34 @@ input:disabled + .input-clear { display: none; }
 /* Fermo e non trascinabile finché non parte da solo (login-carousel.js) */
 .login-carousel.is-locked { cursor: default; }
 
+/* ---- Video di presentazione: stessa cornice in acciaio scuro delle vecchie schede del carosello ---- */
+#auth-view .login-video {
+  align-self: center;
+  position: relative;
+  width: min(100%, 32rem);
+  aspect-ratio: 1694 / 720;
+  margin: 0.35rem 0 1.1rem;
+  border-radius: 22px;
+  border: 5px solid transparent;
+  background:
+    linear-gradient(#0d1117, #0d1117) padding-box,
+    linear-gradient(145deg, #8f949a 0%, #3b3e43 28%, #6a6e74 52%, #2f3237 78%, #5b5f65 100%) border-box;
+  box-shadow:
+    0 10px 16px -8px rgba(13, 17, 23, 0.55),
+    0 3px 6px -2px rgba(13, 17, 23, 0.3);
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#auth-view .login-video video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 16px;
+  pointer-events: none;
+}
+
 /* ---- Scheda del modulo: sempre bianca ---- */
 #auth-view .login-card {
   border-radius: 1.375rem;
