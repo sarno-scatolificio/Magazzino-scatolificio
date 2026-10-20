@@ -260,7 +260,7 @@ function buildHome() {
         <i data-lucide="x" class="w-6 h-6" stroke-width="2.5"></i>
       </button>
     </div>
-    <div class="px-5 pt-3 shrink-0 flex gap-2" data-role="tabs">
+    <div class="inv-bar bg-graphite-800 px-5 py-3 shrink-0 flex gap-2" data-role="tabs">
       <button type="button" data-tab="scaffali" class="flex-1 min-h-[44px] rounded-lg border px-3 text-xs font-display font-semibold uppercase tracking-wide transition-colors">Scaffali</button>
       <button type="button" data-tab="storico" class="flex-1 min-h-[44px] rounded-lg border px-3 text-xs font-display font-semibold uppercase tracking-wide transition-colors">Storico</button>
     </div>
