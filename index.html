@@ -1468,25 +1468,36 @@
           <i data-lucide="chevron-down" class="w-4 h-4 text-graphite-500 shrink-0"></i>
         </button>
       </div>
+      <!-- Interventi rapidi della macchina scelta: tendina a scorrimento, prima del punto 3 (compare solo se la macchina ne ha) -->
+      <div id="int-new-rapidi" class="int-step hidden">
+        <button type="button" id="int-new-rapidi-btn" aria-expanded="false" class="press-spring w-full flex items-center justify-between gap-2 rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm text-left hover:border-amber-400 transition-colors min-h-[44px]">
+          <span class="flex items-center gap-2 min-w-0 text-amber-400 font-display font-semibold uppercase tracking-wide text-xs"><i data-lucide="zap" class="w-4 h-4 shrink-0" stroke-width="2.2"></i><span id="int-new-rapidi-label" class="truncate">Interventi rapidi</span></span>
+          <i data-lucide="chevron-down" id="int-new-rapidi-chev" class="w-4 h-4 text-graphite-500 shrink-0 transition-transform" stroke-width="2.2"></i>
+        </button>
+        <div id="int-new-rapidi-wrap" class="punti-expand" aria-hidden="true">
+          <div class="punti-expand-inner">
+            <div id="int-new-rapidi-list" role="listbox" aria-label="Interventi rapidi" class="mt-1.5 rounded-lg border border-graphite-700 bg-white overflow-y-auto overscroll-contain max-h-56"></div>
+          </div>
+        </div>
+      </div>
       <div class="int-step" id="int-step-desc" data-locked="true">
         <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="int-new-desc" id="int-new-desc-label">3 · Intervento</label>
         <textarea id="int-new-desc" rows="2" maxlength="300" placeholder="Cosa va fatto?" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors resize-none"></textarea>
-        <div id="int-new-rapidi" class="hidden mt-1.5">
-          <button type="button" id="int-new-rapidi-btn" aria-expanded="false" class="press-spring flex items-center gap-1.5 min-h-[40px] text-xs font-display font-semibold uppercase tracking-wide text-amber-400">
-            <i data-lucide="zap" class="w-4 h-4" stroke-width="2.2"></i><span id="int-new-rapidi-label">Interventi rapidi</span>
-            <i data-lucide="chevron-down" id="int-new-rapidi-chev" class="w-4 h-4 transition-transform" stroke-width="2.2"></i>
-          </button>
-          <div id="int-new-rapidi-wrap" class="punti-expand" aria-hidden="true">
-            <div class="punti-expand-inner">
-              <div id="int-new-rapidi-list" role="listbox" aria-label="Interventi rapidi" class="mt-1 rounded-lg border border-graphite-700 bg-white overflow-hidden"></div>
-            </div>
-          </div>
-        </div>
       </div>
       <!-- Dettagli: informazioni in più per chi farà il lavoro (solo per gli interventi da effettuare; non compaiono nel rapporto degli effettuati) -->
       <div class="int-step" id="int-step-dettagli" data-locked="true">
         <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="int-new-dettagli">Dettagli <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(facoltativi)</span></label>
         <textarea id="int-new-dettagli" rows="3" maxlength="1000" placeholder="Altre indicazioni utili per fare il lavoro…" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors resize-none"></textarea>
+      </div>
+      <!-- Operatori: chi effettua il lavoro, scelto già qui (elenco o nome scritto a mano, non salvato in elenco) -->
+      <div class="int-step" id="int-step-operatori" data-locked="true">
+        <label id="int-new-operatore-label" class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Operatori assegnati <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(facoltativo, puoi sceglierne più di uno)</span></label>
+        <button type="button" id="int-new-operatore-btn" aria-expanded="false" class="w-full flex items-center justify-between rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm text-left hover:border-amber-400 transition-colors min-h-[44px]">
+          <span id="int-new-operatore-value" class="truncate text-graphite-400">Seleziona operatori…</span>
+          <i data-lucide="chevron-down" id="int-new-operatore-chevron" class="w-4 h-4 text-graphite-500 shrink-0 transition-transform"></i>
+        </button>
+        <div id="int-new-operatore-list" class="hidden mt-1.5 rounded-lg border border-graphite-700 bg-graphite-900 overflow-hidden max-h-60 overflow-y-auto"></div>
+        <p id="int-new-operatore-empty" class="hidden text-xs text-graphite-500 mt-1.5">Nessun operatore in elenco: l'amministratore li aggiunge da Impostazioni → Operatori. Puoi scrivere un nome qui sotto.</p>
       </div>
       <div class="int-step" id="int-step-photo" data-locked="true">
         <div>
@@ -1601,7 +1612,7 @@
           </button>
         </div>
       </div>
-      <!-- Operatori: con "Effettuato" sono chi ha eseguito il lavoro; con "Da effettuare"/"Da completare" sono gli assegnati -->
+      <!-- Operatori (da elenco o scritti a mano): con "Effettuato" sono chi ha eseguito il lavoro; con "Da effettuare"/"Da completare" sono gli assegnati -->
       <div id="int-operatore-step" class="hidden">
         <label id="int-operatore-label" class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Operatori che hanno effettuato il lavoro <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(puoi sceglierne più di uno)</span></label>
         <button type="button" id="int-operatore-btn" aria-expanded="false" class="w-full flex items-center justify-between rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm text-left hover:border-amber-400 transition-colors min-h-[44px]">
@@ -1609,7 +1620,7 @@
           <i data-lucide="chevron-down" id="int-operatore-chevron" class="w-4 h-4 text-graphite-500 shrink-0 transition-transform"></i>
         </button>
         <div id="int-operatore-list" class="hidden mt-1.5 rounded-lg border border-graphite-700 bg-graphite-900 overflow-hidden max-h-60 overflow-y-auto"></div>
-        <p id="int-operatore-empty" class="hidden text-xs text-graphite-500 mt-1.5">Nessun operatore in elenco: l'amministratore li aggiunge da Impostazioni → Operatori.</p>
+        <p id="int-operatore-empty" class="hidden text-xs text-graphite-500 mt-1.5">Nessun operatore in elenco: l'amministratore li aggiunge da Impostazioni → Operatori. Puoi scrivere un nome qui sotto.</p>
       </div>
       <div>
         <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="int-detail-dettagli">Dettagli <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(facoltativi · non compaiono nel rapporto degli effettuati)</span></label>

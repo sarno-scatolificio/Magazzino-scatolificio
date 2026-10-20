@@ -18,7 +18,7 @@
 // non succede nulla di grave: semplicemente niente copia offline.
 // =============================================================
 
-const CACHE_NAME = 'magazzino-shell-v232';
+const CACHE_NAME = 'magazzino-shell-v233';
 const APP_SHELL = [
   './',
   './index.html',
@@ -79,6 +79,7 @@ const APP_SHELL = [
   './js/features/interventi/interventi-new.js',
   './js/features/interventi/interventi-ricambi.js',
   './js/features/interventi/interventi-detail.js',
+  './js/features/interventi/interventi-operatori-pick.js',
   './js/features/impostazioni/inventory.js',
   './js/data/supabase-inventory.js',
   './js/features/interventi/verbi-passato.js',
