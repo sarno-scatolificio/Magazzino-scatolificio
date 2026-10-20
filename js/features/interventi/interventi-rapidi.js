@@ -4,7 +4,7 @@
 // (tornano da soli tra i «Da effettuare»). Registrazione in tre tocchi: Linea → Macchina (chip) → Intervento.
 // =============================================================
 
-import { LINEE, lineaLabel, listRapidi, createRapido, updateRapido, deleteRapido, updateRapidoCadenza, listOperatori, createOperatore, deleteOperatore, formatOperatore, compareOperatori } from './interventi-data.js';
+import { LINEE, lineaLabel, listRapidi, listRapidiUltimi, scadenzeRapido, createRapido, updateRapido, deleteRapido, updateRapidoCadenza, listOperatori, createOperatore, deleteOperatore, formatOperatore, compareOperatori } from './interventi-data.js';
 import { listDistinctMacchine, listMachineEntries } from '../../data/supabase.js';
 import { invalidateRapidi, invalidateOperatori } from './interventi.js';
 import { toastSuccess, toastError, toastWarning, toastInfo } from '../../shared/toast.js';
@@ -22,6 +22,7 @@ let cadenzaSel = ''; // '' = nessuna ripetizione | '7' | '15' | '30' | '90' | 'a
 let tableMissing = false;
 let lineaSeq = 0;
 let editing = null; // intervento rapido in modifica (null = si sta aggiungendo)
+let ultimi = []; // ultimo intervento generato per ogni rapido: serve a calcolare la scadenza
 
 // Scelte rapide per la ripetizione: un tocco; "Altro" apre il campo per un numero di giorni a piacere
 const CADENZE = [
@@ -200,8 +201,9 @@ async function refresh() {
   els.skeleton.classList.remove('hidden');
   els.list.classList.add('hidden');
   try {
-    const res = await listRapidi();
+    const [res, last] = await Promise.all([listRapidi(), listRapidiUltimi().catch(() => [])]);
     tableMissing = res.tableMissing;
+    ultimi = last;
     render(res.rapidi);
   } catch (err) {
     console.error(err);
@@ -253,9 +255,16 @@ function render(rapidi) {
     }
     const row = document.createElement('div');
     row.className = 'flex items-center justify-between gap-2 pl-3.5 pr-1.5 py-1.5 border-t border-graphite-700/70';
-    const name = document.createElement('span');
-    name.className = 'min-w-0 flex-1 text-sm font-medium text-graphite-100';
-    name.textContent = r.titolo;
+    const name = document.createElement('div');
+    name.className = 'min-w-0 flex-1';
+    const title = document.createElement('span');
+    title.className = 'block text-sm font-medium text-graphite-100';
+    title.textContent = r.titolo;
+    // Tra quanti giorni scade (solo per gli interventi con ripetizione)
+    const due = document.createElement('span');
+    due.className = 'block ui-note mt-0.5';
+    name.append(title, due);
+    paintScadenza(r, due);
     // Cadenza: ogni N giorni il lavoro compare da solo tra i "Da effettuare" alle 00:00 del giorno di scadenza (vuoto = nessuna ripetizione)
     const cad = document.createElement('label');
     cad.className = 'shrink-0 flex items-center gap-1 text-[11px] text-graphite-500';
@@ -263,6 +272,7 @@ function render(rapidi) {
     const cadInput = cad.querySelector('input');
     cadInput.value = r.cadenza_giorni ?? '';
     cadInput.setAttribute('aria-label', `Ripeti "${r.titolo}" ogni quanti giorni`);
+    cadInput._due = due;
     cadInput.addEventListener('change', () => onCadenza(r, cadInput));
     const edit = document.createElement('button');
     edit.type = 'button';
@@ -281,6 +291,27 @@ function render(rapidi) {
   });
   els.list.classList.remove('hidden');
   window.lucide?.createIcons();
+}
+
+/** Scritta «Scade tra N giorni» sotto l'intervento rapido (una voce per linea se le due scadenze sono diverse) */
+function giorniLabel(sc) {
+  if (sc.pending) return { text: 'Già tra i «Da effettuare»', urgent: true };
+  if (sc.giorni <= 0) return { text: 'Scade oggi', urgent: true };
+  if (sc.giorni === 1) return { text: 'Scade domani', urgent: true };
+  return { text: `Scade tra ${sc.giorni} giorni`, urgent: sc.giorni <= 3 };
+}
+
+function paintScadenza(r, el) {
+  const list = scadenzeRapido(r, ultimi);
+  el.classList.toggle('hidden', !list.length);
+  if (!list.length) return;
+  const labels = list.map(giorniLabel);
+  const same = labels.every((l) => l.text === labels[0].text);
+  el.textContent = same ? labels[0].text : list.map((sc, i) => `${lineaLabel(sc.linea)}: ${labels[i].text.charAt(0).toLowerCase()}${labels[i].text.slice(1)}`).join(' · ');
+  const urgent = labels.some((l) => l.urgent);
+  el.classList.toggle('text-amber-400', urgent);
+  el.classList.toggle('font-semibold', urgent);
+  el.classList.toggle('text-graphite-500', !urgent);
 }
 
 async function onAdd(e) {
@@ -351,6 +382,8 @@ async function onCadenza(r, input) {
   try {
     await updateRapidoCadenza(r.id, giorni);
     r.cadenza_giorni = giorni;
+    r.cadenza_da = giorni ? new Date().toISOString() : null; // il conteggio riparte da adesso (come sul database)
+    if (input._due) paintScadenza(r, input._due);
     invalidateRapidi();
     feedback.confirmAction();
     toastSuccess(giorni ? `Ripetizione: ogni ${giorni} ${giorni === 1 ? 'giorno' : 'giorni'}, alle 00:00.` : 'Ripetizione tolta.', 2500);

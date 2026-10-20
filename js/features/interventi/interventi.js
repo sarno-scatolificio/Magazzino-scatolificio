@@ -133,6 +133,7 @@ export function resetInterventi() {
   draft.foto = null;
   draft.fotoUrl = '';
   draft.fatto = false;
+  draft.operatori = [];
   resetDetail();
   els.list && (els.list.innerHTML = '');
   paintTabs();

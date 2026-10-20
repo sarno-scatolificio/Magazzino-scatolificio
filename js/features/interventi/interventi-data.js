@@ -89,13 +89,13 @@ async function removeFoto(paths) {
   }
 }
 
-/** Nuovo intervento (stato iniziale: da effettuare). `foto` = Blob JPEG o null */
-export async function createIntervento({ linea, macchina, descrizione, dettagli = '', foto = null, authorName = '' }) {
+/** Nuovo intervento (stato iniziale: da effettuare). `foto` = Blob JPEG o null; `operatori` = chi lo effettua (dall'elenco o scritti a mano) */
+export async function createIntervento({ linea, macchina, descrizione, dettagli = '', foto = null, authorName = '', operatori = [] }) {
   let path = null;
   if (foto) path = await uploadFoto(foto);
   const { data, error } = await supabase
     .from('manutenzioni_soste')
-    .insert({ linea, macchina, descrizione, dettagli: (dettagli || '').trim() || null, foto_promemoria_path: path, created_by_name: authorName || null })
+    .insert({ linea, macchina, descrizione, dettagli: (dettagli || '').trim() || null, foto_promemoria_path: path, created_by_name: authorName || null, operatori: [...new Set(operatori)] })
     .select(COLS)
     .single();
   if (error) {
@@ -179,12 +179,49 @@ export async function signedUrls(paths) {
 
 // ---- Interventi rapidi ----
 export async function listRapidi() {
-  const { data, error } = await supabase.from('interventi_rapidi').select('id, linea, macchina, titolo, cadenza_giorni').order('titolo', { ascending: true });
+  const { data, error } = await supabase.from('interventi_rapidi').select('id, linea, macchina, titolo, cadenza_giorni, cadenza_da, generato_at, created_at').order('titolo', { ascending: true });
   if (error) {
     if (isMissingTable(error)) return { tableMissing: true, rapidi: [] };
     throw error;
   }
   return { tableMissing: false, rapidi: data };
+}
+
+/** Ultimo intervento generato/inserito per ogni intervento rapido (dal più recente): serve a calcolare tra quanti giorni scade */
+export async function listRapidiUltimi() {
+  const { data, error } = await supabase
+    .from('manutenzioni_soste')
+    .select('rapido_id, linea, stato, esito_at, created_at')
+    .not('rapido_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(3000);
+  if (error) {
+    if (isMissingTable(error)) return [];
+    throw error;
+  }
+  return data;
+}
+
+// Giorno di calendario a Roma, come numero di giorni: la scadenza del database è «giorno di riferimento + cadenza, alle 00:00 ora di Roma»
+const romeDayNum = (d) => {
+  const [y, m, g] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d).split('-').map(Number);
+  return Date.UTC(y, m - 1, g) / 86400000;
+};
+
+/**
+ * Scadenza di un intervento rapido con ripetizione: una voce per linea ('L1-L2' = due voci).
+ * { linea, pending: true } = l'ultimo intervento è già tra i «Da effettuare/Da completare»; { linea, giorni } = giorni mancanti alla scadenza (≤ 0 = scade oggi).
+ * Stessa regola della funzione genera_interventi_programmati del database.
+ */
+export function scadenzeRapido(r, ultimi, now = new Date()) {
+  if (!r.cadenza_giorni) return [];
+  const oggi = romeDayNum(now);
+  return (r.linea === 'L1-L2' ? ['L1', 'L2'] : [r.linea]).map((linea) => {
+    const last = ultimi.find((u) => u.rapido_id === r.id && u.linea === linea); // `ultimi` è dal più recente
+    if (last && last.stato !== 'effettuato') return { linea, pending: true };
+    const ref = last ? new Date(last.esito_at || last.created_at) : new Date(Math.max(+new Date(r.cadenza_da || r.created_at), r.generato_at ? +new Date(r.generato_at) : 0));
+    return { linea, giorni: romeDayNum(ref) + r.cadenza_giorni - oggi };
+  });
 }
 
 export async function createRapido({ linea, macchina, titolo, cadenzaGiorni = null }) {

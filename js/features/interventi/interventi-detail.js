@@ -4,8 +4,9 @@
 // Parte di quello che prima era un unico interventi.js (vedi interventi.js).
 
 import { $, STATO_CHIP, authorName, els, state } from './interventi-shared.js';
-import { STATI, dayKey, deleteIntervento, formatOperatore, lineaLabel, operatoriDi, ricambiDi, signedUrls, sortOperatori, updateEsito, updateRicambi } from './interventi-data.js';
+import { STATI, dayKey, deleteIntervento, lineaLabel, operatoriDi, ricambiDi, signedUrls, updateEsito, updateRicambi } from './interventi-data.js';
 import { applyRicambi, pickRicambi } from './interventi-ricambi.js';
+import { createOperatoriPicker, operatoriLabelHtml } from './interventi-operatori-pick.js';
 import { authState, isAdmin } from '../../core/auth.js';
 import { closeOverlay, enableSheetDrag, openOverlay, setButtonBusy, syncSegIndicator } from '../../shared/ui-utils.js';
 import { confirmDialog } from '../../shared/ui-modal.js';
@@ -91,22 +92,24 @@ export function initDetailSheet() {
     paintQuando();
   });
 
-  // Tendina degli operatori: si apre e si chiude dal campo
-  $('int-operatore-btn').addEventListener('click', () => {
-    if (!detail) return;
-    detail.opOpen = !detail.opOpen;
-    feedback.tap();
-    paintOperatore();
+  // Tendina degli operatori (da elenco o scritti a mano): si apre e si chiude dal campo
+  opPicker = createOperatoriPicker('int-operatore', {
+    get: () => detail?.operatori || [],
+    set: (v) => {
+      if (detail) detail.operatori = v;
+    },
   });
   $('int-detail-ricambi-btn').addEventListener('click', indicaRicambi);
   els.detSave.addEventListener('click', saveDetail);
   $('int-detail-delete').addEventListener('click', removeDetail);
 }
 let wirePhotoDetail = null;
+let opPicker = null;
 
 export async function openDetail(row) {
   markSeen(row); // aperto da qualunque percorso: non è più «nuovo»
-  detail = { row, stato: row.stato, operatori: operatoriDi(row), opOpen: false, esitoAt: row.stato === 'effettuato' && row.esito_at ? new Date(row.esito_at) : null, foto: null, fotoUrl: '', rimuovi: false, promemoriaUrl: '' };
+  detail = { row, stato: row.stato, operatori: operatoriDi(row), esitoAt: row.stato === 'effettuato' && row.esito_at ? new Date(row.esito_at) : null, foto: null, fotoUrl: '', rimuovi: false, promemoriaUrl: '' };
+  opPicker?.close(); // tendina chiusa e campo del nome a mano vuoto a ogni apertura
   ensureOperatori().then(() => detail?.row === row && paintDetail());
   els.detNote.value = row.note_esito || '';
   $('int-detail-dettagli').value = row.dettagli || '';
@@ -276,56 +279,11 @@ function paintQuando() {
   $('int-quando-time-value').textContent = detail.esitoAt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 }
 
-/** Tendina "Operatori": compare solo con esito "Effettuato" (con "Da effettuare" o "Da completare" non si vede) e permette di sceglierne più d'uno. I nomi non finiscono nel PDF. */
+/** Operatori: assegnati (da effettuare / da completare) o chi ha eseguito il lavoro (effettuato). Scelti da elenco o scritti a mano. I nomi non finiscono nel PDF degli effettuati. */
 function paintOperatore() {
-  const done = detail.stato === 'effettuato';
-  $('int-operatore-step').classList.toggle('hidden', false);
-  $('int-operatore-label').innerHTML = done
-    ? 'Operatori che hanno effettuato il lavoro <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(puoi sceglierne più di uno)</span>'
-    : 'Operatori assegnati <span class="normal-case tracking-normal text-graphite-500 font-sans font-normal">(facoltativo, puoi sceglierne più di uno)</span>';
-  const names = [...state.operatori];
-  detail.operatori.forEach((n) => {
-    if (!names.includes(n)) names.push(n); // operatore tolto dall'elenco ma già registrato su questo intervento
-  });
-  const sortedNames = sortOperatori(names); // alfabetico per cognome
-  names.length = 0;
-  names.push(...sortedNames);
-  const open = !!detail.opOpen && names.length > 0;
-
-  const value = $('int-operatore-value');
-  value.textContent = detail.operatori.length ? sortOperatori(detail.operatori).map(formatOperatore).join(', ') : 'Seleziona operatori…';
-  value.classList.toggle('text-graphite-400', !detail.operatori.length);
-  value.classList.toggle('text-graphite-100', !!detail.operatori.length);
-  $('int-operatore-btn').setAttribute('aria-expanded', String(open));
-  $('int-operatore-chevron').style.transform = open ? 'rotate(180deg)' : '';
-
-  const list = $('int-operatore-list');
-  list.classList.toggle('hidden', !open);
-  list.innerHTML = '';
-  names.forEach((n, idx) => {
-    if (idx > 0) {
-      const d = document.createElement('div');
-      d.setAttribute('role', 'separator');
-      d.className = 'h-px bg-graphite-700/70 mx-3.5';
-      list.appendChild(d);
-    }
-    const on = detail.operatori.includes(n);
-    const row = document.createElement('button');
-    row.type = 'button';
-    row.setAttribute('role', 'checkbox');
-    row.setAttribute('aria-checked', String(on));
-    row.className = 'w-full flex items-center gap-3 px-3.5 min-h-[48px] text-left text-sm text-graphite-100';
-    row.innerHTML = `<span class="int-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:${on ? 1 : 0}"><path d="m5 12 5 5 9-10"/></svg></span><span class="min-w-0 truncate" data-name></span>`;
-    row.querySelector('[data-name]').textContent = formatOperatore(n); // es. "N. VORRARO" (testo, mai HTML)
-    row.addEventListener('click', () => {
-      // Selezione multipla: la tendina resta aperta, ogni tocco aggiunge o toglie quel nome
-      detail.operatori = on ? detail.operatori.filter((x) => x !== n) : [...detail.operatori, n];
-      feedback.presetPick();
-      paintOperatore();
-    });
-    list.appendChild(row);
-  });
-  $('int-operatore-empty').classList.toggle('hidden', names.length > 0 || !detail.opOpen);
+  $('int-operatore-step').classList.remove('hidden');
+  $('int-operatore-label').innerHTML = operatoriLabelHtml(detail.stato === 'effettuato');
+  opPicker.paint();
 }
 
 const sameMinute = (date, iso) => !!date && !!iso && Math.floor(date.getTime() / 60000) === Math.floor(new Date(iso).getTime() / 60000);
