@@ -179,7 +179,9 @@ window.addEventListener('resize', scheduleShelfClip, { passive: true });
 function followCardToTop(card, delayMs) {
   cancelAnimationFrame(followRaf);
   const cs = getComputedStyle(document.documentElement);
-  const headerH = parseFloat(cs.getPropertyValue('--header-h')) || 56;
+  // Sotto la testata dell'app restano ferme anche le tre categorie (Cuscinetti, Cinghie, Ricambi): la scheda va
+  // portata sotto entrambe, altrimenti il suo banner si aggancia più in basso e copre il primo articolo.
+  const headerH = (parseFloat(cs.getPropertyValue('--header-h')) || 56) + (parseFloat(cs.getPropertyValue('--prod-bar-h')) || 0);
   const slowMs = parseFloat(cs.getPropertyValue('--dur-slow')) || 340;
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const endAt = performance.now() + delayMs + slowMs + 160;
