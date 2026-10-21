@@ -68,3 +68,38 @@ function initLoginVideo() {
 }
 
 initLoginVideo();
+
+// Banner video della barra laterale (solo desktop ≥1024px): stesso video, senza filtri, proporzioni originali.
+// Il file si assegna solo su schermi larghi (su telefono non si scarica); parte da solo quando la barra si vede,
+// si ferma quando non si vede; un tocco lo ferma o lo riprende; con «riduci animazioni» resta l'anteprima.
+function initNavVideo() {
+  const box = document.getElementById('nav-video-box');
+  const video = document.getElementById('nav-video');
+  if (!box || !video) return;
+  const wide = window.matchMedia('(min-width: 1024px)');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  video.muted = true;
+  let visible = false;
+  let manual = null;
+
+  const sync = () => {
+    if (!wide.matches) { if (!video.paused) video.pause(); return; }
+    if (!video.getAttribute('src') && video.dataset.src) video.src = video.dataset.src;
+    const want = (manual === null ? !reduceMotion.matches : manual) && visible && !document.hidden;
+    if (want) video.play().catch(() => { /* avvio negato: resta l'anteprima */ });
+    else if (!video.paused) video.pause();
+  };
+
+  new IntersectionObserver((entries) => {
+    visible = entries.some((e) => e.isIntersecting);
+    sync();
+  }).observe(box);
+  document.addEventListener('visibilitychange', sync);
+  wide.addEventListener?.('change', sync);
+  reduceMotion.addEventListener?.('change', sync);
+  box.addEventListener('click', () => { manual = video.paused; sync(); });
+  video.addEventListener('error', () => { if (video.getAttribute('src')) box.remove(); });
+  sync();
+}
+
+initNavVideo();
