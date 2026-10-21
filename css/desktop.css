@@ -17,9 +17,18 @@
     display: flex; flex-direction: column;
   }
   /* Marchio: lo stesso logo animato della schermata di accesso, in una targa blu compatta */
-  .nav-brand { padding: 16px 12px 14px; }
-  .nav-brand .mate-brand { margin: 0; padding: .55rem .75rem; border-radius: 1.1rem; }
-  .nav-brand .mate-logo-wrap { height: 7.4rem; }
+  .nav-brand { padding: 12px 12px 14px; }
+  /* Targa con carta millimetrata: M e ingranaggio più in alto e compatti, il video sta subito sotto */
+  .nav-brand .mate-brand { margin: 0; padding: .3rem .75rem .35rem; border-radius: 1.1rem; }
+  .nav-brand .mate-logo-wrap { height: 6.6rem; }
+  /* Banner video: stessa larghezza della targa, rapporto originale del video (1694x720) */
+  .nav-video {
+    position: relative; width: 100%; aspect-ratio: 1694 / 720; margin-top: .6rem;
+    border-radius: 1.1rem; overflow: hidden; background: #0d1117; cursor: pointer;
+    box-shadow: 0 7px 14px -8px rgba(13, 17, 23, .6), 0 2px 5px -2px rgba(13, 17, 23, .3);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .nav-video video { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
   .nav-seg-wrap { max-width: none !important; margin: 0 !important; padding: 0 12px; }
   .nav-seg { flex-direction: column !important; border: 0 !important; background: transparent !important; padding: 0 !important; gap: 4px; }
   .nav-seg .seg-indicator { display: none !important; }

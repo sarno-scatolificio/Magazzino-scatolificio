@@ -2036,16 +2036,10 @@ input:disabled + .input-clear { display: none; }
   overflow: hidden;
   isolation: isolate;
   text-align: center;
-  /* La scheda è 16:9; il video (più largo) la riempie con object-fit: cover, ritagliando un po' ai lati */
-  aspect-ratio: 16 / 9;
-  container-type: size;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 0.7rem 1rem;
   border-radius: 1.375rem;
   color: #fff;
-  /* Scheda blu rialzata come una targa (bordo alto chiaro, spessore e ombra sotto); il video fa da sfondo.
-     Il gradiente resta come ripiego finché il video non si vede. */
+  /* Scheda blu rialzata come una targa: bordo alto chiaro, spessore e ombra sotto. */
   background: radial-gradient(90% 85% at 50% 42%, #0f58a6 0%, #0a4082 52%, #062c58 100%);
   border: 1px solid #0b2f5a;
   box-shadow:
@@ -2057,20 +2051,46 @@ input:disabled + .input-clear { display: none; }
     0 7px 0 -1px #020e1c,
     0 16px 26px -8px rgba(0, 0, 0, 0.75);
 }
+/* Carta millimetrata: quadretti fini, riga marcata ogni 5 e croce centrale (desktop; nel login c'è il video) */
+.mate-brand::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(200, 225, 255, 0.14), rgba(200, 225, 255, 0.14)) center / 100% 1px no-repeat,
+    linear-gradient(rgba(200, 225, 255, 0.14), rgba(200, 225, 255, 0.14)) center / 1px 100% no-repeat,
+    linear-gradient(rgba(190, 220, 255, 0.11) 1px, transparent 1px) center / 50px 50px,
+    linear-gradient(90deg, rgba(190, 220, 255, 0.11) 1px, transparent 1px) center / 50px 50px,
+    linear-gradient(rgba(190, 220, 255, 0.05) 1px, transparent 1px) center / 10px 10px,
+    linear-gradient(90deg, rgba(190, 220, 255, 0.05) 1px, transparent 1px) center / 10px 10px;
+  -webkit-mask-image: radial-gradient(85% 85% at 50% 45%, #000 35%, rgba(0, 0, 0, 0.4) 100%);
+  mask-image: radial-gradient(85% 85% at 50% 45%, #000 35%, rgba(0, 0, 0, 0.4) 100%);
+}
+/* Variante login: scheda 16:9 con il video come sfondo (niente carta millimetrata) */
+.mate-brand.mate-brand-video {
+  padding: 0;
+  aspect-ratio: 16 / 9;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mate-brand.mate-brand-video::before { display: none; }
+.mate-brand-video .mate-title { height: 100%; align-items: center; }
+.mate-brand-video .mate-logo-wrap { height: 80%; height: 80cqh; }
 .mate-title {
   position: relative;
   margin: 0;
   line-height: 0;
   display: flex;
   justify-content: center;
-  align-items: center;
-  height: 100%;
 }
 .mate-logo-wrap {
   position: relative;
   display: block;
-  height: 80%;              /* ripiego */
-  height: 80cqh;            /* il logo si adatta all'altezza della scheda */
+  height: clamp(9.2rem, 43.2vw, 10.8rem);
   aspect-ratio: 1350 / 1525;
 }
 .mate-layer {
@@ -2184,10 +2204,10 @@ input:disabled + .input-clear { display: none; }
   from { clip-path: inset(-300% -300% -300% -300%); }
   to   { clip-path: inset(42.95% 25.19% 34.75% 24.44%); }
 }
-/* M pesante: caduta in accelerazione, impatto con piccolo schiacciamento, rimbalzo netto e secco
+/* M pesante (nascosta e fuori scheda finché non cade): caduta in accelerazione, impatto con piccolo schiacciamento, rimbalzo netto e secco
    (corto, senza rallentare) e un micro-rimbalzo di assestamento. 0.52s totali, impatto a 0.30s. */
 @keyframes mate-m-drop {
-  0%     { transform: translateY(-85%); animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
+  0%     { transform: translateY(-150%); visibility: hidden; animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
   57.69% { transform: translateY(0) scale(1.012, 0.982); animation-timing-function: cubic-bezier(0.1, 0.8, 0.3, 1); }
   71.15% { transform: translateY(-1.8%) scale(1); animation-timing-function: cubic-bezier(0.6, 0, 1, 0.6); }
   84.62% { transform: translateY(0) scale(1.006, 0.992); animation-timing-function: cubic-bezier(0.1, 0.8, 0.3, 1); }
