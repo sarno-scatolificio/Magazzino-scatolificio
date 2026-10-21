@@ -18,16 +18,23 @@
   }
   /* Marchio: lo stesso logo animato della schermata di accesso, in una targa blu compatta */
   .nav-brand { padding: 12px 12px 14px; }
-  /* Targa con carta millimetrata: M e ingranaggio in alto, il video sta dentro la targa a tutta larghezza
-     (angoli dritti, rapporto originale 1694x720) e sotto resta un po' di blu con la carta millimetrata */
-  .nav-brand .mate-brand { margin: 0; padding: .3rem .75rem .7rem; border-radius: 1.1rem; }
+  /* Targa con carta millimetrata: M e ingranaggio in alto; il video sta dentro la targa, con angoli arrotondati
+     e uno spazio blu uguale su tutti e 4 i lati (rapporto originale 1694x720; la targa si allunga da sola) */
+  .nav-brand .mate-brand { margin: 0; padding: .3rem .75rem .75rem; border-radius: 1.1rem; }
   .nav-brand .mate-logo-wrap { height: 6.6rem; }
   .nav-video {
-    position: relative; margin: .45rem -.75rem 0; aspect-ratio: 1694 / 720;
-    border-radius: 0; overflow: hidden; background: #0d1117; cursor: pointer;
+    position: relative; margin: .45rem 0 0; aspect-ratio: 1694 / 720;
+    border-radius: .7rem; overflow: hidden; background: #0d1117; cursor: pointer;
+    box-shadow: 0 0 0 1px rgba(200, 225, 255, .22), 0 3px 8px -2px rgba(2, 14, 28, .55);
     -webkit-tap-highlight-color: transparent;
   }
-  .nav-video video { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+  /* Lieve filtro blu: colora il video senza scurirlo troppo, in tono con la targa */
+  .nav-video::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+    background: linear-gradient(160deg, rgba(40, 130, 225, .6), rgba(15, 88, 166, .6));
+    mix-blend-mode: color;
+  }
+  .nav-video video { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; filter: brightness(.95) saturate(1.05); }
   .nav-seg-wrap { max-width: none !important; margin: 0 !important; padding: 0 12px; }
   .nav-seg { flex-direction: column !important; border: 0 !important; background: transparent !important; padding: 0 !important; gap: 4px; }
   .nav-seg .seg-indicator { display: none !important; }
