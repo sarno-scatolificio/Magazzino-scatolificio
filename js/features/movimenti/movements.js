@@ -92,7 +92,8 @@ export function movementRow(r, i, container = els.list, { compact = false } = {}
   const cat = r.products?.categoria || '';
   const tag = { cuscinetti: 'Cuscinetto', cinghie: 'Cinghia', pezzi_ricambio: 'Ricambio' }[cat] || '';
   // Ricambio tecnico: in evidenza (grassetto) la descrizione al posto del codice; il codice si legge in piccolo aprendo il movimento
-  const desc = cat === 'pezzi_ricambio' ? (r.products?.descrizione || '').trim() : '';
+  // Il nome di un ricambio è il «punto di utilizzo» (come nell'elenco articoli); la colonna «descrizione» c'è solo se compilata
+  const desc = cat === 'pezzi_ricambio' ? (r.products?.punto_utilizzo_standard || r.products?.descrizione || '').trim() : '';
   const code = r.products?.codice_articolo || '';
 
   const head = document.createElement('button');
