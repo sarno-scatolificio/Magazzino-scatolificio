@@ -1,0 +1,3037 @@
+/* =============================================================
+   style.css — "Industrial Precision": tema chiaro tecnico per la
+   gestione ricambi meccanici. Palette fredda + accento blu del brand,
+   texture leggera "carta da disegno tecnico", card con rivetti agli
+   angoli (targa metallica), micro-interazioni a molla su ogni tipo di
+   controllo: bottoni, campi, toggle, tab, liste, badge.
+   ============================================================= */
+
+:root {
+  color-scheme: light;
+  --ink: #0d1117;
+  --paper: #f4f5f8;
+  --line: #dde1e7;
+  --accent: #2f4f92;
+  --accent-rgb: 47, 79, 146;
+  --accent-dark: #24406f;
+  --accent-deep: #13223f;
+
+  /* Margini di sicurezza dello schermo (notch, Dynamic Island, indicatore
+     home, barra dei gesti): li comunica il sistema e cambiano da soli col
+     dispositivo e con la rotazione. Dove non servono valgono 0. */
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  /* Altezza reale della barra in basso (margine incluso): la aggiorna
+     app.js misurandola; 64px è solo il valore di partenza. */
+  --nav-h: 64px;
+  --header-h: 56px;
+
+  /* Verde del Deposito: definito una sola volta (testata del cassetto, riquadro
+     attivo, bagliore di scansione riuscita, anello del Report usa lo stesso valore). */
+  --deposito: #047857;
+  --deposito-rgb: 4, 120, 87;
+
+  /* Tinte OPACHE per stati attivi/premuti dei pulsanti (equivalgono al colore al 6/8/10% su
+     bianco): con un colore semitrasparente il pulsante lascerebbe intravedere lo sfondo forato. */
+  --accent-tint: #eaedf4;      /* 10% */
+  --accent-tint-8: #eef1f6;    /*  8% */
+  --accent-tint-soft: #f3f4f8; /*  6% */
+  --accent-edge: #97a7c8;      /* bordo attivo (50%) */
+  --deposito-tint: #e6f1ee;
+  --deposito-edge: #82bcab;
+
+  /* Movimento: una sola scala di tempi e poche curve, usate da tutta l'app.
+     --dur-press = pressione, --dur-fast = colori/hover, --dur-base = comparse,
+     --dur-slow = cassetti, aperture e rimbalzi. La chiusura delle modali in
+     JS legge --dur-slow (modalCloseMs in ui-utils.js): niente da allineare a mano. */
+  --dur-press: 90ms;
+  --dur-fast: 160ms;
+  --dur-base: 240ms;
+  --dur-slow: 340ms;
+  --dur-page: 380ms; /* cambio di "pagina" (elenco macchine → dettaglio, in Manuali) */
+  /* Riempimento radiale degli scaffali: più lungo e con una curva più dolce di --ease-out
+     (che brucia quasi tutto il movimento nei primi fotogrammi e sembra "a scatti"). */
+  --dur-radial: 520ms;
+  --ease-radial: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);      /* comparse e movimenti in entrata */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* rimbalzo: tocchi e feedback */
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);    /* aperture e chiusure a fisarmonica */
+  --ease-in: cubic-bezier(0.4, 0, 0.7, 0.2);       /* uscite */
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);    /* cassetti delle modali */
+  --ease-page: cubic-bezier(0.22, 1, 0.36, 1);     /* decelerazione: cambi di "pagina" */
+  --tr-colors: color var(--dur-fast) ease, background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+
+/* Contenuto, toast e barra si dispongono in base ai margini sopra e
+   all'altezza misurata della barra: niente numeri fissi per dispositivo. */
+#app-shell { padding-bottom: calc(var(--nav-h) + 1rem); }
+/* La testata è "fixed" (come la barra in basso), non più "sticky": con
+   "sticky" Chrome, su alcuni dispositivi, dopo un cambio di sezione a volte
+   ricalcola la larghezza della testata con un fotogramma di ritardo,
+   lasciando per un istante uno spiraglio sul lato destro che scopre lo
+   sfondo sottostante — il difetto della "banner blu tagliato" segnalato.
+   "fixed" con inset-x-0 è ancorata ai bordi dello schermo a ogni fotogramma,
+   quindi non può succedere. Serve però lo spazio sopra al contenuto, esatto
+   come per --nav-h: JS misura l'altezza reale della testata (con il suo
+   margine di sicurezza) in --header-h, e main la usa come padding. */
+#app-shell > header {
+  padding-top: var(--sat);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+}
+#app-shell > main { padding-top: calc(var(--header-h, 56px) + 1rem); }
+#toast-container { bottom: calc(var(--nav-h) + 0.75rem); }
+/* Con la barra di stato trasparente (iPhone installato come app) il contenuto
+   arriva fino in cima: anche la schermata di accesso rispetta il margine alto. */
+#auth-view { padding-top: var(--sat); }
+
+/* Testata dell'app: blu pieno del marchio, continua con la barra di stato del
+   telefono (theme-color). Testo e icone bianchi; anello di focus bianco. */
+.app-header {
+  background: var(--accent);
+  color: #fff;
+  border-bottom: 1px solid var(--accent-deep);
+}
+.app-header :focus-visible { outline-color: #fff; }
+
+html, body {
+  height: 100%;
+  overscroll-behavior: contain;
+}
+html {
+  /* Scrollbar della pagina NASCOSTA (lo scorrimento con dito/rotella funziona uguale).
+     Motivo: durante il cambio di vista (Scaffalatura/Macchina, categorie, sezioni)
+     animateFluidSwap blocca lo scroll di <html> (overflow-y: hidden) per non far lampeggiare
+     la scrollbar; con una scrollbar "vera" il browser passava per un istante da "senza spazio
+     riservato" a "gutter riservato" (o viceversa) e tutta la pagina si restringeva/allargava
+     di ~8px per meno di un secondo. Senza scrollbar non c'è nulla che compaia, sparisca o
+     occupi spazio: la larghezza resta sempre la stessa. Le liste scorrevoli interne (modali,
+     ecc.) mantengono la loro scrollbar sottile. */
+  scrollbar-width: none; /* Firefox e Chrome recenti */
+  overflow-y: scroll;
+}
+html::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+/* Sfondo a tinta unica (--paper): nessun disegno, nessun livello fisso da ridisegnare. */
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--paper);
+  -webkit-tap-highlight-color: transparent;
+  /* App-like: niente selezione del testo al tocco/click su una parola
+     qualsiasi — resta un'app da usare, non una pagina da leggere/copiare.
+     Riabilitata sotto solo dove serve davvero (campi di input). */
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+/* Scale tipografiche minime dell'app (mai sotto gli 11px):
+   .ui-label = etichette e badge in maiuscolo, .ui-note = note e sottotitoli. */
+.ui-label { font-size: 11px; }
+.ui-note { font-size: 0.75rem; }
+
+/* Segnaposto dei campi: più chiari del testo scritto ma sempre leggibili
+   (contrasto ~3,7 su bianco). Regola unica per tutti i campi dell'app. */
+::placeholder {
+  color: #80848c;
+  opacity: 1; /* Firefox applica di suo una trasparenza */
+}
+
+.font-display { letter-spacing: 0.01em; }
+
+/* ---- Scrollbar discreta ---------------------------------- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--graphite-600, #c5cbd3); }
+
+/* ---- Schede (.card-plate): bianche, con bordo ben definito sopra lo sfondo
+   forato, un filo di luce sul bordo alto e un'ombra leggera, come una
+   targhetta di acciaio satinato. Nessun rivetto. ------------------------- */
+.card-plate {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #c3c9d1;
+  box-shadow:
+    inset 0 2px 0 #ffffff,
+    0 1px 2px rgba(13, 17, 23, 0.10),
+    0 8px 18px -8px rgba(13, 17, 23, 0.22),
+    0 3px 7px -3px rgba(13, 17, 23, 0.14);
+}
+
+/* ---- Skeleton loading -------------------------------------- */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #e7e9ed;
+  border-radius: 0.6rem;
+  animation: skeleton-breathe 1.8s ease-in-out infinite;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(13,17,23,0.10), rgba(255,255,255,0.45), rgba(13,17,23,0.10), transparent);
+  animation: shimmer 1.3s infinite;
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+@keyframes skeleton-breathe {
+  0%, 100% { background-color: #e7e9ed; }
+  50% { background-color: #dcdfe4; }
+}
+
+/* ---- Toast enter/exit --------------------------------------- */
+.toast-enter { animation: toast-in var(--dur-base) var(--ease-spring); }
+.toast-exit { animation: toast-out var(--dur-fast) ease-in forwards; }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.95); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.01); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toast-out {
+  to { opacity: 0; transform: translateY(8px) scale(0.97); }
+}
+
+/* ---- Bottom nav: sfondo pieno --------------------------------------
+   Niente effetto glass (backdrop-filter): la sfocatura del contenuto sottostante andava
+   ricalcolata a ogni fotogramma mentre si scorre. Sfondo opaco, bordo superiore sottile e ombra.
+   (La classe si chiama ancora .nav-glass per non toccare index.html e app.js.) */
+.nav-glass {
+  background: var(--paper);
+  border-top: 1px solid rgba(13, 17, 23, 0.08);
+  box-shadow: 0 -8px 30px -10px rgba(13, 17, 23, 0.16);
+  overflow: hidden;
+  /* Sotto i pulsanti resta libera la zona dell'indicatore home / barra dei
+     gesti; ai lati, quella del notch in orizzontale. */
+  padding-bottom: var(--sab);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+}
+/* Dettaglio di un macchinario in Manuali: schermata spesso quasi vuota sotto
+   i pochi pulsanti, dove il rilievo della barra risalta più che altrove —
+   qui soltanto lo si attenua, senza toccare lo stile della barra ovunque
+   altro nell'app. */
+body.manuals-detail-active .nav-glass {
+  box-shadow: 0 -2px 10px -6px rgba(13, 17, 23, 0.1);
+}
+/* ---- Bottom nav: controllo segmentato --------------------------------
+   Stessa estetica di Cuscinetti/Cinghie/Ricambi tecnici: una cornice con i tre pulsanti
+   dentro e un rettangolo blu pieno (.seg-indicator) che scorre a destra o a sinistra sotto
+   la sezione scelta (posizione/larghezza da syncSegIndicator in ui-utils.js). Alla selezione
+   l'icona della sezione si anima una sola volta: Movimenti = le due frecce escono nella
+   loro direzione e rientrano dal lato opposto; Magazzino = la serranda si apre e si chiude;
+   Manuali = le pagine del libro si sfogliano. Solo transform/opacity: niente layout. */
+.nav-seg-wrap { padding: 8px 12px 8px; }
+.nav-seg { margin: 0; }
+.nav-seg.seg-empty .seg-indicator { opacity: 0; }
+.nav-seg .seg-indicator { transition: opacity var(--dur-base) ease; }
+.nav-seg.seg-ready .seg-indicator {
+  transition: transform var(--dur-slow) var(--ease-out), width var(--dur-slow) var(--ease-out), opacity var(--dur-base) ease;
+}
+.nav-item {
+  position: relative;
+  z-index: 1;
+  transition: color var(--dur-base) ease 60ms, background-color var(--dur-fast) ease;
+}
+.nav-active { color: #ffffff !important; }
+/* Pulsanti incollati: nessun ridimensionamento alla pressione, solo tinta opaca sul non attivo */
+button.nav-item:not(:disabled):active {
+  transform: none;
+  background-color: var(--accent-tint);
+  transition-duration: var(--dur-press);
+}
+button.nav-item.nav-active:not(:disabled):active { background-color: transparent; }
+
+.nav-item .nav-icon-wrap { display: inline-flex; }
+.nav-svg { display: block; overflow: hidden; }
+
+/* Movimenti: la freccia verso sinistra esce a sinistra, quella verso destra esce a destra;
+   poi ciascuna ricompare dal lato opposto e si assesta al suo posto. */
+@keyframes nav-arrow-left {
+  0%     { transform: translateX(0);     animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5); }
+  42%    { transform: translateX(-26px); }
+  42.01% { transform: translateX(26px);  animation-timing-function: var(--ease-out); }
+  100%   { transform: translateX(0); }
+}
+@keyframes nav-arrow-right {
+  0%     { transform: translateX(0);    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5); }
+  42%    { transform: translateX(26px); }
+  42.01% { transform: translateX(-26px); animation-timing-function: var(--ease-out); }
+  100%   { transform: translateX(0); }
+}
+.nav-item.nav-active .nav-mv-left  { animation: nav-arrow-left  720ms both; }
+.nav-item.nav-active .nav-mv-right { animation: nav-arrow-right 720ms both; }
+
+/* Magazzino: la serranda sale (si apre), resta aperta un istante, poi scende (si chiude). */
+@keyframes nav-shutter {
+  0%   { transform: translateY(0);     animation-timing-function: var(--ease-inout); }
+  38%  { transform: translateY(-11px); }
+  58%  { transform: translateY(-11px); animation-timing-function: var(--ease-inout); }
+  100% { transform: translateY(0); }
+}
+.nav-item.nav-active .nav-wh-shutter { animation: nav-shutter 1100ms both; }
+
+/* Manuali: tre pagine si girano una dopo l'altra attorno al dorso (x = 12). */
+.nav-bk-flap {
+  transform-origin: 12px 12px;
+  opacity: 0;
+  fill: currentColor;
+  fill-opacity: 0.2;
+}
+@keyframes nav-flip {
+  0%   { transform: scaleX(1);  opacity: 0; }
+  14%  { opacity: 1; }
+  86%  { opacity: 1; }
+  100% { transform: scaleX(-1); opacity: 0; }
+}
+.nav-item.nav-active .nav-bk-flap { animation: nav-flip 560ms var(--ease-inout) both; }
+.nav-item.nav-active .nav-bk-flap:nth-of-type(2) { animation-delay: 170ms; }
+.nav-item.nav-active .nav-bk-flap:nth-of-type(3) { animation-delay: 340ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-item.nav-active .nav-mv-left,
+  .nav-item.nav-active .nav-mv-right,
+  .nav-item.nav-active .nav-wh-shutter,
+  .nav-item.nav-active .nav-bk-flap { animation: none; }
+}
+
+/* =============================================================
+   MICRO-INTERAZIONI GLOBALI — un tocco di vita su OGNI controllo
+   interattivo dell'app, non solo su quelli marcati esplicitamente.
+   Regole ampie e a basso rischio: solo transform/colore/ombra, mai
+   layout, quindi non toccano la logica né la struttura di nessuna
+   pagina già scritta in JS.
+   ============================================================= */
+
+/* Ogni bottone dell'app riceve una molla di base al tocco, anche quelli
+   creati dinamicamente in JS (liste, righe storico, tab...) che non
+   hanno una classe dedicata. */
+button:not(:disabled) {
+  transition: transform var(--dur-slow) var(--ease-spring), background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+button:not(:disabled):active {
+  transition-duration: var(--dur-press);
+  transform: scale(0.97);
+}
+button:disabled { cursor: not-allowed; }
+/* Attenuazione uniforme di QUALSIASI pulsante disabilitato: un solo valore in un solo
+   punto, al posto delle classi opacity-50/opacity-60 sparse nei singoli file. */
+button:disabled:not(.no-dim) { opacity: 0.55; }
+.btn-spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  margin-right: 7px;
+  vertical-align: -3px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: btn-spin 700ms linear infinite;
+}
+/* Sui pulsanti a sfondo chiaro (Impostazioni, Magazzino) lo spinner ha bisogno di un colore scuro */
+.btn-spinner--dark { border-color: rgba(13, 17, 23, 0.18); border-top-color: var(--accent); }
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .btn-spinner { animation: none; border-top-color: rgba(255, 255, 255, 0.35); }
+}
+
+/* Versione "forte" per le call-to-action principali (conferma scanner,
+   salva articolo, nuovo articolo, accedi...): scende un po' di più (95%
+   invece del 97% di tutti gli altri pulsanti).
+   NOTA SULLE PRIORITÀ: la regola globale qui sopra vale (0,2,1); una
+   regola scritta come `.classe:active` (0,2,0) perderebbe sempre. Per questo
+   le eccezioni alla pressione (qui e più sotto) sono scritte come
+   `button.classe:not(:disabled):active` (0,3,1), che vince davvero. */
+button.press-spring:not(:disabled):active {
+  transition-duration: var(--dur-press);
+  transform: scale(0.95);
+}
+
+/* Conferma giacenza (V) nell'inventario: nessun hover/focus residuo dopo il tocco,
+   l'unico effetto è la pressione finché il dito resta premuto. */
+.inv-ok { -webkit-tap-highlight-color: transparent; }
+.inv-ok:focus, .inv-ok:focus-visible { outline: none; }
+@media (hover: hover) { .inv-ok:hover { background-color: var(--graphite-700, #d5dae0); } }
+
+/* Card/righe cliccabili (non <button>, es. shelf-header): stessa fisica */
+[data-pressable], .shelf-header {
+  transition: transform var(--dur-slow) var(--ease-spring);
+}
+[data-pressable]:active, .shelf-header:active {
+  transition-duration: var(--dur-press);
+  transform: scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button, .press-spring, [data-pressable], .shelf-header { transition-duration: 1ms !important; }
+}
+
+/* Campi di input/select/textarea: bordo + alone che si accende in
+   morbidezza sul focus, invece dello scatto secco del solo outline. */
+/* Campi di testo e menu: altezza minima 44px, la stessa di pulsanti e tab,
+   così nelle righe e nei moduli non ci sono controlli di altezze diverse. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):not([type="range"]),
+select {
+  min-height: 44px;
+}
+input, select, textarea {
+  transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease, background-color var(--dur-fast) ease;
+}
+input:focus, select:focus, textarea:focus {
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
+}
+
+/* Checkbox nativi (es. filtro sotto-scorta): leggero pop al click */
+input[type="checkbox"] {
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+input[type="checkbox"]:active {
+  transform: scale(0.85);
+}
+
+/* Toggle a levetta (feedback sonoro/aptico, scansione continua): il
+   pallino scivola con una molla vera invece del semplice ease lineare
+   di Tailwind, e un lieve bagliore sulla pista quando si accende. */
+input.peer ~ span:last-child {
+  transition: transform var(--dur-slow) var(--ease-spring) !important;
+}
+input.peer:checked ~ span:first-of-type {
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.14);
+}
+
+/* Righe/elementi che compaiono in una lista appena renderizzata: fade +
+   piccolo slide dal basso, con uno sfalsamento (--i, impostato in JS)
+   cosí gli elementi appaiono "a cascata" invece che tutti insieme. */
+.list-item-in {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: list-item-in var(--dur-slow) var(--ease-out) forwards;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+/* Ai rientri nel Magazzino gli elementi già presenti restano al loro posto: niente
+   dissolvenza/scorrimento d'ingresso (che sembrerebbe un nuovo caricamento). */
+.list-static .list-item-in { animation: none; opacity: 1; transform: none; }
+@keyframes list-item-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .list-item-in { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+}
+
+/* ---- Vista Manuali: due pannelli (elenco macchine / indice della macchina),
+   con uno scambio a scorrimento orizzontale invece di un accordion. Di
+   default il pannello dettaglio è pronto fuori schermo a destra; passando
+   #view-manuals a .manuals-detail-open i due pannelli si scambiano posto. --- */
+#view-manuals { position: relative; overflow-x: clip; }
+.manuals-panel {
+  transition: transform var(--dur-page) var(--ease-page), opacity var(--dur-page) var(--ease-page);
+}
+.manuals-panel-detail {
+  position: absolute;
+  inset: 0;
+  transform: translateX(100%);
+  pointer-events: none;
+}
+/* L'elenco macchine resta "dietro": si sposta di poco (parallasse) e sfuma fino a
+   sparire del tutto a transizione conclusa — deve arrivare a opacity 0 pieno,
+   altrimenti (i due pannelli non hanno uno sfondo pieno a copertura intera, e il
+   dettaglio è quasi sempre più basso dell'elenco) le righe più in basso restano
+   visibili sotto la card della macchina aperta anche a schermo fermo. */
+#view-manuals.manuals-detail-open #manuals-list-panel {
+  transform: translateX(-28%);
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+}
+#view-manuals.manuals-detail-open .manuals-panel-detail {
+  /* In flusso: l'altezza della vista (e quindi la scrollbar della pagina) è quella del
+     solo dettaglio, non più quella dell'elenco macchine rimasto dietro. */
+  position: relative;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+/* Con il dettaglio aperto la vista NON deve ritagliare nulla: il banner trascinato (position:
+   fixed, ma ancorato al pannello che ha un transform) e le ombre di banner e barra dei gruppi
+   devono poter uscire oltre i bordi della colonna, a sinistra, a destra e in basso.
+   L'elenco macchine, rimasto dietro e ormai invisibile, non deve invece allungare la pagina
+   con il suo contenuto: il ritaglio lo fa lui stesso, sul proprio riquadro. */
+#view-manuals.manuals-detail-open { overflow: visible; }
+#view-manuals.manuals-detail-open #manuals-list-panel { overflow: clip; }
+#view-manuals.manuals-detail-open #manuals-list-panel { visibility: hidden; transition: transform var(--dur-page) var(--ease-page), opacity var(--dur-page) var(--ease-page), visibility 0s linear var(--dur-page); }
+/* Modifica dell'ELENCO macchine (riordino/icone): anche qui nessun ritaglio, perché la riga
+   trascinata e le ombre possono uscire dai bordi della colonna. Il dettaglio, parcheggiato a
+   destra, in questo stato non serve: lo si nasconde invece di ritagliarlo. */
+#view-manuals.manuals-list-editing { overflow: visible; }
+#view-manuals.manuals-list-editing .manuals-panel-detail { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .manuals-panel { transition-duration: 1ms; }
+}
+/* Usata solo per un istante da closeMachineDetail({immediate:true}): azzera la
+   transizione così il pannello torna alla lista di scatto, senza animazione,
+   invece di scivolarci mentre magari la scheda Manuali sta ancora comparendo. */
+#view-manuals.manuals-reset-instant .manuals-panel {
+  transition: none !important;
+}
+
+/* Le icone del dettaglio compaiono a cascata solo DOPO che il pannello si è
+   assestato (stesso valore di --dur-page): se partissero insieme allo scorrimento,
+   il loro stesso piccolo movimento si sommerebbe a quello del pannello ancora in
+   corsa, risultando confuso invece che pulito. */
+#manuals-detail-grid .list-item-in {
+  animation-delay: calc(var(--i, 0) * 22ms); /* cambio gruppo: compaiono subito, a cascata breve */
+}
+#manuals-detail-grid.grid-opening .list-item-in {
+  animation-delay: calc(var(--dur-page) + var(--i, 0) * 30ms); /* apertura del dettaglio: dopo il pannello */
+}
+
+/* Pulsanti dell'indice macchina: banner a tutta larghezza come gli scaffali del Magazzino.
+   Icona a sinistra in un riquadro, dettaglio (nome della sezione) a destra. */
+.manual-section-tile {
+  position: relative;
+}
+.manual-section-banner-ico {
+  width: 48px;
+  height: 48px;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.manual-section-banner-ico img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+/* Icona predefinita (libro) quando non c'è un'immagine: più piccola, non a tutto riquadro */
+.manual-section-banner-ico--fallback {
+  padding: 11px;
+  box-sizing: border-box;
+}
+/* Il nome va a capo sugli spazi, al massimo su due righe (poi puntini): il banner è largo,
+   quindi quasi sempre ne basta una. */
+.manual-section-banner-label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+  text-align: left;
+}
+
+/* Modalità "Riordina" (Admin, Manuali): ogni tile mostra una maniglia e oscilla
+   leggermente, come i grip delle springboard — segnala chiaramente che si può
+   trascinare, senza dover leggere l'avviso in testo per capirlo. */
+#manuals-detail-grid.reorder-mode .manual-section-tile,
+#manuals-browser-list.reorder-mode .manual-section-tile {
+  position: relative;
+  animation: reorder-wobble 340ms ease-in-out infinite;
+  cursor: grab;
+  /* Senza touch-action:none il browser prende il gesto per uno scroll e annulla il
+     puntatore (pointercancel): l'icona si solleva ma non si muove. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+#manuals-detail-grid .manual-section-tile,
+#manuals-browser-list > * {
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#manuals-detail-grid.reorder-mode .manual-section-tile:nth-child(even),
+#manuals-browser-list.reorder-mode .manual-section-tile:nth-child(even) {
+  animation-direction: reverse;
+}
+@keyframes reorder-wobble {
+  0%, 100% { transform: rotate(-0.3deg); }
+  50% { transform: rotate(0.3deg); }
+}
+.reorder-handle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  margin-top: -15px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #fbbf24; /* amber-400 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.manual-section-tile.reorder-dragging {
+  animation: none !important;
+  cursor: grabbing;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.4);
+  scale: 1.05;
+  opacity: 0.98;
+}
+.reorder-placeholder {
+  border-radius: 0.75rem;
+  border: 2px dashed var(--accent-edge, rgba(255, 255, 255, 0.3));
+  background: rgba(255, 255, 255, 0.04);
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  #manuals-detail-grid.reorder-mode .manual-section-tile,
+  #manuals-browser-list.reorder-mode .manual-section-tile { animation: none; }
+}
+
+/* Pulsante Spare parts esteso (più manuali ricambi): la lista si apre e si chiude
+   dentro lo stesso pulsante con un vero accordion (stessa tecnica grid-template-rows
+   delle tendine dei campi). La freccia guarda in giù da chiuso e si capovolge (in su) da aperto. */
+.spare-chevron { transition: transform 180ms ease; }
+.spare-group[data-open="true"] .spare-chevron { transform: rotate(180deg); }
+.spare-group-list-track {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-base) var(--ease-inout);
+}
+.spare-group-list-open { grid-template-rows: 1fr; }
+.spare-group-list { min-height: 0; overflow: hidden; }
+
+/* Accordion generico riutilizzato da Movimenti (dettaglio riga) e Scorta minima
+   (dettaglio scaffale/macchina): stessa tecnica grid-template-rows. */
+.acc-track {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-base) var(--ease-inout);
+}
+.acc-track.acc-open { grid-template-rows: 1fr; }
+.acc-inner { min-height: 0; overflow: hidden; }
+
+/* Scorta minima: scheda espandibile nella stessa tab (Movimenti). Header con chevron che
+   ruota, corpo a fisarmonica (.acc-track); piastrelle per serie di scaffale e dettaglio
+   che si apre nella riga della piastrella toccata. */
+.lowstock-header { background: transparent; }
+/* Nessuno scale né cambio di colore alla pressione: l'header è dentro la scheda, ridurlo scoprirebbe il fondo dietro */
+button.lowstock-header:not(:disabled):active { transform: none; background: transparent; }
+.lowstock-chevron { transition: transform var(--dur-base) var(--ease-inout); }
+.lowstock-card-open .lowstock-chevron { transform: rotate(180deg); }
+
+/* Piastrella: selezionandola il blu si allarga in cerchio dal centro fino ai bordi
+   (clip-path su un riempimento dietro al contenuto); testo e icona virano al bianco. */
+.lowstock-tile {
+  isolation: isolate;
+  overflow: hidden;
+  transition: border-color var(--dur-base) ease, box-shadow var(--dur-base) ease, transform var(--dur-slow) var(--ease-spring);
+}
+.lowstock-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--accent);
+  /* Origine sul centro dell'icona dello scaffale (pt-4 + metà riquadro da 36px = 34px dall'alto):
+     alla chiusura il blu passa dietro l'icona e si spegne lì. */
+  clip-path: circle(0% at 50% var(--tile-origin, 34px));
+  transition: clip-path var(--dur-slow) var(--ease-out);
+}
+.lowstock-tile-selected {
+  border-color: var(--accent) !important;
+  box-shadow: 0 1px 2px rgba(13, 17, 23, 0.10); /* toglie il filo di luce in alto: sul blu si vedrebbe come bordino bianco */
+}
+.lowstock-tile-selected::before { clip-path: circle(95% at 50% var(--tile-origin, 34px)); }
+.lowstock-tile-name, .lowstock-tile-ico, .lowstock-tile-ico-box, .lowstock-tile-badge {
+  transition: color var(--dur-base) ease, background-color var(--dur-base) ease;
+}
+.lowstock-tile-selected .lowstock-tile-name { color: #fff; }
+.lowstock-tile-selected .lowstock-tile-ico { color: #fff; }
+.lowstock-tile-selected .lowstock-tile-ico-box { background-color: rgba(255, 255, 255, 0.18); }
+.lowstock-tile-selected .lowstock-tile-badge { background-color: #fff; color: var(--accent); }
+
+/* Piastrelle delle macchine negli Interventi: stesso comportamento di quelle degli articoli sotto scorta,
+   col numero di interventi nel blu del tema (non nel rosso della scorta). */
+.lowstock-tile:not(.lowstock-tile-selected) .int-tile-badge { background: var(--accent-tint); color: var(--accent-dark); }
+.int-tile-new { line-height: 0; }
+/* Interventi aperti sotto una piastrella: sfondo pieno (niente trasparenza sul fondo a puntini) */
+.int-detail { background: #ffffff; }
+
+/* Piastrelle delle macchine: in una riga con una piastrella aperta, quella aperta si allarga e ingrandisce
+   l'icona, l'altra si rimpicciolisce. Il bordo blu dell'elenco ha sempre gli angoli arrotondati. */
+.int-tile-row {
+  transition: grid-template-columns var(--dur-base) var(--ease-inout), column-gap var(--dur-base) var(--ease-inout);
+}
+.int-tile-row.int-has-sel { align-items: start; }
+.int-tile .lowstock-tile-ico-box { transition: height var(--dur-base) var(--ease-inout), color var(--dur-base) ease, background-color var(--dur-base) ease; }
+.int-tile-img { --tile-origin: 44px; }
+.int-tile-img.lowstock-tile-selected { --tile-origin: 56px; }
+.int-tile-img.lowstock-tile-selected .int-tile-ico-img { height: 5rem; }
+.int-tile.lowstock-tile-selected .lowstock-tile-name { font-size: 0.875rem; }
+.int-has-sel .int-tile:not(.lowstock-tile-selected) { padding: 0.75rem 0.5rem 0.5rem; }
+.int-has-sel .int-tile:not(.lowstock-tile-selected) .int-tile-ico-img { height: 2.25rem; }
+.int-has-sel .int-tile:not(.lowstock-tile-selected) .lowstock-tile-name { font-size: 10px; margin-top: 0.25rem; }
+.int-has-sel .int-tile:not(.lowstock-tile-selected) .int-tile-badge { transform: scale(0.85); transform-origin: top right; }
+.int-slot .int-detail { border-color: var(--accent); }
+.int-detail > .int-row:first-child { border-top-width: 0; }
+/* Icona macchina (immagine) sulla piastrella: su blu resta su fondo chiaro per restare leggibile */
+.lowstock-tile-selected .int-tile-ico-img { background-color: #ffffff; }
+
+/* Elenco articoli di uno scaffale in scorta minima: altezza massima fissa (circa 5 righe),
+   oltre la quale scorre SOLO l'elenco, non la pagina (overscroll-behavior: contain). Il titolo
+   dello scaffale sta fuori dal contenitore, quindi resta sempre visibile. */
+.lowstock-items-scroll {
+  max-height: 18rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Slot di dettaglio tra due righe di piastrelle: chiuso non occupa spazio (0fr). */
+.lowstock-slot .lowstock-item {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+.lowstock-slot.acc-open .lowstock-item {
+  animation: shelf-item-in var(--dur-base) var(--ease-out) forwards;
+  animation-delay: calc(var(--i, 0) * 35ms + var(--dur-press));
+}
+@media (prefers-reduced-motion: reduce) {
+  .lowstock-chevron, .lowstock-tile::before { transition-duration: 1ms; }
+  .lowstock-slot .lowstock-item { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+}
+
+/* Divisore tra "serie" di scaffali (SD001-004 vicine, poi SE001... staccata): lo spazio
+   in più prima dell'etichetta è quel che separa visivamente i due gruppi. */
+.shelf-series-divider {
+  margin-top: 0.875rem !important; /* più del normale space-y-2.5 (0.625rem) tra le card */
+}
+
+/* Empty state illustrati: entrano con un piccolo respiro invece di
+   comparire di scatto quando una lista risulta vuota. */
+.empty-state-in {
+  animation: empty-state-in var(--dur-slow) var(--ease-out);
+}
+@keyframes empty-state-in {
+  0%   { opacity: 0; transform: translateY(6px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Tab/pillole di selezione (categoria, deposito/prelievo, storico
+   consumi): quando una diventa attiva, un piccolo "pop" elastico invece
+   di limitarsi al solo cambio colore statico. NOTA: .view-mode-tab NON è
+   in questo elenco — è un controllo segmentato con i pulsanti incollati
+   l'uno all'altro dentro un'unica cornice condivisa, senza bordo/gap
+   individuale: uno scale su un elemento "incollato" ai vicini scopre il
+   bordo del contenitore dietro di sé, creando una doppia cornice. Lí il
+   cambio di stato resta un puro cambio colore (via .view-mode-tab qui
+   sotto), mai un ridimensionamento. */
+.import-category-tab-active,
+.mode-active-deposito, .mode-active-prelievo,
+.history-tab-active {
+  animation: tab-select-pop var(--dur-slow) var(--ease-spring);
+}
+@keyframes tab-select-pop {
+  0%   { transform: scale(0.92); }
+  55%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .import-category-tab-active,
+  .mode-active-deposito, .mode-active-prelievo,
+  .history-tab-active { animation: none; }
+}
+
+/* Badge/avvisi che compaiono (coda offline, sotto-scorta): pop elastico
+   ogni volta che passano da nascosti a visibili — riparte da solo perché
+   Tailwind "hidden" (display:none) resetta lo stato dell'animazione. */
+#scanner-offline-badge:not(.hidden) {
+  animation: badge-pop var(--dur-slow) var(--ease-spring);
+}
+@keyframes badge-pop {
+  0%   { transform: scale(0.85) translateY(-4px); opacity: 0.4; }
+  60%  { transform: scale(1.03) translateY(0); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* ---- Transizione laterale tra le sezioni principali --------------------
+   Le due sezioni (quella che esce e quella che entra) si sovrappongono
+   per la durata dell'animazione e scorrono lateralmente, nella direzione
+   data dalla posizione dei tab (avanti = entra da destra, indietro =
+   entra da sinistra). Nessun effetto 3D/vetro qui: quello resta solo sul
+   marker dei pulsanti nella barra di navigazione inferiore, qui sopra. */
+.view-host {
+  position: relative;
+  /* clip e non hidden: con hidden, overflow-y diventa "auto" e <main> si trasforma in un
+     contenitore scorrevole a sé. Durante lo scambio di viste la vista uscente (absolute) è
+     più alta dell'host che si ridimensiona: sborda, <main> mostra per un istante una propria
+     scrollbar da 8px, la pagina si restringe, e a fine animazione (vista uscente nascosta) si
+     riallarga. clip ritaglia lo stesso gli sbordi laterali senza creare alcuno scorrimento. */
+  overflow-x: clip;
+}
+/* ---- Transizione tra view: Fluid Slide & Scale (spring physics) ----
+   La vista uscente rimpicciolisce leggermente e scivola via lateralmente
+   sfumando, mentre quella entrante arriva con un lieve overshoot elastico
+   ("fisica a molla", cubic-bezier con rimbalzo oltre il 100%) invece di
+   fermarsi di scatto — imita il movimento organico di un cartoncino
+   leggero che si sfoglia, non un semplice taglio netto. */
+.view-fluid-leaving {
+  /* position/top/left/width impostati inline da app.js in px, calcolati
+     dal layout reale, per restare allineata alla vista che sta entrando
+     anche con il padding del contenitore */
+  transform-origin: top center;
+  z-index: 1;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.view-fluid-entering {
+  /* Scala ancorata in alto, non al centro: su una vista lunga (es. il
+     Magazzino con tanti articoli) scalare dal centro sposta il bordo
+     superiore verso il basso e poi su di nuovo — visivamente "sale
+     troppo". Ancorando in alto, il bordo superiore resta fermo e cresce
+     solo verso il basso: molto meno marcato. */
+  transform-origin: top center;
+  position: relative;
+  z-index: 2;
+  will-change: transform, opacity;
+}
+
+@keyframes fluid-exit-left {
+  0%   { opacity: 1; transform: scale(1) translateX(0); }
+  100% { opacity: 0; transform: scale(0.96) translateX(-6%); }
+}
+@keyframes fluid-exit-right {
+  0%   { opacity: 1; transform: scale(1) translateX(0); }
+  100% { opacity: 0; transform: scale(0.96) translateX(6%); }
+}
+@keyframes fluid-enter-from-right {
+  0%   { opacity: 0; transform: scale(0.97) translateX(6%); }
+  100% { opacity: 1; transform: scale(1) translateX(0); }
+}
+@keyframes fluid-enter-from-left {
+  0%   { opacity: 0; transform: scale(0.97) translateX(-6%); }
+  100% { opacity: 1; transform: scale(1) translateX(0); }
+}
+
+.view-fluid-exit-left   { animation: fluid-exit-left 150ms var(--ease-in) forwards; }
+.view-fluid-exit-right  { animation: fluid-exit-right 150ms var(--ease-in) forwards; }
+/* L'ingresso parte con un piccolo ritardo rispetto all'uscita (invece di
+   sovrapporsi quasi del tutto): si vedono due fasi distinte — prima la
+   vista vecchia se ne va, poi la nuova arriva — pur restando fluide.
+   "both" mantiene lo stato iniziale (invisibile/rimpicciolita) durante il
+   ritardo, cosí non si intravede la vista entrante prima del previsto. */
+.view-fluid-enter-right { animation: fluid-enter-from-right 280ms var(--ease-out) 50ms both; }
+.view-fluid-enter-left  { animation: fluid-enter-from-left 280ms var(--ease-out) 50ms both; }
+
+/* Variante "flat" (Scaffalatura ↔ Macchina): stesso scivolamento, nessuna scala. */
+@keyframes fluid-flat-exit-left  { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-6%); } }
+@keyframes fluid-flat-exit-right { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(6%); } }
+@keyframes fluid-flat-enter-from-right { from { opacity: 0; transform: translateX(6%); }  to { opacity: 1; transform: translateX(0); } }
+@keyframes fluid-flat-enter-from-left  { from { opacity: 0; transform: translateX(-6%); } to { opacity: 1; transform: translateX(0); } }
+.view-fluid-flat.view-fluid-exit-left   { animation-name: fluid-flat-exit-left; }
+.view-fluid-flat.view-fluid-exit-right  { animation-name: fluid-flat-exit-right; }
+.view-fluid-flat.view-fluid-enter-right { animation-name: fluid-flat-enter-from-right; animation-timing-function: var(--ease-out); }
+.view-fluid-flat.view-fluid-enter-left  { animation-name: fluid-flat-enter-from-left;  animation-timing-function: var(--ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  .view-fluid-exit-left, .view-fluid-exit-right,
+  .view-fluid-enter-right, .view-fluid-enter-left { animation-duration: 1ms; }
+}
+
+/* ---- Tab storico (modale drill-down consumi) ------------------------ */
+.history-tab { color: #5c6672; transition: var(--tr-colors); }
+/* .card-plate aggiunge un filo di luce bianco in alto (per le SCHEDE bianche):
+   sulle varianti "attive" qui sotto, tinte di colore, quel filo bianco
+   resterebbe visibile sopra il bordo colorato come una riga bianca fuori
+   posto — lo si sostituisce con un'ombra pulita, senza il filo di luce. */
+.history-tab-active,
+.import-category-tab-active {
+  box-shadow: 0 1px 2px rgba(13, 17, 23, 0.12) !important;
+}
+.history-tab-active {
+  border-color: rgba(var(--accent-rgb), 0.5) !important;
+  color: var(--accent-dark) !important;
+}
+
+/* ---- Scanner mode buttons -------------------------------------- */
+#mode-deposito, #mode-prelievo {
+  transition: transform var(--dur-slow) var(--ease-spring), background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+#mode-deposito:active, #mode-prelievo:active {
+  transition-duration: var(--dur-press);
+  transform: scale(0.96);
+}
+/* Pulsanti pieni, sempre colorati, con scritte e icone bianche: Deposito = verde,
+   Prelievo = blu del tema. Niente filo di luce bianco in alto (quello della scheda
+   .card-plate): resta solo l'ombra sotto, così il colore arriva fino al bordo. */
+#mode-deposito, #mode-prelievo {
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(13, 17, 23, 0.14), 0 8px 18px -8px rgba(13, 17, 23, 0.30);
+}
+#mode-deposito {
+  background-color: var(--deposito);
+  border-color: var(--deposito);
+}
+#mode-prelievo {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+/* Il colore è già pieno: niente riempimento radiale da selezionato. */
+#mode-deposito::before, #mode-prelievo::before { display: none; }
+.mode-active-deposito, .mode-active-prelievo {
+  color: #ffffff !important;
+  transform: scale(1.02);
+}
+
+/* Filtro per area del Magazzino: freccia sul tab attivo + fisarmonica con le aree */
+.area-chevron { display: inline-flex; margin-left: -0.15rem; }
+.area-chevron[hidden] { display: none; }
+.area-chevron svg { transition: transform var(--dur-base) var(--ease-inout); }
+.view-mode-tab[data-area-open="true"] .area-chevron svg { transform: rotate(180deg); }
+.area-panel-track {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows var(--dur-base) var(--ease-inout), opacity var(--dur-base) ease;
+}
+.area-panel-track.area-panel-open { grid-template-rows: 1fr; opacity: 1; }
+.area-panel-inner { overflow: hidden; min-height: 0; }
+.area-chip[hidden] { display: none; }
+.area-chip {
+  background-color: rgba(245, 158, 11, 0.16);
+  color: #a85a00;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+@media (prefers-reduced-motion: reduce) {
+  .area-panel-track, .area-chevron svg { transition-duration: 1ms; }
+}
+
+/* Schermi molto stretti (<360px): nel selettore di visualizzazione le icone
+   lasciano spazio alle etichette, così nessun testo esce dal proprio tab. */
+@media (max-width: 359px) {
+  .view-mode-tab > svg, .view-mode-tab > i { display: none; }
+  /* stesso criterio per i tab categoria: un filo meno di font e spaziatura */
+  .category-tab, .import-category-tab { font-size: 11px; letter-spacing: 0; padding-left: 0.25rem; padding-right: 0.25rem; }
+}
+
+/* ---- Tab categoria magazzino -------------------------------------- */
+.import-category-tab { transition: var(--tr-colors); color: #5c6672; }
+.import-category-tab-active {
+  border-color: rgba(var(--accent-rgb), 0.5) !important;
+  color: var(--accent-dark) !important;
+}
+
+/* ---- Controlli segmentati: Cuscinetti/Cinghie/Ricambi tecnici e Scaffalatura/Macchina ----
+   Una sola cornice con i pulsanti dentro; il rettangolo blu pieno (.seg-indicator) non si
+   ridipinge sul pulsante scelto ma scorre lateralmente sotto di esso. Posizione e larghezza
+   arrivano da JS (syncSegIndicator in ui-utils.js) come --seg-x / --seg-w, cosí funziona anche
+   con pulsanti di larghezza diversa. Senza .seg-ready (primo disegno, o quando il controllo
+   riappare da nascosto) l'indicatore si posiziona di scatto, senza scivolare da sinistra. */
+.seg { position: relative; }
+.seg-indicator {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  width: var(--seg-w, 0px);
+  transform: translateX(var(--seg-x, 0px));
+  border-radius: 0.375rem;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 0;
+}
+.seg.seg-ready .seg-indicator {
+  transition: transform var(--dur-slow) var(--ease-out), width var(--dur-slow) var(--ease-out);
+}
+.category-tab, .view-mode-tab {
+  position: relative;
+  z-index: 1;
+  color: #5c6672;
+  background: transparent;
+  transition: color var(--dur-base) ease 60ms, background-color var(--dur-fast) ease;
+}
+.category-tab-active, .view-mode-tab-active { color: #ffffff !important; }
+/* Sovrascrive lo scale-press globale (button:active): i pulsanti sono incollati l'uno
+   all'altro senza gap, quindi qualunque ridimensionamento rivelerebbe il bordo del
+   contenitore condiviso. Alla pressione: tinta OPACA sul pulsante non attivo, nulla su
+   quello attivo (l'indicatore blu resta com'è). */
+button.view-mode-tab:not(:disabled):active,
+button.category-tab:not(:disabled):active {
+  transform: none;
+  background-color: var(--accent-tint);
+  transition-duration: var(--dur-press);
+}
+button.view-mode-tab-active:not(:disabled):active,
+button.category-tab-active:not(:disabled):active { background-color: transparent; }
+@media (prefers-reduced-motion: reduce) {
+  .seg.seg-ready .seg-indicator { transition-duration: 1ms; }
+}
+
+/* ---- Riempimento radiale dei pulsanti di selezione ----------------------
+   (tab categoria import, tab Storico, Deposito/Prelievo, Linea 1/2). Quando un pulsante
+   diventa "attivo" il suo colore (già proprio di ciascuno) parte dal centro e si allarga
+   a cerchio fino ai bordi; alla deselezione si richiude verso il centro. Il colore sta in
+   --rf-bg (fisso sul pulsante, cosí anche la chiusura è visibile); il riempimento è un
+   ::before dietro al contenuto. 75% = raggio che raggiunge gli angoli qualunque sia la forma.
+   Cuscinetti/Cinghie/Ricambi e Scaffalatura/Macchina usano invece l'indicatore che scorre. */
+.import-category-tab, .history-tab, .scan-linea-btn,
+#mode-deposito, #mode-prelievo {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.import-category-tab::before, .history-tab::before,
+.scan-linea-btn::before, #mode-deposito::before, #mode-prelievo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--rf-bg, var(--accent-tint));
+  clip-path: circle(0% at 50% 50%);
+  transition: clip-path var(--dur-slow) var(--ease-out);
+  pointer-events: none;
+}
+.import-category-tab-active::before, .history-tab-active::before,
+.scan-linea-btn[aria-pressed="true"]::before,
+.mode-active-deposito::before, .mode-active-prelievo::before {
+  clip-path: circle(75% at 50% 50%);
+}
+#mode-deposito { --rf-bg: var(--deposito); }
+#mode-prelievo { --rf-bg: var(--accent); }
+.scan-linea-btn { --rf-bg: var(--accent); }
+/* Sui riempimenti pieni il testo vira al bianco con un attimo di ritardo, cosí non
+   resta bianco su bianco mentre il cerchio è ancora piccolo. */
+.scan-linea-btn {
+  transition: color var(--dur-base) ease 70ms, border-color var(--dur-fast) ease, background-color var(--dur-fast) ease;
+}
+.scan-linea-btn[aria-pressed="true"] { color: #ffffff; border-color: var(--accent); }
+@media (prefers-reduced-motion: reduce) {
+  .import-category-tab::before, .history-tab::before,
+  .scan-linea-btn::before, #mode-deposito::before, #mode-prelievo::before { transition-duration: 1ms; }
+}
+
+/* ---- Scaffalatura magazzino: scaffale per locazione, espansione animata
+   con la tecnica grid-template-rows 0fr→1fr — fluida senza dover misurare
+   l'altezza reale del contenuto, e senza salti se il contenuto cambia. --- */
+/* clip e non hidden: stesso ritaglio agli angoli arrotondati, ma senza creare un contenitore
+   di scorrimento — altrimenti la testata "sticky" qui sotto resterebbe incollata alla scheda
+   (che non scorre) invece che allo schermo. La riga con hidden resta come ripiego per i
+   browser che non conoscono clip (lì la testata semplicemente non si ferma in alto). */
+.shelf-card { overflow: hidden; overflow: clip; }
+.shelf-header {
+  cursor: pointer;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transition: border-color var(--dur-base) ease, transform var(--dur-slow) var(--ease-spring);
+}
+/* Intestazione scaffale attiva: il blu scuro dell'app parte dal centro e si allarga a cerchio
+   (stesso riempimento radiale degli altri pulsanti di selezione); testi e icone virano al bianco.
+   .shelf-active parte al tocco, .shelf-open (il cassetto) solo dopo la chiusura del vecchio. */
+.shelf-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--accent);
+  /* Il cerchio nasce e si richiude SUL CENTRO DELL'ICONA dello scaffale (px-4 + metà del
+     riquadro da 36px = 34px da sinistra): chiudendo, il blu passa dietro l'icona e sparisce lì.
+     Cerchio vero (diametro = 2 × larghezza della testata, centro a 34px) animato con transform:
+     scale, che gira sul compositor/GPU a fotogrammi pieni; clip-path invece ridisegnava la
+     testata a ogni fotogramma. La testata (overflow: hidden) lo ritaglia. */
+  inset: auto;
+  left: calc(34px - 100%);
+  top: 50%;
+  width: 200%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translateY(-50%) scale(0);
+  transition: transform var(--dur-radial) var(--ease-radial);
+  will-change: transform;
+  backface-visibility: hidden;
+  pointer-events: none;
+}
+.shelf-card.shelf-active .shelf-header { border-color: var(--accent); }
+/* Scaffale aperto: il banner blu resta fermo sotto la testata dell'app finché si scorre
+   l'elenco, così si può richiudere anche dalla parte più bassa. Sta sopra agli articoli
+   (z-index) e ha un'ombra che lo stacca da ciò che gli scorre sotto. */
+.shelf-card.shelf-open .shelf-header-sticky {
+  position: sticky;
+  top: var(--header-h, 56px);
+  z-index: 5;
+  /* Il banner resta con gli angoli arrotondati sopra e sotto. Lo spazio dietro agli angoli è
+     riempito con il colore della pagina (4 quarti di cerchio): l'elenco, scorrendo, passa
+     dietro al banner e negli angoli non si vede, resta "tagliato". */
+  --shelf-r: 0.85rem;
+  background:
+    radial-gradient(circle at 100% 100%, transparent calc(var(--shelf-r) - 0.5px), var(--paper) var(--shelf-r)) top left / var(--shelf-r) var(--shelf-r) no-repeat,
+    radial-gradient(circle at 0 100%, transparent calc(var(--shelf-r) - 0.5px), var(--paper) var(--shelf-r)) top right / var(--shelf-r) var(--shelf-r) no-repeat,
+    radial-gradient(circle at 100% 0, transparent calc(var(--shelf-r) - 0.5px), var(--paper) var(--shelf-r)) bottom left / var(--shelf-r) var(--shelf-r) no-repeat,
+    radial-gradient(circle at 0 0, transparent calc(var(--shelf-r) - 0.5px), var(--paper) var(--shelf-r)) bottom right / var(--shelf-r) var(--shelf-r) no-repeat;
+}
+.shelf-card.shelf-open .shelf-header { border-color: var(--accent); }
+/* Un solo banner, una sola tinta: niente filo chiaro attorno. Il bordo della scheda aperta è
+   trasparente e lo sfondo bianco si ferma al bordo interno (così non resta una cornice bianca). */
+.shelf-card.shelf-open {
+  border-color: transparent;
+  background-clip: padding-box;
+  box-shadow: 0 1px 2px rgba(13, 17, 23, 0.10), 0 8px 18px -8px rgba(13, 17, 23, 0.22);
+}
+/* scala 1 = raggio pari alla larghezza: raggiunge l'angolo opposto anche partendo dall'icona a sinistra */
+.shelf-card.shelf-active .shelf-header::before { transform: translateY(-50%) scale(1); }
+.shelf-title, .shelf-sub, .shelf-low, .shelf-ico, .shelf-ico-box, .shelf-chevron, .shelf-area {
+  transition: color var(--dur-base) ease, background-color var(--dur-base) ease, transform var(--dur-base) var(--ease-inout);
+}
+/* Etichetta dell'area dello scaffale: neutra per Magazzino, ambra per Ufficio tecnico */
+.shelf-area {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border-radius: 0.3rem;
+  font-size: 0.65rem;
+  line-height: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background-color: rgba(100, 116, 139, 0.16);
+  color: #475569;
+}
+.shelf-area--ufficio { background-color: rgba(245, 158, 11, 0.18); color: #a85a00; }
+.shelf-card.shelf-active .shelf-area,
+.shelf-group.group-open > .shelf-group-header .shelf-area { background-color: rgba(255, 255, 255, 0.2); color: #ffffff; }
+.shelf-card.shelf-active .shelf-title { color: #ffffff; }
+.shelf-card.shelf-active .shelf-sub { color: rgba(255, 255, 255, 0.75); }
+.shelf-card.shelf-active .shelf-low { color: #ffd0d6; }
+.shelf-card.shelf-active .shelf-ico,
+.shelf-card.shelf-active .shelf-chevron { color: #ffffff; }
+.shelf-card.shelf-active .shelf-ico-box { background-color: rgba(255, 255, 255, 0.18); }
+.shelf-card.shelf-open .shelf-chevron { transform: rotate(180deg); }
+
+.shelf-body-track {
+  display: grid;
+  grid-template-rows: 0fr;
+  /* Curva simmetrica e dolce (come il riempimento radiale): --ease-inout è molto ripida al centro
+     e concentra l'apertura in pochi fotogrammi. */
+  transition: grid-template-rows var(--dur-slow) var(--ease-radial);
+}
+.shelf-card.shelf-open .shelf-body-track { grid-template-rows: 1fr; }
+/* contain: il contenuto del cassetto non viene rimisurato ad ogni fotogramma in cui l'altezza cambia */
+.shelf-body-inner { overflow: hidden; min-height: 0; contain: layout style; }
+
+/* Gli item dentro allo scaffale entrano con un lieve stagger quando si apre,
+   coerente con l'effetto "a strati" usato nella transizione tra le view */
+.shelf-item {
+  opacity: 0;
+  transform: translateY(-6px);
+  will-change: opacity, transform;
+}
+.shelf-card.shelf-open .shelf-item {
+  animation: shelf-item-in var(--dur-base) var(--ease-out) forwards;
+  animation-delay: calc(var(--i, 0) * 35ms + var(--dur-press));
+}
+@keyframes shelf-item-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Sovrascrive lo scale-press globale: righe impilate senza gap, separate
+   solo da un bordo superiore condiviso — stesso rischio di "doppia
+   cornice" contro la riga sopra/sotto visto sul toggle di visualizzazione. */
+button.shelf-item:not(:disabled):active {
+  transform: none;
+  background-color: var(--accent-tint-8);
+}
+@media (prefers-reduced-motion: reduce) {
+  .shelf-body-track, .shelf-header::before, .shelf-group-header::before { transition-duration: 1ms; }
+  .shelf-item { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+}
+
+/* ---- Gruppo di scaffali (Scaffale SA, SB...): scheda unica chiusa che si espande a cassetto con
+   tutti gli scaffali della sigla. Stesso linguaggio dell'intestazione scaffale (blu pieno che parte
+   dal centro dell'icona, testi bianchi, chevron che ruota); i gruppi sono indipendenti tra loro. --- */
+.shelf-group-header {
+  cursor: pointer;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(13, 17, 23, 0.10), 0 8px 18px -8px rgba(13, 17, 23, 0.22);
+  transition: border-color var(--dur-base) ease, transform var(--dur-slow) var(--ease-spring);
+}
+.shelf-group-header:active { transform: scale(0.985); }
+.shelf-group-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--accent);
+  /* Stesso cerchio su transform: scale dello scaffale singolo (vedi .shelf-header::before) */
+  inset: auto;
+  left: calc(34px - 100%);
+  top: 50%;
+  width: 200%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translateY(-50%) scale(0);
+  transition: transform var(--dur-radial) var(--ease-radial);
+  will-change: transform;
+  backface-visibility: hidden;
+  pointer-events: none;
+}
+.shelf-group.group-open > .shelf-group-header { border-color: var(--accent); }
+.shelf-group.group-open > .shelf-group-header::before { transform: translateY(-50%) scale(1); }
+.shelf-group.group-open > .shelf-group-header .shelf-title { color: #ffffff; }
+.shelf-group.group-open > .shelf-group-header .shelf-sub { color: rgba(255, 255, 255, 0.75); }
+.shelf-group.group-open > .shelf-group-header .shelf-low { color: #ffd0d6; }
+.shelf-group.group-open > .shelf-group-header .shelf-ico,
+.shelf-group.group-open > .shelf-group-header .shelf-chevron { color: #ffffff; }
+.shelf-group.group-open > .shelf-group-header .shelf-ico-box { background-color: rgba(255, 255, 255, 0.18); }
+.shelf-group.group-open > .shelf-group-header .shelf-chevron { transform: rotate(180deg); }
+
+.group-body-track {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-slow) var(--ease-radial);
+}
+.shelf-group.group-open > .group-body-track { grid-template-rows: 1fr; }
+/* Ritaglio solo durante l'animazione; a gruppo aperto del tutto (.group-settled) si toglie, così i
+   banner degli scaffali interni restano fermi sotto la testata dell'app (sticky) mentre si scorre. */
+.group-body-inner { min-height: 0; overflow: hidden; }
+.shelf-group.group-settled > .group-body-track > .group-body-inner { overflow: visible; }
+/* Gruppo aperto: gli scaffali stanno in un vassoio azzurrino attaccato all'intestazione blu del gruppo
+   (stessa cornice blu, angoli bassi arrotondati). Niente più filo verticale. Dentro al vassoio il "fondo pagina"
+   per gli angoli dei banner fissi (--paper) è il colore del vassoio, così gli angoli non fanno macchia. */
+.shelf-group-header { transition: border-color var(--dur-base) ease, transform var(--dur-slow) var(--ease-spring), border-radius var(--dur-base) ease; }
+.shelf-group.group-open > .shelf-group-header { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.group-shelves {
+  --paper: #e8ecf4;
+  padding: 0.625rem;
+  background: #e8ecf4;
+  border: 2px solid var(--accent);
+  border-top: 0;
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+.group-shelves > .shelf-card { margin-top: 0; }
+/* Gruppo dentro un altro gruppo (macchina dentro Linea, negli Interventi): niente rientro né filo laterale */
+.group-shelves--flat { --paper: #f4f5f8; margin-left: 0; padding: 0.5rem 0 0 0; border: 0; background: none; border-radius: 0; }
+/* «N nuovi» (interventi inseriti da altri, non ancora visti) nell'intestazione di un gruppo chiuso */
+.ig-new {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-weight: 600; color: var(--accent);
+  transition: color var(--dur-base) ease;
+}
+.ig-new::before { content: ''; width: 0.4rem; height: 0.4rem; border-radius: 9999px; background: currentColor; }
+.shelf-group.group-open > .shelf-group-header .ig-new { color: #ffffff; }
+
+/* Uscendo dal Magazzino tutto si richiude di scatto (nessuna animazione visibile). */
+.shelf-reset-instant .shelf-group-header,
+.shelf-reset-instant .shelf-group-header::before,
+.shelf-reset-instant .group-body-track,
+.shelf-reset-instant .shelf-header,
+.shelf-reset-instant .shelf-header::before,
+.shelf-reset-instant .shelf-body-track,
+.shelf-reset-instant .shelf-title,
+.shelf-reset-instant .shelf-sub,
+.shelf-reset-instant .shelf-low,
+.shelf-reset-instant .shelf-area,
+.shelf-reset-instant .shelf-ico,
+.shelf-reset-instant .shelf-ico-box,
+.shelf-reset-instant .shelf-chevron { transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .group-body-track, .shelf-group-header::before { transition-duration: 1ms; }
+}
+
+/* ---- Scheda articolo (sola lettura) ---------------------------------
+   Righe "etichetta a sinistra, valore a destra" dentro un'unica scheda,
+   separate da un filo. Il pulsante tondo di modifica (.fab-round) usa la
+   stessa molla di pressione degli altri pulsanti principali (press-spring). */
+.detail-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  min-height: 52px;
+}
+.detail-row + .detail-row { border-top: 1px solid #e3e5e9; }
+.detail-row--center { align-items: center; }
+.detail-row-label {
+  flex: none;
+  max-width: 45%;
+  padding-top: 2px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #6b6f77;
+}
+.detail-row-value {
+  min-width: 0;
+  text-align: right;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #14161a;
+  overflow-wrap: anywhere;
+}
+.detail-row-value--empty { color: #6b6f77; font-weight: 400; }
+.fab-round {
+  box-shadow:
+    0 8px 18px -6px rgba(var(--accent-rgb), 0.55),
+    0 2px 5px rgba(13, 17, 23, 0.18);
+}
+.fab-round:not(:disabled):hover {
+  box-shadow:
+    0 12px 22px -6px rgba(var(--accent-rgb), 0.6),
+    0 3px 6px rgba(13, 17, 23, 0.2);
+}
+
+/* ---- Reader camera ---------------------------------------------- */
+#scanner-reader,
+#qs-reader {
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 2px dashed #aeb4bd;
+  background: #10141a;
+  transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+#scanner-reader,
+#qs-reader,
+#product-barcode-scanner-reader,
+#product-search-scanner-reader {
+  cursor: crosshair;
+  position: relative;
+  aspect-ratio: 8 / 5; /* stessa proporzione dello scanConfig (1.6): niente più allungamenti a dismisura */
+  min-height: 0;
+}
+#product-barcode-scanner-reader {
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 2px dashed #aeb4bd;
+  background: #10141a;
+  transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+/* La libreria html5-qrcode imposta larghezza/altezza inline sul <video>/<canvas>:
+   li forziamo a riempire il riquadro (object-fit:cover) invece di dettarne la
+   dimensione, cosí il contenitore resta sempre della dimensione del riquadro. */
+#scanner-reader video,
+#scanner-reader canvas,
+#qs-reader video,
+#qs-reader canvas,
+#product-barcode-scanner-reader video,
+#product-barcode-scanner-reader canvas,
+#product-search-scanner-reader video,
+#product-search-scanner-reader canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 0.6rem;
+}
+
+/* Feedback visivo immediato sull'esito della scansione: un lampo di
+   bordo/glow colorato sul riquadro camera, in coppia col suono/vibrazione
+   di feedback.js — cosí anche con l'audio disattivato l'esito è chiaro
+   a colpo d'occhio, non solo nel toast che segue con un frame di ritardo. */
+@keyframes reader-flash-ok {
+  0%   { box-shadow: 0 0 0 0 rgba(var(--deposito-rgb), 0.55); border-color: var(--deposito); }
+  100% { box-shadow: 0 0 0 16px rgba(var(--deposito-rgb), 0); border-color: #aeb4bd; }
+}
+@keyframes reader-flash-fail {
+  0%   { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.55); border-color: #e11d48; }
+  100% { box-shadow: 0 0 0 16px rgba(225, 29, 72, 0); border-color: #aeb4bd; }
+}
+.reader-flash-ok   { animation: reader-flash-ok 550ms ease-out; }
+.reader-flash-fail { animation: reader-flash-fail 550ms ease-out; }
+
+/* Anello di feedback visivo al tocco per la messa a fuoco manuale */
+.focus-ring {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  margin-left: -28px;
+  margin-top: -28px;
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 20;
+  animation: focus-ring-anim 550ms ease-out forwards;
+}
+@keyframes focus-ring-anim {
+  0% { transform: scale(1.35); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: scale(0.85); opacity: 0; }
+}
+
+/* Pulsante torcia: piccolo lampo sull'icona quando si accende */
+@keyframes torch-flash {
+  0%   { transform: scale(1); filter: brightness(1); }
+  40%  { transform: scale(1.25); filter: brightness(1.6); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+#scanner-torch-btn.torch-active svg {
+  animation: torch-flash var(--dur-slow) var(--ease-spring);
+}
+
+/* ---- Modali (tutte): stessa struttura e stessi tempi di Deposito/Prelievo.
+   Overlay = .modal-overlay, pannello = .modal-panel, stato aperto = .modal-visible.
+   Mobile: cassetto che scorre dal basso. Desktop: pannello centrato che sale
+   leggermente con un piccolo scale, stessa durata e stessa curva. ---- */
+/* Nessuna sfocatura dello sfondo sotto le modali: costa a ogni fotogramma su schermo intero */
+.modal-overlay.modal-overlay {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* senza sfocatura lo sfondo scurisce un po' di più, per mantenere la separazione */
+.modal-overlay.bg-black\/60 { background-color: rgba(0, 0, 0, 0.68) !important; }
+.modal-overlay {
+  transition: opacity var(--dur-base) ease;
+  opacity: 0;
+}
+.modal-overlay.modal-visible {
+  opacity: 1;
+}
+.modal-overlay .modal-panel {
+  transition: transform var(--dur-slow) var(--ease-sheet), box-shadow var(--dur-slow) var(--ease-sheet);
+  transform: translateY(100%);
+  box-shadow:
+    0 -4px 14px -6px rgba(13, 17, 23, 0.16),
+    0 24px 60px -16px rgba(13, 17, 23, 0.40);
+}
+@media (min-width: 640px) {
+  .modal-overlay .modal-panel {
+    box-shadow: 0 24px 60px -12px rgba(13, 17, 23, 0.45);
+  }
+}
+.modal-overlay.modal-visible .modal-panel {
+  transform: translateY(0);
+}
+@media (min-width: 640px) {
+  .modal-overlay .modal-panel {
+    transform: translateY(24px) scale(0.98);
+  }
+  .modal-overlay.modal-visible .modal-panel {
+    transform: translateY(0) scale(1);
+  }
+}
+/* Cassetto da mobile: il fondo del pannello lascia libera la zona di
+   sicurezza inferiore, così i pulsanti non finiscono sotto l'indicatore
+   home. Su schermi larghi il pannello è centrato: nessun margine. */
+.modal-overlay .modal-panel { padding-bottom: var(--sab); }
+.modal-overlay .modal-panel.modal-panel-card { padding-bottom: calc(1.5rem + var(--sab)); }
+@media (min-width: 640px) {
+  .modal-overlay .modal-panel { padding-bottom: 0; }
+  .modal-overlay .modal-panel.modal-panel-card { padding-bottom: 1.25rem; }
+}
+
+/* Cambio di altezza animato del cassetto quando cambia il contenuto (animatePanelHeight):
+   si aggiunge la sola altezza alle transizioni già presenti sul pannello. */
+.modal-overlay .modal-panel.panel-h-anim {
+  transition:
+    transform var(--dur-slow) var(--ease-sheet),
+    box-shadow var(--dur-slow) var(--ease-sheet),
+    height var(--dur-slow) var(--ease-inout);
+}
+
+/* Stesso adattamento animato dell'altezza per la scheda "Articoli sotto scorta" al cambio filtro. */
+.card-h-anim { transition: height var(--dur-slow) var(--ease-inout); }
+
+/* Mentre si trascina manualmente la maniglia, niente transizione: il
+   pannello deve seguire il dito 1:1, esattamente come per il
+   pull-to-refresh — la transizione va bene solo per l'apertura/chiusura
+   automatica, non per l'inseguimento continuo del tocco. */
+.modal-overlay .modal-panel.sheet-dragging {
+  transition: none;
+}
+/* Zona di trascinamento dei cassetti: maniglia alta 32px a tutta larghezza
+   (la barretta è solo il segno visivo) + la riga del titolo, tutte marcate
+   con data-sheet-drag. touch-action: none evita che il browser interpreti
+   il gesto come scroll o pull-to-refresh. */
+[data-sheet-drag] { touch-action: none; }
+.sheet-grabber {
+  flex-shrink: 0;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+.sheet-grabber-pill {
+  width: 40px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #c3c8d0;
+}
+
+/* Pulsante di chiusura delle modali: tondo, 40px, icona X da 24px con tratto
+   spesso, sempre centrato e allineato al margine destro del contenuto. Due
+   varianti: su testata colorata (bianco traslucido) e su testata chiara. La
+   zona di tocco arriva a 48px grazie al ::after. */
+.modal-close {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--dur-fast) ease, transform var(--dur-fast) ease;
+}
+.modal-close::after { content: ''; position: absolute; inset: -4px; }
+button.modal-close:not(:disabled):active { transform: scale(0.92); }
+.modal-close--on-color { background: rgba(255, 255, 255, 0.18); color: #fff; }
+.modal-close--on-color:hover { background: rgba(255, 255, 255, 0.28); }
+.modal-close--on-color:focus-visible { outline-color: #fff; } /* l'anello blu di default non si vedrebbe sul verde/blu */
+.modal-close--on-light { background: rgba(13, 17, 23, 0.06); color: #3f444c; }
+.modal-close--on-light:hover { background: rgba(13, 17, 23, 0.12); }
+
+/* Area di tocco minima di 44px senza cambiare l'aspetto: il pulsante resta
+   grande com'è, ma la zona sensibile si estende attorno a lui. */
+.hit-area, .hit-area-sm, .hit-area-xs { position: relative; }
+.hit-area::after { content: ''; position: absolute; inset: -6px; }    /* 32px -> 44px */
+.hit-area-sm::after { content: ''; position: absolute; inset: -4px; } /* 36px -> 44px */
+.hit-area-xs::after { content: ''; position: absolute; inset: -14px; } /* icona da 16px -> 44px */
+
+/* iOS ingrandisce da solo la pagina quando si tocca un campo con testo
+   sotto i 16px. Poiché lo zoom a due dita è ora consentito (vedi viewport),
+   i campi su iOS usano 16px per evitare quel salto. */
+@supports (-webkit-touch-callout: none) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+html { touch-action: manipulation; } /* niente ritardo/zoom col doppio tocco; pizzico e scroll restano */
+
+/* ---- Identità di colore dei cassetti Deposito / Prelievo -----------------
+   Un solo attributo (data-mode sul pannello, impostato in scanner.js) decide
+   colori di testata, bordo, pulsante di conferma e anteprima: verde scuro per
+   il deposito, blu del logo per il prelievo. Testo bianco sulle testate:
+   contrasto ~5,5 sul verde e ~8 sul blu. L'icona e la parola rendono la
+   modalità riconoscibile anche senza distinguere i colori. */
+#scan-modal-panel[data-mode="deposito"] { --mode: var(--deposito); --mode-rgb: var(--deposito-rgb); --mode-dark: #065f46; --mode-tint: #ecfdf5; }
+#scan-modal-panel[data-mode="prelievo"] { --mode: var(--accent); --mode-rgb: var(--accent-rgb); --mode-dark: #24406f; --mode-tint: #e8eefb; }
+
+/* Dentro il cassetto anche i campi, l'elenco dei risultati e l'anello di focus
+   seguono il colore della modalità (la X sulla testata ha il suo anello bianco). */
+#scan-modal-panel input:focus {
+  border-color: var(--mode, var(--accent));
+  box-shadow: 0 0 0 3px rgba(var(--mode-rgb, var(--accent-rgb)), 0.16);
+}
+#scan-modal-panel .custom-select-option:hover,
+#scan-modal-panel .custom-select-option:active { background: var(--mode-tint, var(--accent-tint)); }
+#scan-modal-panel :focus-visible:not(.modal-close) { outline-color: var(--mode, var(--accent)); }
+/* Attenzione: qui NON si dichiara `transition`. Un selettore con id batterebbe
+   quello generico di .modal-panel e cancellerebbe l'animazione a cassetto. */
+#scan-modal-panel { border: 2px solid var(--mode, var(--line)); }
+
+.scan-head {
+  position: relative;
+  overflow: hidden;
+  background: var(--mode, var(--accent));
+  color: #fff;
+  transition: background-color var(--dur-fast) ease;
+}
+.scan-head .sheet-grabber-pill { background: rgba(255, 255, 255, 0.55); }
+/* Il contenuto della testata sta sopra la filigrana */
+.scan-head .sheet-grabber, .scan-head-row { position: relative; z-index: 1; }
+.scan-mode-symbol { display: flex; align-items: center; }
+/* Filigrana: scatola grande, ritagliata a destra; non intercetta i tocchi.
+   Il colore è bianco pieno e la trasparenza è applicata all'intero disegno
+   (opacity sul contenitore, non un colore con canale alfa): così tutto il
+   disegno è un'unica forma e dove i tratti si incrociano non c'è nessuna
+   zona più chiara o più scura. */
+.scan-watermark {
+  position: absolute;
+  /* Parte subito dopo la barretta di trascinamento (che è centrata e larga 40px):
+     28px a destra del centro. Per spostarla, cambiare solo questo valore. */
+  left: calc(50% + 28px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 88px;
+  height: 88px;
+  color: #fff;
+  opacity: 0.16;
+  pointer-events: none;
+  z-index: 0;
+}
+.scan-watermark svg { width: 100%; height: 100%; }
+/* Per sicurezza, senza modalità impostata si vede una sola icona (quella del deposito) */
+.mode-icon-prelievo { display: none; }
+#scan-modal-panel[data-mode="prelievo"] .mode-icon-prelievo { display: block; }
+#scan-modal-panel[data-mode="prelievo"] .mode-icon-deposito { display: none; }
+
+.btn-mode { background: var(--mode, var(--accent)); color: #fff; transition: background-color var(--dur-fast) ease, transform var(--dur-fast) ease; }
+.btn-mode:hover { background: var(--mode-dark, var(--accent-dark)); }
+.qty-btn { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; } /* tenuto premuto: niente zoom/selezione/menu */
+.qty-btn:hover { border-color: var(--mode, var(--accent)); color: var(--mode, var(--accent)); }
+
+.scan-after { background: var(--mode-tint, #eef0f3); color: var(--mode-dark, var(--accent-dark)); transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease; }
+.scan-after.scan-after-warn { background: rgba(225, 29, 72, 0.10); color: #be123c; }
+
+/* Ricerca per codice nella modale Deposito/Prelievo: l'elenco dei risultati
+   sta NEL flusso della pagina e spinge in giù il contenuto, invece di
+   sovrapporsi in posizione assoluta. Così il pannello (che su desktop ha
+   altezza automatica) si allunga e i risultati non vengono mai tagliati. */
+#scanner-code-search-wrap .custom-select-panel-track { position: static; }
+#scanner-code-search-wrap.custom-select-open .custom-select-panel-track { margin-top: 6px; }
+/* Promuove l'INTERO campo (bottone + tendina) sopra a tutti i campi successivi del
+   form mentre è aperto, così non resta mai "sotto" a un bordo/separatore più in basso. */
+.custom-select-open { position: relative; z-index: 40; }
+
+/* Funzioni che richiedono la fotocamera: non esistono su dispositivi con
+   mouse e tastiera (desktop), dove si nascondono del tutto. */
+@media (hover: hover) and (pointer: fine) {
+  .camera-only { display: none !important; }
+}
+
+/* ---- Apertura "a fisarmonica" della fotocamera nella modale di scansione:
+   grid-template-rows anima da 0fr a 1fr senza dover conoscere l'altezza
+   reale del contenuto (che varia: reader della fotocamera + eventuali
+   pulsanti torcia/cambia fotocamera). Tecnica piú robusta di max-height,
+   che richiederebbe un valore arbitrario "abbastanza grande". ---- */
+#scanner-camera-collapse,
+#qs-camera-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-slow) var(--ease-out);
+}
+#scanner-camera-collapse.expanded,
+#qs-camera-collapse.expanded {
+  grid-template-rows: 1fr;
+}
+.grid-rows-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ---- Barra consumi (dashboard) ----------------------------------- */
+.bar-grow {
+  /* larghezza finale fissa, animata con transform (compositor) e non con width (layout) */
+  width: var(--target-width);
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: bar-grow 600ms var(--ease-out) forwards;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+/* Aggiornamento silenzioso del Report: le barre del consumo compaiono già alla larghezza finale */
+.list-static .bar-grow { animation: none; transform: none; }
+@keyframes bar-grow {
+  to { transform: scaleX(1); }
+}
+
+/* ---- Pulsazione pulsante scan attivo ------------------------------- */
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.30); }
+  100% { box-shadow: 0 0 0 14px rgba(var(--accent-rgb), 0); }
+}
+.scan-pulse { animation: pulse-ring 1.8s ease-out infinite; }
+
+/* ---- Pulsazione "pezzo registrato": lampo breve sul valore di giacenza
+   aggiornato nella card risultato scanner, in coincidenza col contatore
+   animato — rende tangibile il momento in cui il pezzo viene registrato. */
+@keyframes stock-pulse {
+  0%   { color: var(--accent); text-shadow: 0 0 0 rgba(var(--accent-rgb), 0); }
+  35%  { color: var(--accent); text-shadow: 0 0 14px rgba(var(--accent-rgb), 0.45); }
+  100% { color: inherit; text-shadow: 0 0 0 rgba(var(--accent-rgb), 0); }
+}
+.stock-pulse { animation: stock-pulse 650ms ease-out; }
+
+/* ---- Undo/Redo --------------------------------------------------
+   NB: le icone Lucide vengono sostituite da <svg> al caricamento, quindi
+   le regole sulle icone devono puntare a `svg`, non a `i`. */
+.history-btn {
+  transition: var(--tr-colors), opacity var(--dur-fast) ease;
+}
+.history-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.history-btn:not(:disabled):active svg {
+  transform: scale(0.8);
+}
+.history-btn svg {
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+
+/* ---- Focus visibile per accessibilità -------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---- Select personalizzato (sostituisce i <select> nativi) ----------
+   Il <select> originale resta nel DOM solo per il valore/evento 'change',
+   nascosto qui sotto; sopra c'è un pulsante + una tendina che si abbassa
+   con la stessa tecnica grid-template-rows delle card scaffale. */
+.custom-select-native {
+  display: none !important;
+}
+.custom-select {
+  position: relative;
+}
+.custom-select-trigger {
+  cursor: pointer;
+  width: 100%;
+  transition: box-shadow var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.custom-select-open .custom-select-trigger {
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
+  border-color: rgba(var(--accent-rgb), 0.5);
+}
+.custom-select-chevron {
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.custom-select-open .custom-select-chevron {
+  transform: rotate(180deg);
+}
+.custom-select-panel-track {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-base) var(--ease-inout);
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+}
+.custom-select-open .custom-select-panel-track {
+  grid-template-rows: 1fr;
+}
+.custom-select-panel-inner {
+  min-height: 0;
+  overflow: hidden;
+  box-shadow: 0 12px 28px -8px rgba(13, 17, 23, 0.35);
+}
+.custom-select-option {
+  cursor: pointer;
+  transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease, padding-left var(--dur-fast) ease;
+}
+.custom-select-option:hover,
+.custom-select-option:active {
+  background: var(--accent-tint);
+  padding-left: 18px;
+}
+/* Sovrascrive lo scale-press globale: opzioni impilate senza gap, separate
+   solo da un bordo superiore condiviso — uno scale rivelerebbe lo stesso
+   effetto "doppia cornice" contro il vicino sopra/sotto. */
+button.custom-select-option:not(:disabled):active {
+  transform: none;
+}
+.custom-select-option-active {
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+.custom-select-search-wrap {
+  box-shadow: 0 1px 0 0 #dde1e7; /* graphite-700 */
+}
+
+/* ---- Micro-animazione di comparsa della card risultato scanner -------- */
+.result-pop {
+  animation: result-pop-anim var(--dur-slow) var(--ease-spring);
+}
+@keyframes result-pop-anim {
+  0%   { transform: scale(0.9) translateY(8px); opacity: 0; }
+  60%  { transform: scale(1.015) translateY(-1px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* ---- Riduzione animazioni per chi la richiede -------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Login: scuotimento del form su credenziali errate ---------------- */
+@keyframes shake-error {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+.shake-error {
+  animation: shake-error 480ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+/* ---- Visualizzatore manuale PDF: scrollbar nativa nascosta (era invisibile e
+   poco trascinabile col dito) a favore di quella personalizzata qui sotto:
+   binario sempre sul bordo destro, maniglia dimensionata e posizionata via JS
+   in base allo scroll (vedi updateCustomScrollbar in manuals.js), trascinabile
+   sia col dito che col mouse. ---- */
+#manual-viewer-canvas-wrap {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Edge legacy */
+}
+#manual-viewer-canvas-wrap::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/WebKit */
+}
+#manual-viewer-scrollbar {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  right: 3px;
+  width: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  touch-action: none; /* il trascinamento della maniglia non deve far scorrere/pizzicare il PDF sotto */
+  z-index: 5;
+}
+#manual-viewer-scrollbar-thumb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.32);
+  cursor: grab;
+  transition: background-color var(--dur-fast) ease;
+}
+#manual-viewer-scrollbar-thumb:hover,
+#manual-viewer-scrollbar-thumb.dragging {
+  background: rgba(255, 255, 255, 0.55);
+}
+#manual-viewer-scrollbar-thumb.dragging { cursor: grabbing; }
+
+/* ---- Visualizzatore manuale PDF: evidenziazione delle occorrenze del codice cercato ---- */
+.manual-highlight {
+  position: absolute;
+  background: rgba(251, 191, 36, 0.38); /* amber-400 semitrasparente */
+  border: 1.5px solid rgba(217, 119, 6, 0.85);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* ---- Text layer di pdf.js: testo reale invisibile sopra il canvas, per poter
+   selezionare un codice tenendo premuto come in un lettore PDF nativo. ---- */
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  line-height: 1;
+  opacity: 1;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  z-index: 2;
+  /* L'app disattiva la selezione del testo ovunque (vedi body, in cima al file) per
+     restare "app-like"; qui invece deve funzionare davvero: è l'unico modo per copiare
+     un codice ricambio tenendo premuto, come in un lettore PDF nativo. */
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+  /* Il text layer ha overflow:hidden, quindi per il browser è un contenitore a sé: il
+     touch-action dell'area che scorre (#manual-viewer-canvas-wrap) non gli arriva. Lo si
+     dichiara qui: strisciare su/giù o di lato scorre le pagine, la pressione prolungata
+     seleziona il testo, il pizzico resta al JS dello zoom. */
+  touch-action: pan-x pan-y;
+}
+.textLayer span, .textLayer br {
+  touch-action: pan-x pan-y;
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.textLayer ::selection {
+  background: rgba(251, 191, 36, 0.45);
+}
+.textLayer br::selection {
+  background: transparent;
+}
+.manual-page, .manual-page canvas { touch-action: pan-x pan-y; }
+.manual-page canvas {
+  position: relative;
+  z-index: 0;
+}
+
+
+/* ---- Carosello schermata di accesso ---- */
+.login-carousel {
+  align-self: stretch;
+  margin: 0 -1.5rem 1.5rem;       /* esce dal padding laterale: tutta larghezza schermo */
+  overflow: hidden;
+  touch-action: pan-y;            /* il trascinamento orizzontale è del carosello, quello verticale resta alla pagina */
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+}
+.login-carousel.is-dragging { cursor: grabbing; }
+.login-carousel-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;          /* il movimento è pilotato da login-carousel.js */
+}
+.login-carousel-tile {
+  flex: 0 0 auto;
+  width: 240px;
+  height: 160px;
+  margin-right: 12px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e3e6ea;
+  box-shadow: 0 1px 3px rgba(20, 30, 50, 0.08), 0 8px 18px -10px rgba(20, 30, 50, 0.25);
+}
+.login-carousel-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+
+/* ---- Tasto X per svuotare i campi di testo (input-clear.js) ----------------
+   Pulsante tondo assoluto dentro al campo, in tinta con l'accento dell'app. Compare (dissolvenza
+   + piccolo rimbalzo, come gli altri feedback) solo se il campo ha del testo. */
+.has-clear { padding-right: 2.5rem !important; }
+.has-clear[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.has-clear[type="number"]::-webkit-inner-spin-button,
+.has-clear[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.input-clear {
+  position: absolute;
+  z-index: 2;
+  width: 20px;
+  height: 20px;
+  margin: 0 !important; /* space-y-*, gap ecc. non devono spostarla */
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
+  opacity: 0;
+  transform: scale(0.5);
+  pointer-events: none;
+  transition: opacity var(--dur-fast) ease, transform var(--dur-base) var(--ease-spring), background-color var(--dur-fast) ease;
+}
+.input-clear::after { content: ''; position: absolute; inset: -9px; } /* area di tocco piú comoda di 20px */
+.input-clear.input-clear-on { opacity: 1; transform: scale(1); pointer-events: auto; }
+button.input-clear.input-clear-on:not(:disabled):active { transform: scale(0.85); background: rgba(var(--accent-rgb), 0.22); }
+input:disabled + .input-clear { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .input-clear { transition-duration: 1ms; }
+}
+
+/* ---- Modale di avanzamento upload (manuali, icone): quadrato al centro, SEMPRE a tema chiaro ---- */
+.upload-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 20, 30, 0.45);
+  opacity: 0;
+  transition: opacity 160ms ease;
+  touch-action: none;
+}
+.upload-modal-visible { opacity: 1; }
+.upload-modal-card {
+  width: 236px;
+  height: 236px;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 22px;
+  background: #ffffff;
+  color: #1b2430;
+  box-shadow: 0 18px 48px rgba(10, 20, 40, 0.28);
+  transform: scale(0.92);
+  transition: transform 320ms cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+.upload-modal-visible .upload-modal-card { transform: scale(1); }
+.upload-modal-ring { position: relative; width: 132px; height: 132px; }
+.upload-modal-ring > svg { position: absolute; inset: 0; }
+.upload-modal-orbit { transform-origin: 66px 66px; animation: upload-modal-spin 9s linear infinite; }
+.upload-modal-orbit circle { stroke: rgb(var(--accent-rgb)); opacity: 0.45; }
+.upload-modal-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 76px;
+  height: 76px;
+  margin: -38px 0 0 -38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: rgb(var(--accent-rgb));
+}
+.upload-modal-core-up svg { animation: upload-modal-bob 1.1s ease-in-out infinite alternate; }
+.upload-modal-core-ok { background: #e3f4ec; color: #2f9e6b; }
+.upload-modal-core-error { background: #fdeaea; color: #e5484d; }
+.upload-modal-core-ok svg, .upload-modal-core-error svg { animation: upload-modal-pop 450ms cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+.upload-modal-pct { margin-top: 10px; font-size: 30px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; color: #1b2430; }
+.upload-modal-name { margin-top: 6px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: #5b6573; }
+.upload-modal-status { margin-top: 2px; font-size: 12px; color: #8a93a0; }
+@keyframes upload-modal-spin { to { transform: rotate(360deg); } }
+@keyframes upload-modal-bob { from { transform: translateY(4px); } to { transform: translateY(-4px); } }
+@keyframes upload-modal-pop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .upload-modal-orbit, .upload-modal-core-up svg { animation: none; }
+}
+/* ---- Tab dei gruppi di piastrelle (Manuali): stesso controllo segmentato del Magazzino,
+   scorrevole in orizzontale quando i gruppi sono tanti. */
+.manuals-seg {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Edge legacy */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y; /* il dito scorre i gruppi di lato; in verticale scorre la pagina */
+}
+.manuals-seg::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.manuals-seg .category-tab { flex: 1 0 auto; white-space: nowrap; }
+#manuals-groups-bar { min-width: 0; }
+.manuals-seg .group-tab-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  margin-right: -4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+
+/* =============================================================
+   Schermata di accesso — scheda blu con carta millimetrata e logo MATE a livelli.
+   Stato di base = stato finale (tutto visibile, ingranaggio fermo): è quello che vede chi ha
+   "riduci animazioni" attivo. L'animazione gira solo nella media query "no-preference".
+   Cronologia (s): 0.1 MATE compare e "Magazzino"
+   (da sinistra) e "Tecnico" (da destra) convergono (0.5 s) · 0.6 l'ingranaggio rotola da sinistra, frena e si centra ·
+   1.7 la M cade dall'alto (già opaca) · 2.0 impatto e rimbalzo secco · 2.22 tagli · 2.47 l'ingranaggio (alto e basso)
+   inizia a girare e parte il carosello · 2.9 luce che scorre sul logo
+   Coordinate dei livelli (px della sorgente 1350x1525): finestre ingranaggio: basso x 720-1400 y da 760, alto x 700-1420 y 200-430 (in alto e in basso il taglio lo fa la M, che sta davanti).
+   ============================================================= */
+.mate-brand {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  text-align: center;
+  padding: 0.7rem 1rem;
+  border-radius: 1.375rem;
+  color: #fff;
+  /* Scheda blu rialzata come una targa: bordo alto chiaro, spessore e ombra sotto. */
+  background: radial-gradient(90% 85% at 50% 42%, #0f58a6 0%, #0a4082 52%, #062c58 100%);
+  border: 1px solid #0b2f5a;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.28),
+    inset 1px 0 0 rgba(255, 255, 255, 0.08),
+    inset -1px 0 0 rgba(0, 0, 0, 0.18),
+    0 5px 0 -1px #05213f,
+    0 7px 0 -1px #020e1c,
+    0 16px 26px -8px rgba(0, 0, 0, 0.75);
+}
+/* Carta millimetrata: quadretti fini, riga marcata ogni 5 e croce centrale (desktop; nel login c'è il video) */
+.mate-brand::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(200, 225, 255, 0.14), rgba(200, 225, 255, 0.14)) center / 100% 1px no-repeat,
+    linear-gradient(rgba(200, 225, 255, 0.14), rgba(200, 225, 255, 0.14)) center / 1px 100% no-repeat,
+    linear-gradient(rgba(190, 220, 255, 0.11) 1px, transparent 1px) center / 50px 50px,
+    linear-gradient(90deg, rgba(190, 220, 255, 0.11) 1px, transparent 1px) center / 50px 50px,
+    linear-gradient(rgba(190, 220, 255, 0.05) 1px, transparent 1px) center / 10px 10px,
+    linear-gradient(90deg, rgba(190, 220, 255, 0.05) 1px, transparent 1px) center / 10px 10px;
+  -webkit-mask-image: radial-gradient(85% 85% at 50% 45%, #000 35%, rgba(0, 0, 0, 0.4) 100%);
+  mask-image: radial-gradient(85% 85% at 50% 45%, #000 35%, rgba(0, 0, 0, 0.4) 100%);
+}
+/* Variante login: scheda 16:9 con il video come sfondo (niente carta millimetrata) */
+.mate-brand.mate-brand-video {
+  padding: 0;
+  aspect-ratio: 16 / 9;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mate-brand.mate-brand-video::before { display: none; }
+.mate-brand-video .mate-title { height: 100%; align-items: center; }
+.mate-brand-video .mate-logo-wrap { height: 80%; height: 80cqh; }
+.mate-title {
+  position: relative;
+  margin: 0;
+  line-height: 0;
+  display: flex;
+  justify-content: center;
+}
+.mate-logo-wrap {
+  position: relative;
+  display: block;
+  height: clamp(9.2rem, 43.2vw, 10.8rem);
+  aspect-ratio: 1350 / 1525;
+}
+.mate-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+/* Ingranaggio: due finestre mostrano solo le parti che spuntano dalla M (alto = corona, basso = arco) */
+.mate-gear-win {
+  position: absolute;
+  inset: 0;
+}
+.mate-gear-win-t { clip-path: inset(6.23% 23.70% 78.69% 22.96%); }
+.mate-gear-win-b { clip-path: inset(42.95% 25.19% 34.75% 24.44%); }
+.mate-gear-pop {
+  position: absolute;
+  left: 18.52%;
+  top: 6.43%;
+  width: 62.22%;
+  height: 55.08%;
+}
+.mate-gear-shadow {
+  /* Una sola ombra: ovale lieve e morbido sotto il punto di appoggio, segue l'ingranaggio senza ruotare */
+  position: absolute;
+  left: 10%;
+  top: 92%;
+  width: 80%;
+  height: 12%;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgba(2, 12, 30, 0.3) 0%, rgba(2, 12, 30, 0.16) 55%, rgba(2, 12, 30, 0) 100%);
+}
+.mate-gear {
+  display: block;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+/* Strato della luce: stessa sagoma (alpha) di tutto il logo, quindi la luce si vede
+   solo su M, ingranaggio e scritte e mai sullo sfondo blu. */
+.mate-shine {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask: url("../assets/icons/logo-mate.png") center / 100% 100% no-repeat;
+  mask: url("../assets/icons/logo-mate.png") center / 100% 100% no-repeat;
+}
+.mate-beam {
+  position: absolute;
+  top: -5%;
+  bottom: -5%;
+  left: -40%;
+  width: 40%;
+  opacity: 0;
+  background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.45) 40%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0.45) 60%, transparent 100%);
+  filter: blur(2px);
+  transform: translateX(0) skewX(-18deg);
+}
+
+/* "Magazzino Tecnico": due ritagli della stessa immagine, uno per parola (spazio tra le parole a x 57.6%) */
+.mate-sub-l { clip-path: inset(0 42.4% 0 0); }
+.mate-sub-r { clip-path: inset(0 0 0 57.6%); }
+/* La M cade da un punto fuori dalla scheda: l'origine dello squash è sul suo bordo inferiore */
+.mate-m { transform-origin: 49.6% 34%; scale: 0.84; translate: 0 3%; } /* M ridotta all'84% attorno al centro dell'ingranaggio: l'ingranaggio pesa di più */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Sfondo blu e video sono già presenti da subito (nessuna animazione) */
+  /* 1) L'ingranaggio intero arriva rotolando da sinistra, frena oltre il centro e torna a centrarsi */
+  .mate-gear-pop { animation: mate-gear-roll 1.1s linear 0.6s both; }
+  /* 0) Prima i testi: MATE compare e le due parole convergono verso il centro */
+  .mate-text     { animation: mate-rise 0.5s ease-out 0.1s both; }
+  .mate-sub-l    { animation: mate-word-l 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) 0.1s both; }
+  .mate-sub-r    { animation: mate-word-r 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) 0.1s both; }
+  /* 2) Finito il rotolamento la M cade dall'alto (opacità piena da subito), impatto secco e rimbalzo breve su MATE */
+  .mate-m        { animation: mate-m-drop 0.52s linear 1.7s both; }
+  /* 3) Tagli (a rimbalzo concluso): le finestre si restringono e tolgono le parti dell'ingranaggio nascoste dalla M;
+        restano parte superiore e inferiore, nella stessa posizione */
+  .mate-gear-win-t { animation: mate-gear-cut-t 0.25s ease-in-out 2.22s both; }
+  .mate-gear-win-b { animation: mate-gear-cut-b 0.25s ease-in-out 2.22s both; }
+  /* 4) Subito dopo l'ingranaggio (entrambe le parti) parte piano e poi gira a velocità costante */
+  .mate-gear {
+    animation:
+      mate-gear-roll-rot 1.1s linear 0.6s both,
+      mate-gear-start 0.8s cubic-bezier(0.4, 0, 1, 1) 2.22s forwards,
+      mate-gear-run 14s linear 3.02s infinite;
+  }
+  /* 5) Infine la luce */
+  .mate-beam     { animation: mate-beam 1.1s ease-in-out 2.9s both; }
+}
+
+/* Rotolamento senza slittamento: 288% della larghezza = 360 gradi (1% = 1.25 gradi).
+   Le due animazioni hanno gli stessi tempi e le stesse curve, quindi restano sincronizzate. */
+@keyframes mate-gear-roll {
+  0%   { transform: translateX(-288%); animation-timing-function: cubic-bezier(0.45, 0.45, 0.55, 1); }
+  80%  { transform: translateX(7%);    animation-timing-function: ease-in-out; }
+  100% { transform: translateX(0); }
+}
+@keyframes mate-gear-roll-rot {
+  0%   { transform: rotate(0deg);      animation-timing-function: cubic-bezier(0.45, 0.45, 0.55, 1); }
+  80%  { transform: rotate(368.75deg); animation-timing-function: ease-in-out; }
+  100% { transform: rotate(360deg); }
+}
+@keyframes mate-gear-cut-t {
+  from { clip-path: inset(-300% -300% -300% -300%); }
+  to   { clip-path: inset(6.23% 23.70% 78.69% 22.96%); }
+}
+@keyframes mate-gear-cut-b {
+  from { clip-path: inset(-300% -300% -300% -300%); }
+  to   { clip-path: inset(42.95% 25.19% 34.75% 24.44%); }
+}
+/* M pesante (nascosta e fuori scheda finché non cade): caduta in accelerazione, impatto con piccolo schiacciamento, rimbalzo netto e secco
+   (corto, senza rallentare) e un micro-rimbalzo di assestamento. 0.52s totali, impatto a 0.30s. */
+@keyframes mate-m-drop {
+  0%     { transform: translateY(-150%); visibility: hidden; animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
+  57.69% { transform: translateY(0) scale(1.012, 0.982); animation-timing-function: cubic-bezier(0.1, 0.8, 0.3, 1); }
+  71.15% { transform: translateY(-1.8%) scale(1); animation-timing-function: cubic-bezier(0.6, 0, 1, 0.6); }
+  84.62% { transform: translateY(0) scale(1.006, 0.992); animation-timing-function: cubic-bezier(0.1, 0.8, 0.3, 1); }
+  92.31% { transform: translateY(-0.5%) scale(1); animation-timing-function: cubic-bezier(0.6, 0, 1, 0.6); }
+  100%   { transform: translateY(0) scale(1); }
+}
+/* Le due parole partono da fuori scheda e convergono verso il centro fino alla loro posizione */
+@keyframes mate-word-l {
+  from { transform: translateX(-115%); }
+  to   { transform: translateX(0); }
+}
+@keyframes mate-word-r {
+  from { transform: translateX(115%); }
+  to   { transform: translateX(0); }
+}
+@keyframes mate-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes mate-beam {
+  0%   { opacity: 0; transform: translateX(0) skewX(-18deg); }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(400%) skewX(-18deg); }
+}
+@keyframes mate-gear-start {
+  from { transform: rotate(360deg); }
+  to   { transform: rotate(380deg); }
+}
+@keyframes mate-gear-run {
+  from { transform: rotate(380deg); }
+  to   { transform: rotate(740deg); }
+}
+
+/* ---- Carosello: cornice in acciaio scuro ---- */
+#auth-view .login-carousel { padding: 0.35rem 0 0.8rem; margin-bottom: 0.3rem; }
+#auth-view .login-carousel-tile {
+  position: relative;
+  width: 220px;
+  height: 150px;
+  margin-right: 14px;
+  border-radius: 22px;
+  border: 5px solid transparent;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(145deg, #8f949a 0%, #3b3e43 28%, #6a6e74 52%, #2f3237 78%, #5b5f65 100%) border-box;
+  box-shadow:
+    0 10px 16px -8px rgba(13, 17, 23, 0.55),
+    0 3px 6px -2px rgba(13, 17, 23, 0.3);
+}
+#auth-view .login-carousel-tile img { border-radius: 16px; }
+/* Fermo e non trascinabile finché non parte da solo (login-carousel.js) */
+.login-carousel.is-locked { cursor: default; }
+
+/* ---- Video di presentazione: sfondo della scheda del logo (.mate-brand), dietro al logo ----
+   .mate-brand ha overflow:hidden + isolation:isolate + angoli arrotondati: il video non esce mai.
+   z-index:-1 lo porta dietro a tutti i livelli del logo. */
+#auth-view .login-video {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #062c58;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#auth-view .login-video video {
+  position: absolute;
+  inset: -4px;                     /* margine minimo: il blur non lascia bordi trasparenti */
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  display: block;
+  object-fit: cover;
+  pointer-events: none;
+  /* Scuro e leggermente sfocato: il logo resta leggibile; la tinta blu lo integra nella palette */
+  filter: blur(1.5px) brightness(0.92) contrast(1.05);
+}
+/* Tinta blu: colora il video di blu senza scurirlo (blend "color"), così i toni restano luminosi */
+#auth-view .login-video::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(160deg, rgba(40, 130, 225, 0.8) 0%, rgba(15, 88, 166, 0.8) 100%);
+  mix-blend-mode: color;
+}
+/* Leggero scurimento ai bordi (vignettatura blu) per dare risalto al logo al centro */
+#auth-view .login-video::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(85% 90% at 50% 45%, rgba(6, 44, 88, 0.18) 30%, rgba(6, 44, 88, 0.4) 100%);
+}
+
+/* ---- Scheda del modulo: sempre bianca ---- */
+#auth-view .login-card {
+  border-radius: 1.375rem;
+  border-color: #d5d9df;
+  box-shadow:
+    inset 0 2px 0 #fff,
+    0 10px 24px -10px rgba(13, 17, 23, 0.3),
+    0 3px 7px -3px rgba(13, 17, 23, 0.15);
+}
+#auth-view .login-card input {
+  background: #fff;
+  border: 1.5px solid #9aa1ab;
+  border-radius: 0.8rem;
+  padding: 0.8rem 1rem;
+  color: #1c2530;
+}
+#auth-view .login-card input:focus { border-color: #0a3a6e; box-shadow: 0 0 0 3px rgba(10, 58, 110, 0.16); }
+
+/* ---- Pulsante ACCEDI: blu metallico con riflesso centrale ---- */
+#auth-view .login-btn {
+  border-radius: 0.8rem;
+  background: linear-gradient(90deg, #0a2a52 0%, #1a4d86 50%, #0a2a52 100%);
+  border: 1px solid #082444;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 6px 12px -5px rgba(7, 30, 62, 0.65);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+#auth-view .login-btn:hover { filter: brightness(1.12); }
+#auth-view .login-btn:disabled { opacity: 0.75; }
+
+/* ---- Calendario a intervallo (date-range-modal.js) -------------------------------------
+   Griglia del mese nei colori dell'app: giorni di inizio/fine in blu pieno, giorni in mezzo
+   con tinta opaca (niente trasparenze: sotto c'è lo sfondo forato), oggi con un filo blu. */
+.cal-box { transition: border-color var(--dur-fast) ease, background-color var(--dur-fast) ease; }
+.cal-box-active { border-color: var(--accent-edge); background-color: var(--accent-tint-soft); }
+.cal-nav {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  color: #5c6672;
+  transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+.cal-nav:active { background-color: var(--accent-tint); color: var(--accent-dark); }
+.cal-day {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  color: var(--ink);
+  border-radius: 0.5rem;
+  background: transparent;
+  transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+.cal-day:disabled { color: #b4bbc6; }
+.cal-day-today { box-shadow: inset 0 0 0 1px var(--accent-edge); }
+.cal-day-in { background-color: var(--accent-tint); border-radius: 0; }
+.cal-day-edge { background-color: var(--accent); color: #fff; font-weight: 600; }
+.cal-slide-next { animation: cal-slide-next var(--dur-base) var(--ease-out); }
+.cal-slide-prev { animation: cal-slide-prev var(--dur-base) var(--ease-out); }
+@keyframes cal-slide-next { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes cal-slide-prev { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .cal-slide-next, .cal-slide-prev { animation-duration: 1ms; }
+}
+
+
+/* ---- Movimenti: Deposito/Prelievo in basso, a portata di pollice --------------------
+   La vista riempie lo schermo tra testata e barra in basso; i due pulsanti vanno in fondo
+   (margin-top:auto) e, se l'elenco sopra diventa lungo (es. scheda scorta minima aperta),
+   scorrono con il resto della pagina invece di restare fissi sopra il contenuto. */
+#view-scanner:not(.hidden) {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--header-h, 56px) - var(--nav-h) - 4rem);
+}
+#view-scanner .scanner-actions {
+  margin-top: auto; /* contenuto corto: in fondo; contenuto lungo: seguono la pagina e scorrono con essa */
+}
+#view-scanner #scanner-idle-panel { margin-bottom: 1rem; }
+/* Ultimi movimenti: 4 voci in vista, le altre (ultimi 30 giorni) scorrono dentro la scheda.
+   L'altezza esatta la imposta scanner-idle.js; questa è solo quella di ripiego. */
+.recent-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  max-height: 13.5rem;
+  scrollbar-width: none;
+}
+.recent-scroll::-webkit-scrollbar { width: 0; height: 0; }
+/* Sfumatura in fondo: c'è altro da scorrere */
+.recent-scroll[data-more="1"] {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent);
+}
+
+
+/* =============================================================
+   RICERCA IN TESTATA + SCANSIONE RAPIDA
+   Stesso linguaggio di movimento del resto dell'app: --ease-out, --dur-*, nessun rimbalzo.
+   ============================================================= */
+.hdr-row { min-height: 60px; }
+.hsearch-input {
+  width: 100%; height: 40px; padding: 0 38px 0 40px; border-radius: 0.75rem;
+  font-size: 15px; color: #fff; background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.24); outline: none;
+  transition: background-color var(--dur-base) ease, color var(--dur-base) ease,
+    border-color var(--dur-base) ease, box-shadow var(--dur-base) ease;
+}
+.hsearch-input::placeholder { color: rgba(255,255,255,0.78); transition: color var(--dur-base) ease; }
+.hsearch-input:focus { background: #fff; color: #0d1117; border-color: #fff; box-shadow: 0 6px 18px -8px rgba(13,17,23,0.55); }
+.hsearch-input:focus::placeholder { color: #7a8494; }
+.hsearch-icon { position: absolute; left: 13px; top: 50%; margin-top: -9px; color: rgba(255,255,255,0.9); pointer-events: none; transition: color var(--dur-base) ease; }
+.hsearch:focus-within .hsearch-icon { color: var(--accent); }
+.hsearch-clear {
+  position: absolute; right: 9px; top: 50%; margin-top: -10px; width: 20px; height: 20px;
+  border: 0; padding: 0; border-radius: 9999px; display: flex; align-items: center; justify-content: center;
+  background: rgba(var(--accent-rgb),0.12); color: var(--accent);
+  opacity: 0; transform: scale(0.5); pointer-events: none;
+  transition: opacity var(--dur-fast) ease, transform var(--dur-base) var(--ease-out);
+}
+.hsearch-clear::after { content: ''; position: absolute; inset: -10px; }
+.hsearch-clear.on { opacity: 1; transform: scale(1); pointer-events: auto; }
+.hdr-btn {
+  width: 40px; height: 40px; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center;
+  color: #fff; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.24);
+  transition: background-color var(--dur-fast) ease;
+}
+button.hdr-btn:not(:disabled):active { background: rgba(255,255,255,0.3); }
+.hdr-right {
+  max-width: 120px; overflow: hidden;
+  transition: max-width var(--dur-slow) var(--ease-out), opacity var(--dur-base) ease,
+    transform var(--dur-slow) var(--ease-out), margin-left var(--dur-slow) var(--ease-out);
+}
+.app-header.hs-active .hdr-right { max-width: 0; margin-left: -0.5rem; opacity: 0; transform: translateX(14px); pointer-events: none; }
+.hs-layer { position: static; }
+.hs-backdrop {
+  position: fixed; left: 0; right: 0; bottom: 0; top: var(--header-h, 56px); z-index: 44;
+  background: rgba(13,17,23,0.4); opacity: 0; pointer-events: none; transition: opacity var(--dur-base) ease;
+}
+.hs-panel {
+  position: fixed; top: calc(var(--header-h, 56px) + 8px); left: 12px; right: 12px;
+  max-width: calc(42rem - 24px); margin: 0 auto; z-index: 45; max-height: 70dvh;
+  overflow-y: auto; overscroll-behavior: contain; border-radius: 1rem; background: #fff;
+  border: 1px solid var(--accent-edge); box-shadow: 0 22px 44px -18px rgba(13,17,23,0.5);
+  opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(-8px) scale(0.985); transform-origin: top center;
+  transition: opacity var(--dur-base) ease, transform var(--dur-slow) var(--ease-out), visibility 0s linear var(--dur-slow);
+}
+.hs-layer.hs-open .hs-backdrop { opacity: 1; pointer-events: auto; }
+.hs-layer.hs-open .hs-panel { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition-delay: 0s; }
+.hs-row { border-top: 1px solid #e6e9ee; animation: hs-row-in var(--dur-base) var(--ease-out) both; animation-delay: calc(var(--i, 0) * 24ms); }
+.hs-row:first-child { border-top: 0; }
+@keyframes hs-row-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.hs-main {
+  width: 100%; min-height: 56px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; text-align: left; background: transparent; transition: background-color var(--dur-fast) ease;
+}
+button.hs-main:not(:disabled):active { transform: none; background: var(--accent-tint); transition-duration: var(--dur-press); }
+.hs-code { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; color: #0d1117; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-code--text { font-family: inherit; font-weight: 600; }
+.hs-sub { display: block; font-size: 12px; color: #5c6672; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-actions { display: flex; gap: 8px; padding: 0 14px 12px; }
+.hs-hint { padding: 22px 20px; text-align: center; color: #5c6672; font-size: 13px; line-height: 1.45; animation: empty-state-in var(--dur-slow) var(--ease-out); }
+.hs-hint svg { margin: 0 auto 8px; color: var(--accent-edge); }
+.hs-note { padding: 10px 14px 0; font-size: 12px; color: #b45309; }
+.hs-skel { padding: 12px 14px; }
+.hs-btn {
+  flex: 1 1 0; min-height: 36px; padding: 0 12px; border-radius: 0.5rem; font-weight: 700; font-size: 12px;
+  letter-spacing: 0.04em; text-transform: uppercase; color: #fff;
+  transition: background-color var(--dur-fast) ease, filter var(--dur-fast) ease;
+}
+button.hs-btn:not(:disabled):active { filter: brightness(0.92); }
+.hs-btn--lg { min-height: 48px; font-size: 13px; border-radius: 0.75rem; }
+.hs-btn--dep { background: var(--deposito); }
+.hs-btn--pre { background: var(--accent); }
+.hs-btn--info { background: var(--accent-tint); color: var(--accent-dark, var(--accent)); border: 1px solid var(--accent-edge); }
+.qs-found { animation: empty-state-in var(--dur-slow) var(--ease-out); }
+.qs-link { display: block; width: 100%; margin-top: 6px; min-height: 44px; font-size: 13px; color: #5c6672; text-align: center; }
+@media (prefers-reduced-motion: reduce) {
+  .hsearch-input, .hsearch-icon, .hsearch-clear, .hdr-right, .hs-backdrop, .hs-panel { transition-duration: 1ms; }
+  .hs-row, .hs-hint, .qs-found { animation: none; }
+}
+
+
+/* =============================================================
+   Movimenti — ingresso animato + pulsanti Deposito/Prelievo con rilievo 3D
+   ============================================================= */
+/* Fino al primo fotogramma dell'ingresso gli elementi restano nascosti (nessun lampo) */
+#view-scanner.intro-pending #scanner-lowstock-card,
+#view-scanner.intro-pending #scanner-prestiti-btn,
+#view-scanner.intro-pending #scanner-idle-panel > .card-plate:last-child,
+#view-scanner.intro-pending .scanner-actions > button { visibility: hidden; }
+/* I pulsanti arrivano da fuori schermo: il ritaglio laterale lo fa già .view-host (ai bordi dello schermo);
+   ritagliare anche qui li tagliava 16px prima del bordo, in entrata e nel rimbalzo */
+.scanner-actions { perspective: 900px; padding-bottom: 6px; }
+
+#mode-deposito { --edge: color-mix(in srgb, var(--deposito) 62%, #000); }
+#mode-prelievo { --edge: color-mix(in srgb, var(--accent) 62%, #000); }
+#mode-deposito, #mode-prelievo {
+  /* luce dall'alto: lucido in cima, ombra sul fondo */
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,0.26) 0%, rgba(255,255,255,0.07) 42%, rgba(0,0,0,0) 58%, rgba(0,0,0,0.16) 100%);
+  /* Nessun bordino chiaro in alto: il bordo è trasparente e il colore (con la luce) lo ricopre
+     fino al margine esterno, senza filo di luce né riga diversa sul bordo. */
+  border-color: transparent;
+  background-origin: border-box;
+  /* bordo laterale/inferiore "spesso" + ombra morbida a terra */
+  box-shadow:
+    inset 0 -2px 4px rgba(0,0,0,0.18),
+    0 6px 0 var(--edge),
+    0 14px 20px -6px rgba(13,17,23,0.45);
+  transform-style: preserve-3d;
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out),
+    background-color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+#mode-deposito i, #mode-deposito svg, #mode-prelievo i, #mode-prelievo svg { filter: drop-shadow(0 3px 2px rgba(0,0,0,0.28)); }
+#mode-deposito span, #mode-prelievo span { text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+/* Pressione: il pulsante scende sul suo bordo */
+#mode-deposito:active, #mode-prelievo:active {
+  transform: translateY(5px);
+  transition-duration: var(--dur-press);
+  box-shadow:
+    inset 0 -2px 4px rgba(0,0,0,0.22),
+    0 1px 0 var(--edge),
+    0 5px 10px -4px rgba(13,17,23,0.4);
+}
+.mode-active-deposito, .mode-active-prelievo { transform: translateY(3px); }
+@media (prefers-reduced-motion: reduce) {
+  #mode-deposito, #mode-prelievo { transition-duration: 1ms; }
+}
+
+/* Icona cassetto a becco (scaffali Ufficio tecnico): frontale azzurro pastello, interno più scuro per dare profondità */
+.bin-ico .bin-inner { fill: #7fa3d1; }
+.bin-ico .bin-front { fill: #c3daf3; }
+.bin-ico .bin-label { fill: #f4f9fe; }
+.bin-ico .bin-inner, .bin-ico .bin-front, .bin-ico .bin-label { transition: fill var(--dur-base) ease; }
+.shelf-card.shelf-active .bin-ico .bin-inner,
+.lowstock-tile-selected .bin-ico .bin-inner { fill: rgba(10, 30, 90, 0.45); }
+.shelf-card.shelf-active .bin-ico .bin-front,
+.lowstock-tile-selected .bin-ico .bin-front { fill: rgba(255, 255, 255, 0.38); }
+.shelf-card.shelf-active .bin-ico .bin-label,
+.lowstock-tile-selected .bin-ico .bin-label { fill: rgba(255, 255, 255, 0.9); }
+
+/* Ingranaggio del logo trascinabile: i gesti orizzontali arrivano al codice, quelli verticali scorrono la pagina */
+.mate-logo-wrap { touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+
+/* =============================================================
+   BLOCCO NOTE INTERVENTI (vista Interventi, modali nuovo/esito)
+   ============================================================= */
+
+/* Icona "Interventi": alla selezione una penna compila il foglio, riga dopo riga.
+   Le righe si scrivono in sequenza, seguite dalla punta della penna; poi la penna svanisce.
+   (Ogni riga ha il suo ritardo: durata totale 1 s, solo tratto e trasformazioni.) */
+.nav-nt-line { stroke-dasharray: 10; stroke-dashoffset: 0; }
+.nav-nt-pen { opacity: 0; color: var(--accent); }
+@keyframes nav-nt-write { from { stroke-dashoffset: 10; } to { stroke-dashoffset: 0; } }
+@keyframes nav-nt-pen {
+  0%   { transform: translate(8.5px, 11px);   opacity: 0; }
+  8%   { transform: translate(8.5px, 11px);   opacity: 1; }
+  30%  { transform: translate(15.5px, 11px);  opacity: 1; }
+  35%  { transform: translate(8.5px, 14.5px); opacity: 1; }
+  55%  { transform: translate(15.5px, 14.5px); opacity: 1; }
+  60%  { transform: translate(8.5px, 18px);   opacity: 1; }
+  75%  { transform: translate(12.5px, 18px);  opacity: 1; }
+  88%  { transform: translate(12.5px, 18px);  opacity: 1; }
+  100% { transform: translate(14px, 16.5px);  opacity: 0; }
+}
+.nav-item.nav-active .nt-l1 { animation: nav-nt-write 200ms linear 100ms both; }
+.nav-item.nav-active .nt-l2 { animation: nav-nt-write 200ms linear 350ms both; }
+.nav-item.nav-active .nt-l3 { animation: nav-nt-write 150ms linear 600ms both; }
+.nav-item.nav-active .nav-nt-pen { animation: nav-nt-pen 1000ms linear both; }
+@media (prefers-reduced-motion: reduce) {
+  .nav-item.nav-active .nav-nt-line, .nav-item.nav-active .nav-nt-pen { animation: none; }
+}
+/* Con quattro voci la barra è più stretta: etichette senza spaziatura extra sugli schermi piccoli */
+@media (max-width: 389px) {
+  .nav-seg .nav-item .ui-label { letter-spacing: 0; }
+}
+
+/* Pulsante tondo "+" (nuovo intervento): sopra la barra in basso, allineato al contenuto.
+   Sta fuori dalla vista (le animazioni di cambio sezione lo sposterebbero) e compare solo
+   nella sezione Interventi, con una piccola dissolvenza. */
+.int-fab {
+  position: fixed;
+  z-index: 30;
+  right: max(1rem, calc((100vw - 42rem) / 2 + 1rem));
+  bottom: calc(var(--nav-h) + 1rem);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: scale(0.6);
+  transition: opacity var(--dur-base) ease, transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base);
+}
+.int-fab.int-fab--on {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  transition-delay: 0s;
+}
+@media (prefers-reduced-motion: reduce) { .int-fab { transition-duration: 1ms; } }
+
+/* Passi del nuovo intervento (Linea → Macchina → Intervento): quelli non ancora
+   raggiungibili restano attenuati e non toccabili, poi si accendono con una dissolvenza. */
+.int-step { transition: opacity var(--dur-base) ease; }
+.int-step[data-locked="true"] { opacity: 0.4; pointer-events: none; }
+
+/* Scelte rapide */
+.int-chip {
+  min-height: 40px;
+  padding: 0.4rem 0.8rem;
+  border-radius: 9999px;
+  border: 1px solid var(--accent-edge);
+  background: var(--accent-tint);
+  color: var(--accent-dark);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: left;
+  line-height: 1.2;
+  transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.int-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #ffffff; }
+
+/* Scheda intervento in elenco */
+.int-card { text-align: left; width: 100%; }
+button.int-card:not(:disabled):active { transform: scale(0.985); }
+.int-thumb {
+  width: 64px; height: 64px; flex: none;
+  border-radius: 0.6rem; object-fit: cover;
+  background: #e7e9ed; border: 1px solid #c3c9d1;
+}
+.seg .category-tab[data-stato="effettuato"].category-tab-active { color: #ffffff !important; }
+
+/* Pulsante PDF degli interventi: bianco e pieno se si può toccare, grigio pieno (mai trasparente) se non c'è nulla da esportare */
+.int-pdf-btn {
+  background: #ffffff;
+  border: 1px solid #c3c9d1;
+  color: #3b4552;
+  transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+.int-pdf-btn:not(:disabled):active { background: #eef0f3; }
+.int-pdf-btn:disabled {
+  background: #d9dce1;
+  border-color: #c3c9d1;
+  color: #8b94a0;
+  opacity: 1;
+}
+/* Casella di selezione nella scelta degli interventi da esportare */
+.int-check {
+  width: 24px; height: 24px; flex: none; border-radius: 0.45rem;
+  border: 2px solid #aab2bd; background: #ffffff; color: #ffffff;
+  display: flex; align-items: center; justify-content: center;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+button[aria-checked="true"] > .int-check { background: var(--accent); border-color: var(--accent); }
+
+/* Giorni con interventi: pallino blu sotto il numero (calendario) */
+.cal-day { position: relative; }
+.cal-day-mark::after {
+  content: '';
+  position: absolute;
+  left: 50%; bottom: 4px;
+  width: 5px; height: 5px; margin-left: -2.5px;
+  border-radius: 9999px;
+  background: var(--accent);
+}
+.cal-day-edge.cal-day-mark::after { background: #ffffff; }
+.cal-day:disabled.cal-day-mark::after { opacity: 0.4; }
+
+/* Frecce del giorno: pieno bianco se si può andare avanti/indietro, grigio pieno se non ci sono altri giorni con interventi */
+#int-date-prev:disabled, #int-date-next:disabled { background: #d9dce1; color: #8b94a0; opacity: 1; }
+
+/* Riga intervento dentro la scheda della macchina */
+.int-row { transition: background-color var(--dur-fast) ease; }
+.int-row:active { background-color: var(--accent-tint-soft); }
+
+/* Foto a tutto schermo con zoom: i gesti li gestisce il programma, non il browser */
+.int-zoom-stage { touch-action: none; user-select: none; -webkit-user-select: none; }
+#int-photo-full { transform-origin: center center; will-change: transform; -webkit-user-drag: none; }
+/* Segmenti senza voce attiva: l'indicatore blu non resta sulla scelta precedente */
+.seg.seg-empty .seg-indicator { opacity: 0; }
+
+/* Campo obbligatorio rimasto vuoto: contorno rosso per un attimo */
+.field-missing { outline: 2px solid #dc2626; outline-offset: 2px; border-radius: 0.6rem; transition: outline-color var(--dur-fast) ease; }
+
+/* Punti di utilizzo già usati: la tendina si estende da sola sotto il campo (nessuna freccia) */
+.punti-expand { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 300ms var(--ease-out); }
+.punti-expand.is-open { grid-template-rows: 1fr; }
+.punti-expand > .punti-expand-inner { overflow: hidden; min-height: 0; }
+@media (prefers-reduced-motion: reduce) { .punti-expand { transition-duration: 1ms; } }
+
+/* Pulsante Report (Impostazioni): grande, a colori pieni e in rilievo, per risaltare sul resto */
+.settings-report-hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+  box-shadow: 0 3px 0 #1b3358, 0 8px 14px -8px rgba(36, 64, 111, 0.5);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.settings-report-hero::after {
+  content: '';
+  position: absolute;
+  right: -20px; top: -26px;
+  width: 96px; height: 96px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+.settings-report-hero:active { transform: translateY(2px); box-shadow: 0 1px 0 #1b3358, 0 4px 8px -6px rgba(36, 64, 111, 0.5); }
+
+/* Ingranaggio delle Impostazioni (testata): a Impostazioni aperte resta a un quarto di giro (orario);
+   chiudendole torna indietro con una transizione (antioraria). Nessuno scatto a fine corsa. */
+.settings-gear { transform-origin: 50% 50%; transform: rotate(0deg); transition: transform 380ms cubic-bezier(0.8, 0, 0.8, 0.2); }
+#settings-btn.is-open .settings-gear { transform: rotate(90deg); transition-duration: 420ms; transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+@media (prefers-reduced-motion: reduce) { .settings-gear { transition-duration: 1ms; } }
+
+/* Impostazioni: entrano dall'alto e spingono verso il basso la sezione corrente; le due viste scorrono insieme,
+   percorrendo la stessa distanza (--push-dist, impostata da app.js). Richiudendole: percorso inverso. Solo transform. */
+@keyframes push-in-top  { from { transform: translateY(calc(var(--push-dist, 100vh) * -1)); } to { transform: translateY(0); } }
+@keyframes push-out-down { from { transform: translateY(0); } to { transform: translateY(var(--push-dist, 100vh)); } }
+@keyframes push-out-up  { from { transform: translateY(0); } to { transform: translateY(calc(var(--push-dist, 100vh) * -1)); } }
+@keyframes push-in-bottom { from { transform: translateY(var(--push-dist, 100vh)); } to { transform: translateY(0); } }
+.view-push-down, .view-push-up-out { pointer-events: none; will-change: transform; }
+.view-push-from-top, .view-push-up-in { position: relative; z-index: 2; will-change: transform; }
+.view-push-down { animation: push-out-down 480ms cubic-bezier(0.32, 0.72, 0, 1) both; }
+.view-push-from-top { animation: push-in-top 480ms cubic-bezier(0.32, 0.72, 0, 1) both; }
+.view-push-up-out { animation: push-out-up 440ms cubic-bezier(0.5, 0, 0.75, 0) both; }
+.view-push-up-in { animation: push-in-bottom 440ms cubic-bezier(0.5, 0, 0.75, 0) both; }
+@media (prefers-reduced-motion: reduce) {
+  .view-push-down, .view-push-from-top, .view-push-up-out, .view-push-up-in { animation-duration: 1ms; }
+}
+
+/* Rotella delle Impostazioni: lo sfondo chiaro compare solo mentre si preme (e al passaggio del mouse sui computer),
+   mai come "focus" o "hover" rimasto dopo il tocco */
+#settings-btn:focus { outline: none; }
+#settings-btn:active { background: rgba(255, 255, 255, 0.3); }
+@media (hover: hover) { #settings-btn:hover { background: rgba(255, 255, 255, 0.15); } #settings-btn:active { background: rgba(255, 255, 255, 0.3); } }
+
+/* Selettore dell'ora: due ruote a scorrimento con aggancio */
+.tp-wrap { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.5rem; height: 220px; }
+.tp-wheel {
+  width: 96px; height: 220px; overflow-y: auto; scroll-snap-type: y mandatory;
+  padding: 88px 0; box-sizing: border-box; scrollbar-width: none; overscroll-behavior: contain;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 32%, #000 68%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 32%, #000 68%, transparent);
+}
+.tp-wheel::-webkit-scrollbar { display: none; }
+.tp-item {
+  height: 44px; scroll-snap-align: center; display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 1.25rem; color: var(--graphite-500, #8b94a0);
+  transition: color var(--dur-fast) ease, transform var(--dur-fast) ease; cursor: pointer;
+}
+.tp-item-on { color: var(--accent); font-weight: 700; transform: scale(1.25); }
+.tp-colon { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+.tp-band {
+  position: absolute; left: 0; right: 0; top: 88px; height: 44px; pointer-events: none;
+  border-top: 2px solid var(--accent-edge); border-bottom: 2px solid var(--accent-edge);
+  background: var(--accent-tint); border-radius: 0.6rem; opacity: 0.55;
+}
+
+
+/* ---- Interventi nuovi di altri: pallino con alone che pulsa + avviso sul pulsante della barra ---- */
+.unseen-hit {
+  position: absolute; left: 0; top: 0;
+  width: 1.75rem; height: 2.75rem;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.unseen-dot {
+  position: relative; display: block;
+  width: 0.5rem; height: 0.5rem; border-radius: 9999px;
+  background: var(--accent);
+}
+.unseen-dot::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background: var(--accent);
+  animation: unseen-pulse 1.8s ease-out infinite;
+}
+@keyframes unseen-pulse {
+  0%   { transform: scale(1); opacity: 0.55; }
+  70%, 100% { transform: scale(3.2); opacity: 0; }
+}
+/* Presa visione: si ingrandisce, poi implode e scompare */
+.unseen-dot-out { animation: unseen-out 520ms ease-in-out forwards; }
+.unseen-dot-out::after { animation: none; opacity: 0; }
+@keyframes unseen-out {
+  0%   { transform: scale(1);   opacity: 1; }
+  35%  { transform: scale(2.6); opacity: 1; }
+  100% { transform: scale(0);   opacity: 0; }
+}
+.nav-item .nav-icon-wrap { position: relative; }
+.unseen-badge {
+  position: absolute; top: 0.35rem; right: -1.2rem;
+  min-width: 1rem; height: 1rem; padding: 0 0.25rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 9999px;
+  background: var(--accent); color: #fff;
+  font-size: 0.625rem; font-weight: 700; line-height: 1;
+  box-shadow: 0 0 0 2px #fff;
+}
+.unseen-badge.hidden { display: none; }
+.unseen-badge::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background: var(--accent); z-index: -1;
+  animation: unseen-pulse-badge 1.8s ease-out infinite;
+}
+/* Sul pulsante l'alone è più contenuto: deve restare dentro il pulsante, senza sbordare sulla barra */
+@keyframes unseen-pulse-badge {
+  0%   { transform: scale(1); opacity: 0.5; }
+  70%, 100% { transform: scale(1.55); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .unseen-dot::after, .unseen-badge::after { animation: none; opacity: 0; }
+  .unseen-dot-out { animation-duration: 160ms; }
+}
+
+/* Prelievo a prestito: restano solo l'interruttore e il campo "A chi viene dato" (niente linea, macchinario, punto di utilizzo) */
+#scan-prelievo-fields.is-prestito > :not(#scan-prestito-wrap) { display: none !important; }
+#scan-prestito-toggle[aria-checked="true"] { background: #2f4f92; border-color: #2f4f92; color: #ffffff; }
+#scan-prestito-toggle[aria-checked="true"] #scan-prestito-state { color: #ffffff; }
+
+
+/* ---- Magazzino: vista compatta ----------------------------------------
+   Riga Scaffalatura/Macchina + Annulla/Ripeti: se non ha nulla di visibile (operatore su Cuscinetti)
+   sparisce del tutto, senza lasciare spazio vuoto. */
+.prod-toolbar:not(:has(> :not(.hidden))) { display: none; }
+/* Pulsante "solo sotto scorta": quadrato con triangolo; rosso da attivo; numero degli articoli sotto scorta */
+.lowstock-btn { color: #6b7280; transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease; }
+.lowstock-btn:has(input:checked) { color: #c8283d; background-color: #fdecee; border-color: #c8283d; }
+.lowstock-btn:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lowstock-count {
+  position: absolute; top: -6px; right: -6px;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: #c8283d; color: #fff;
+  font-size: 11px; font-weight: 600; line-height: 1;
+}
+.lowstock-count[hidden] { display: none; }
+/* Tag della categoria negli elenchi di movimenti */
+.mv-tag {
+  flex: none; padding: 1px 6px; border-radius: 5px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1.2;
+  background: #e3e9f6; color: #243767;
+}
+.mv-tag--cinghie { background: #dff3ec; color: #0b4f3d; }
+.mv-tag--pezzi_ricambio { background: #fbe9c9; color: #6a3a05; }
+
+/* Annulla/Ripeti: compaiono solo quando l'operazione è possibile */
+.history-btn.history-off { display: none !important; }
+/* Più spazio in fondo al Magazzino: il pulsante tondo "+" non copre le quantità dell'ultimo articolo */
+#view-products { padding-bottom: 7.5rem; }
+
+/* ---- Testata nelle Impostazioni: titolo al posto di ricerca e scanner ---- */
+/* Il titolo sta sopra la riga della testata (posizione assoluta): ricerca e scanner mantengono il loro posto,
+   così la testata non cambia altezza. Entrata: la ricerca sale e sparisce, POI il titolo scorre da sinistra.
+   Uscita: prima il titolo esce verso sinistra, POI la ricerca ridiscende dall'alto. Il "poi" è il ritardo
+   (transition-delay) della proprietà che compare, quindi la sequenza è tutta qui, senza timer in JS. */
+.hdr-row { position: relative; clip-path: inset(0 -12px); }
+#hsearch, #hsearch-scan-btn {
+  transition: transform var(--dur-base) var(--ease-out) var(--dur-base),
+    opacity var(--dur-base) ease var(--dur-base), visibility 0s linear var(--dur-base);
+}
+.app-header.hdr-settings #hsearch, .app-header.hdr-settings #hsearch-scan-btn {
+  transform: translateY(-160%); opacity: 0; visibility: hidden; pointer-events: none;
+  transition: transform var(--dur-base) var(--ease-in) 0s,
+    opacity var(--dur-base) ease 0s, visibility 0s linear var(--dur-base);
+}
+.hdr-settings-title {
+  position: absolute; inset: 0; padding: 0 8.5rem 0 1rem;
+  display: flex; align-items: center; gap: 0.625rem; pointer-events: none;
+  transform: translateX(-130%); opacity: 0; visibility: hidden;
+  transition: transform var(--dur-base) var(--ease-in) 0s,
+    opacity var(--dur-base) ease 0s, visibility 0s linear var(--dur-base);
+}
+.app-header.hdr-settings .hdr-settings-title {
+  transform: none; opacity: 1; visibility: visible;
+  transition: transform var(--dur-slow) var(--ease-out) var(--dur-base),
+    opacity var(--dur-base) ease var(--dur-base), visibility 0s linear var(--dur-base);
+}
+.hdr-settings-ico {
+  width: 40px; height: 40px; border-radius: 0.75rem; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.24);
+}
+.hdr-settings-text {
+  font-weight: 700; font-size: 1.125rem;
+  letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.1; white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  #hsearch, #hsearch-scan-btn, .hdr-settings-title { transition-duration: 0s !important; transition-delay: 0s !important; }
+}
+
+/* ---- Impostazioni: voci raggruppate per tipologia ---- */
+.set-group { margin-bottom: 1.25rem; }
+.set-group-title {
+  margin: 0 0.25rem 0.4rem; font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #6b7280;
+}
+.set-group-title--danger { color: #be123c; }
+.set-card > * + *, .set-group .card-plate > * + * { border-top: 1px solid rgba(13, 17, 23, 0.07); }
+.set-row {
+  display: flex; align-items: center; gap: 0.75rem; width: 100%; min-height: 52px;
+  padding: 0.6rem 0.875rem; text-align: left; background: transparent;
+  transition: background-color var(--dur-fast) ease;
+}
+button.set-row:not(:disabled):active { transform: none; background-color: var(--accent-tint-8); }
+button.set-row:disabled { opacity: 0.55; }
+.set-ico {
+  width: 34px; height: 34px; border-radius: 0.5rem; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-tint-soft); color: var(--accent);
+}
+.set-ico--lg { width: 40px; height: 40px; border-radius: 0.625rem; }
+.set-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.set-title {
+  font-weight: 600; font-size: 13px;
+  letter-spacing: 0.04em; text-transform: uppercase; color: #1a2230;
+}
+.set-sub { margin-top: 2px; font-size: 12px; line-height: 1.3; color: #6b7280; }
+.set-status { margin: 0; padding: 0 0.875rem 0.5rem 3.6rem; font-size: 12px; color: #6b7280; }
+.set-status:empty { display: none; }
+.set-row--danger .set-ico { background: rgba(244, 63, 94, 0.1); color: #be123c; }
+.set-row--danger .set-title { color: #be123c; }
+button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
+
+/* ---- Movimenti: "sotto scorta" e "prestiti" affiancati, stessa struttura ---- */
+.mv-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; align-items: start; }
+.mvt {
+  display: grid; grid-template-columns: auto 1fr auto;
+  grid-template-areas: "ico . chev" "txt txt txt";
+  row-gap: 0.625rem; align-items: center;
+}
+.mvt-ico { grid-area: ico; }
+.mvt-txt { grid-area: txt; min-width: 0; }
+.mvt-chev { grid-area: chev; }
+/* Larga: scheda sotto scorta aperta, oppure un solo tile (operatore senza Prestiti) */
+.mv-tiles .lowstock-card-open { grid-column: 1 / -1; }
+.mv-tiles:has(.lowstock-card-open) #scanner-prestiti-btn { grid-column: 1 / -1; }
+.mv-tiles:not(:has(#scanner-prestiti-btn:not(.hidden))) .lowstock-card { grid-column: 1 / -1; }
+.lowstock-card-open .mvt,
+.mv-tiles:has(.lowstock-card-open) #scanner-prestiti-btn,
+.mv-tiles:not(:has(#scanner-prestiti-btn:not(.hidden))) .mvt {
+  grid-template-areas: "ico txt chev"; column-gap: 0.75rem; row-gap: 0;
+}
+
+.set-group .card-plate > .set-status { border-top: 0; }
+
+/* Riga strumenti: Scaffalatura/Macchina a sinistra, Annulla/Ripeti/Sotto scorta a destra; se non c'è spazio vanno a capo
+   (mai scorrimento orizzontale). Con il selettore nascosto (Cuscinetti) "Solo sotto scorta" diventa un'etichetta a sinistra
+   con icona, testo e numero; accanto ai filtri Linea/Macchina resta il quadrato con la sola icona. */
+.prod-toolbar { flex-wrap: wrap; justify-content: flex-end; }
+.prod-toolbar > #product-view-mode-wrap { margin-right: auto; }
+.prod-toolbar:not(:has(#product-view-mode-wrap:not(.hidden))) > .lowstock-btn {
+  order: -1; margin-right: auto; width: auto; padding: 0 0.875rem; gap: 0.5rem;
+}
+.lowstock-label { display: none; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.prod-toolbar:not(:has(#product-view-mode-wrap:not(.hidden))) .lowstock-label { display: inline; }
+.prod-toolbar:not(:has(#product-view-mode-wrap:not(.hidden))) .lowstock-count { position: static; margin-left: 0.125rem; }
+.prod-filters:not(:has(> :not(.hidden))) { display: none; }
+
+/* ---- Magazzino: cambio categoria ---------------------------------------
+   Gli elementi della barra strumenti che compaiono (filtri Linea/Macchina, selettore) entrano con una
+   dissolvenza breve invece di materializzarsi di colpo. Attivo solo durante lo scambio. */
+@keyframes prod-bar-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+#view-products.cat-switching #product-linea-filter-wrap:not(.hidden),
+#view-products.cat-switching #product-view-mode-wrap:not(.hidden) { animation: prod-bar-in var(--dur-base) var(--ease-out) both; }
+@media (prefers-reduced-motion: reduce) {
+  #view-products.cat-switching #product-linea-filter-wrap:not(.hidden),
+  #view-products.cat-switching #product-view-mode-wrap:not(.hidden) { animation: none; }
+}
+
+/* Inventario, conteggio: la barra dei pulsanti resta ferma in alto e si stacca dall'elenco che scorre sotto
+   (bordo e ombra leggera; l'elenco passa dietro, non più a filo dei pulsanti). */
+.inv-bar {
+  position: relative;
+  z-index: 2;
+  border-top: 1px solid var(--graphite-700, #d5dae0);
+  border-bottom: 1px solid var(--graphite-700, #d5dae0);
+  box-shadow: 0 8px 16px -8px rgba(15, 23, 42, 0.5);
+}
+
+/* ---- Magazzino: le tre categorie restano ferme sotto la testata -------------------------------
+   Stessa cornice della barra inferiore: fondo pieno della pagina, bordo e ombra sottili, e dentro
+   il controllo segmentato bianco con il rettangolo blu. Altezza fissa (--prod-bar-h) così gli
+   scaffali aperti, che restano anch'essi fermi, si agganciano subito sotto. */
+:root { --prod-bar-h: 66px; }
+.prod-cat-bar {
+  position: sticky;
+  top: var(--header-h, 56px);
+  z-index: 8;
+  box-sizing: border-box;
+  height: var(--prod-bar-h);
+  margin: 0 -1rem 0.75rem;
+  padding: 8px 1rem 7px; /* 8 + 50 (controllo) + 7 + 1 (bordo) = 66 */
+  background: var(--paper);
+  border-bottom: 1px solid rgba(13, 17, 23, 0.08);
+  box-shadow: 0 8px 24px -12px rgba(13, 17, 23, 0.18);
+}
+#view-products .shelf-card.shelf-open .shelf-header-sticky { top: calc(var(--header-h, 56px) + var(--prod-bar-h)); }
+
+
+/* ---- Interventi: ogni linea è una sezione a sé, con il suo colore e più aria tra l'una e l'altra ---- */
+.ln-group { --ln: var(--accent); --ln-soft: rgba(47, 79, 146, 0.1); }
+.ln-group.ln-L2 { --ln: #0f766e; --ln-soft: rgba(15, 118, 110, 0.1); }
+.ln-group.ln-REP { --ln: #7c5a1d; --ln-soft: rgba(124, 90, 29, 0.1); }
+.ln-group + .ln-group {
+  margin-top: 1.75rem !important;
+  padding-top: 1.25rem;
+  border-top: 2px dashed color-mix(in srgb, var(--ln) 35%, transparent);
+}
+.ln-group > .shelf-group-header {
+  --accent: var(--ln);                         /* riempimento e bordo all'apertura nel colore della linea */
+  border-color: color-mix(in srgb, var(--ln) 45%, #d5d9df);
+  border-left-width: 7px;
+  border-left-color: var(--ln);
+}
+.ln-group > .shelf-group-header .shelf-ico-box { background-color: var(--ln-soft); }
+.ln-group > .shelf-group-header .shelf-ico { color: var(--ln); }
+.ln-group.group-open > .shelf-group-header { border-color: var(--ln); }
+.ln-group.group-open > .shelf-group-header .shelf-ico { color: #ffffff; }
+/* Corpo della linea: filetto laterale nel suo colore, così si capisce a quale linea appartengono le macchine */
+.ln-group > .group-body-track > .group-body-inner > .group-shelves {
+  margin-top: 0.6rem;
+  margin-left: 0.35rem;
+  padding-left: 0.7rem;
+  border-left: 3px solid color-mix(in srgb, var(--ln) 55%, transparent);
+  border-radius: 2px;
+}
