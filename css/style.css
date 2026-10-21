@@ -2036,8 +2036,8 @@ input:disabled + .input-clear { display: none; }
   overflow: hidden;
   isolation: isolate;
   text-align: center;
-  /* La scheda ha le proporzioni del video (1694x720): il video si vede intero, senza ritagli */
-  aspect-ratio: 1694 / 720;
+  /* La scheda è 16:9; il video (più largo) la riempie con object-fit: cover, ritagliando un po' ai lati */
+  aspect-ratio: 16 / 9;
   container-type: size;
   display: flex;
   align-items: center;
@@ -2069,8 +2069,8 @@ input:disabled + .input-clear { display: none; }
 .mate-logo-wrap {
   position: relative;
   display: block;
-  height: 88%;              /* ripiego */
-  height: 88cqh;            /* il logo si adatta all'altezza della scheda */
+  height: 80%;              /* ripiego */
+  height: 80cqh;            /* il logo si adatta all'altezza della scheda */
   aspect-ratio: 1350 / 1525;
 }
 .mate-layer {
@@ -2264,7 +2264,7 @@ input:disabled + .input-clear { display: none; }
   object-fit: cover;
   pointer-events: none;
   /* Scuro e leggermente sfocato: il logo resta leggibile; la tinta blu lo integra nella palette */
-  filter: blur(0.6px) brightness(0.92) contrast(1.05);
+  filter: blur(1.5px) brightness(0.92) contrast(1.05);
 }
 /* Tinta blu: colora il video di blu senza scurirlo (blend "color"), così i toni restano luminosi */
 #auth-view .login-video::after {
