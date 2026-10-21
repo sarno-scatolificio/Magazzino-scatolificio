@@ -91,7 +91,9 @@ export function movementRow(r, i, container = els.list, { compact = false } = {}
   // Tag della categoria; per i ricambi tecnici anche la descrizione (il solo codice non dice di che pezzo si tratta)
   const cat = r.products?.categoria || '';
   const tag = { cuscinetti: 'Cuscinetto', cinghie: 'Cinghia', pezzi_ricambio: 'Ricambio' }[cat] || '';
+  // Ricambio tecnico: in evidenza (grassetto) la descrizione al posto del codice; il codice si legge in piccolo aprendo il movimento
   const desc = cat === 'pezzi_ricambio' ? (r.products?.descrizione || '').trim() : '';
+  const code = r.products?.codice_articolo || '';
 
   const head = document.createElement('button');
   head.type = 'button';
@@ -100,9 +102,8 @@ export function movementRow(r, i, container = els.list, { compact = false } = {}
     <div class="min-w-0 flex-1">
       <div class="flex items-center gap-1.5 min-w-0">
         ${tag ? `<span class="mv-tag mv-tag--${escapeHtml(cat)}">${escapeHtml(tag)}</span>` : ''}
-        <p class="text-sm text-graphite-100 truncate font-medium">${escapeHtml(r.products?.codice_articolo || '—')}</p>
+        <p class="text-sm text-graphite-100 truncate ${desc ? 'font-bold' : 'font-medium'}">${escapeHtml(desc || code || '—')}</p>
       </div>
-      ${desc ? `<p class="text-xs text-graphite-300 truncate mt-0.5">${escapeHtml(desc)}</p>` : ''}
       <p class="ui-note text-graphite-500 mt-0.5 truncate">${escapeHtml(r.profiles?.full_name || 'Utente')} · ${date.toLocaleString('it-IT', {
     day: '2-digit',
     month: '2-digit',
@@ -127,8 +128,9 @@ export function movementRow(r, i, container = els.list, { compact = false } = {}
     ['Macchina', r.macchinario],
     ['Note', r.note],
   ].filter(([, v]) => v);
+  if (desc && code) detailRows.unshift(['Codice', code]);
   inner.innerHTML = `<div class="pl-1 pr-2 pb-3 pt-0.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">${detailRows
-    .map(([label, val]) => `<span class="ui-note text-graphite-500">${escapeHtml(label)}</span><span class="text-sm text-graphite-200 truncate">${escapeHtml(val)}</span>`)
+    .map(([label, val]) => `<span class="ui-note text-graphite-500">${escapeHtml(label)}</span><span class="${label === 'Codice' ? 'font-mono text-xs text-graphite-400' : 'text-sm text-graphite-200'} truncate">${escapeHtml(val)}</span>`)
     .join('')}</div>${detailRows.length === 0 ? '<p class="ui-note text-graphite-500 pb-3 pl-1">Nessun altro dettaglio.</p>' : ''}`;
   track.appendChild(inner);
 
