@@ -2264,17 +2264,25 @@ input:disabled + .input-clear { display: none; }
   object-fit: cover;
   pointer-events: none;
   /* Scuro e leggermente sfocato: il logo resta leggibile; la tinta blu lo integra nella palette */
-  filter: blur(2px) brightness(0.6) saturate(1.1);
+  filter: blur(0.6px) brightness(0.92) contrast(1.05);
 }
-/* Velo blu: porta i colori del video nella palette dell'app e dà contrasto al logo */
+/* Tinta blu: colora il video di blu senza scurirlo (blend "color"), così i toni restano luminosi */
 #auth-view .login-video::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    radial-gradient(90% 85% at 50% 42%, rgba(15, 88, 166, 0.55) 0%, rgba(10, 64, 130, 0.6) 55%, rgba(6, 44, 88, 0.75) 100%);
-  mix-blend-mode: soft-light;
+  background: linear-gradient(160deg, rgba(40, 130, 225, 0.8) 0%, rgba(15, 88, 166, 0.8) 100%);
+  mix-blend-mode: color;
+}
+/* Leggero scurimento ai bordi (vignettatura blu) per dare risalto al logo al centro */
+#auth-view .login-video::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(85% 90% at 50% 45%, rgba(6, 44, 88, 0.18) 30%, rgba(6, 44, 88, 0.4) 100%);
 }
 
 /* ---- Scheda del modulo: sempre bianca ---- */
