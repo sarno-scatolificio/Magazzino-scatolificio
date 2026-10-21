@@ -242,6 +242,7 @@ export function renderList() {
       set: state.openLinee,
       key: lineaKey,
       headPad: 'py-3.5',
+      linea,
     });
     group.el.style.setProperty('--i', staggerIndex(i++));
 
@@ -396,9 +397,10 @@ function buildTileGrid(tiles, tab, linea) {
  * `set` ricorda i gruppi aperti tra un disegno dell'elenco e l'altro; con `auto` (filtri attivi) lo
  * stato non si memorizza. `newCount` = interventi nuovi (pallino) nascosti dentro il gruppo chiuso.
  */
-function buildGroup({ icon, title, sub, newCount, open, auto, set, key, headPad, flat = false }) {
+function buildGroup({ icon, title, sub, newCount, open, auto, set, key, headPad, flat = false, linea = '' }) {
   const el = document.createElement('div');
-  el.className = `list-item-in shelf-group${open ? ' group-open group-settled' : ''}`;
+  // `linea` (solo per i gruppi di primo livello): colora e separa ogni linea (stili .ln-* in style.css)
+  el.className = `list-item-in shelf-group${linea ? ` ln-group ln-${linea}` : ''}${open ? ' group-open group-settled' : ''}`;
   el.innerHTML = `
     <div class="shelf-group-header flex items-center justify-between gap-3 px-4 ${headPad} border-2 border-graphite-700 rounded-xl" role="button" tabindex="0" aria-expanded="${open}">
       <div class="flex items-center gap-3 min-w-0">
