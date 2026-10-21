@@ -266,9 +266,11 @@
     max-height: calc(100vh - var(--header-h, 56px) - 32px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
   }
   /* Deposito / Prelievo: gli stessi pulsanti del mobile (icone e colori) in formato grande */
-  #view-scanner .scanner-actions > button { height: 220px !important; padding-top: 18px; padding-bottom: 16px; position: relative; }
-  #view-scanner .scanner-actions > button > svg { width: 96px !important; height: 96px !important; }
-  #view-scanner .scanner-actions > button > span { font-size: 1.05rem; }
+  /* Dimensioni proporzionate allo schermo (altezza della finestra), con un minimo e un massimo ragionevoli */
+  #view-scanner .scanner-actions { max-width: 640px; }
+  #view-scanner .scanner-actions > button { height: clamp(104px, 15vh, 148px) !important; padding-top: clamp(8px, 1.4vh, 14px); padding-bottom: clamp(8px, 1.2vh, 12px); position: relative; }
+  #view-scanner .scanner-actions > button > svg { width: clamp(46px, 7vh, 70px) !important; height: clamp(46px, 7vh, 70px) !important; }
+  #view-scanner .scanner-actions > button > span { font-size: clamp(.85rem, 1.7vh, 1rem); }
   #mode-deposito::after, #mode-prelievo::after { position: absolute; top: 12px; right: 14px; font: 600 .68rem 'JetBrains Mono', monospace; border: 1px solid #d3d9e4; border-bottom-width: 2px; border-radius: 5px; padding: 2px 7px; color: #5b6579; background: #fff; }
   #mode-deposito::after { content: 'D'; } #mode-prelievo::after { content: 'P'; }
 

@@ -3006,3 +3006,32 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
   box-shadow: 0 8px 24px -12px rgba(13, 17, 23, 0.18);
 }
 #view-products .shelf-card.shelf-open .shelf-header-sticky { top: calc(var(--header-h, 56px) + var(--prod-bar-h)); }
+
+
+/* ---- Interventi: ogni linea è una sezione a sé, con il suo colore e più aria tra l'una e l'altra ---- */
+.ln-group { --ln: var(--accent); --ln-soft: rgba(47, 79, 146, 0.1); }
+.ln-group.ln-L2 { --ln: #0f766e; --ln-soft: rgba(15, 118, 110, 0.1); }
+.ln-group.ln-REP { --ln: #7c5a1d; --ln-soft: rgba(124, 90, 29, 0.1); }
+.ln-group + .ln-group {
+  margin-top: 1.75rem !important;
+  padding-top: 1.25rem;
+  border-top: 2px dashed color-mix(in srgb, var(--ln) 35%, transparent);
+}
+.ln-group > .shelf-group-header {
+  --accent: var(--ln);                         /* riempimento e bordo all'apertura nel colore della linea */
+  border-color: color-mix(in srgb, var(--ln) 45%, #d5d9df);
+  border-left-width: 7px;
+  border-left-color: var(--ln);
+}
+.ln-group > .shelf-group-header .shelf-ico-box { background-color: var(--ln-soft); }
+.ln-group > .shelf-group-header .shelf-ico { color: var(--ln); }
+.ln-group.group-open > .shelf-group-header { border-color: var(--ln); }
+.ln-group.group-open > .shelf-group-header .shelf-ico { color: #ffffff; }
+/* Corpo della linea: filetto laterale nel suo colore, così si capisce a quale linea appartengono le macchine */
+.ln-group > .group-body-track > .group-body-inner > .group-shelves {
+  margin-top: 0.6rem;
+  margin-left: 0.35rem;
+  padding-left: 0.7rem;
+  border-left: 3px solid color-mix(in srgb, var(--ln) 55%, transparent);
+  border-radius: 2px;
+}
