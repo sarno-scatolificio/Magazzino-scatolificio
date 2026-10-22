@@ -1174,7 +1174,7 @@ button.shelf-item:not(:disabled):active {
   aspect-ratio: 1;
   border-radius: 50%;
   transform: translateY(-50%) scale(0);
-  transition: transform var(--dur-radial) var(--ease-radial);
+  transition: transform var(--dur-radial) var(--ease-radial) var(--grp-hd-delay);
   will-change: transform;
   backface-visibility: hidden;
   pointer-events: none;
@@ -1202,12 +1202,12 @@ button.shelf-item:not(:disabled):active {
 /* Gruppo aperto: gli scaffali stanno in un vassoio azzurrino attaccato all'intestazione blu del gruppo
    (stessa cornice blu, angoli bassi arrotondati). Niente più filo verticale. Dentro al vassoio il "fondo pagina"
    per gli angoli dei banner fissi (--paper) è il colore del vassoio, così gli angoli non fanno macchia. */
-.shelf-group-header { transition: border-color var(--dur-base) ease, transform var(--dur-slow) var(--ease-spring), border-radius var(--dur-base) ease; }
+.shelf-group-header { transition: border-color var(--dur-base) ease var(--grp-hd-delay), transform var(--dur-slow) var(--ease-spring), border-radius var(--dur-base) ease var(--grp-hd-delay); }
 .shelf-group.group-open > .shelf-group-header { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .group-shelves {
-  --paper: #e8ecf4;
+  --paper: color-mix(in srgb, var(--accent) 7%, #f4f5f8);
   padding: 0.625rem;
-  background: #e8ecf4;
+  background: var(--paper);
   border: 2px solid var(--accent);
   border-top: 0;
   border-radius: 0 0 0.75rem 0.75rem;
@@ -1223,6 +1223,24 @@ button.shelf-item:not(:disabled):active {
 }
 .ig-new::before { content: ''; width: 0.4rem; height: 0.4rem; border-radius: 9999px; background: currentColor; }
 .shelf-group.group-open > .shelf-group-header .ig-new { color: #ffffff; }
+
+/* Sequenza dei gruppi (scaffali nel Magazzino, linee e macchine negli Interventi):
+   APERTURA  → prima l'intestazione si estende e si colora, solo dopo parte la tendina verso il basso;
+   CHIUSURA  → prima la tendina sale del tutto, solo dopo l'intestazione si richiude e si scolora.
+   Si ottiene con un ritardo (--grp-hd-delay) sulle transizioni dell'intestazione e uno sulla tendina. */
+.shelf-group { --grp-hd-delay: var(--dur-slow); }   /* in chiusura l'intestazione aspetta che la tendina sia salita */
+.shelf-group.group-open { --grp-hd-delay: 0s; }     /* in apertura parte subito */
+.shelf-group > .shelf-group-header .shelf-title,
+.shelf-group > .shelf-group-header .shelf-sub,
+.shelf-group > .shelf-group-header .shelf-low,
+.shelf-group > .shelf-group-header .shelf-ico,
+.shelf-group > .shelf-group-header .shelf-ico-box,
+.shelf-group > .shelf-group-header .shelf-chevron,
+.shelf-group > .shelf-group-header .shelf-area {
+  transition: color var(--dur-base) ease var(--grp-hd-delay), background-color var(--dur-base) ease var(--grp-hd-delay), transform var(--dur-base) var(--ease-inout) var(--grp-hd-delay);
+}
+.shelf-group > .shelf-group-header .ig-new { transition-delay: var(--grp-hd-delay); }
+.shelf-group.group-open > .group-body-track { transition-delay: var(--dur-radial); } /* in apertura la tendina parte a intestazione colorata */
 
 /* Uscendo dal Magazzino tutto si richiude di scatto (nessuna animazione visibile). */
 .shelf-reset-instant .shelf-group-header,
@@ -2863,16 +2881,21 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
 }
 .mv-text::-webkit-scrollbar { width: 0; height: 0; }
 
-/* Magazzino: riferimento al colore della categoria (blu cuscinetti, verde cinghie, ambra ricambi tecnici).
-   Il colore tinge il rettangolo che scorre sotto i tab e una sottile barra a sinistra di ogni articolo. */
-#view-products { --cat-color: var(--accent); }
-#view-products[data-cat="cinghie"] { --cat-color: #2f7d5b; }
-#view-products[data-cat="pezzi_ricambio"] { --cat-color: #a9650a; }
-#product-category-seg .seg-indicator { background: var(--cat-color); }
+/* Magazzino: tutti i colori di accento della sezione (tab, intestazioni, vassoi, filtri, pulsante +) seguono la categoria:
+   blu cuscinetti (colore base dell'app), verde cinghie, ambra ricambi tecnici. Basta ridefinire --accent in questo ambito. */
+#view-products[data-cat="cinghie"], #product-new-btn[data-cat="cinghie"] {
+  --accent: #2f7d5b; --accent-rgb: 47, 125, 91; --accent-dark: #245f45; --accent-deep: #12301f;
+}
+#view-products[data-cat="pezzi_ricambio"], #product-new-btn[data-cat="pezzi_ricambio"] {
+  --accent: #a9650a; --accent-rgb: 169, 101, 10; --accent-dark: #855008; --accent-deep: #3d2504;
+}
+/* Le classi Tailwind «amber» sono colori fissi: nella sezione si riallineano all'accento */
+#view-products .text-amber-400 { color: var(--accent); }
+#view-products .bg-amber-400 { background-color: var(--accent); }
+#product-new-btn { background-color: var(--accent); }
 #product-category-seg.seg-ready .seg-indicator {
   transition: transform var(--dur-slow) var(--ease-out), width var(--dur-slow) var(--ease-out), background-color var(--dur-slow) ease;
 }
-#view-products .shelf-item { box-shadow: inset 3px 0 0 var(--cat-color); }
 
 /* Annulla/Ripeti: compaiono solo quando l'operazione è possibile */
 .history-btn.history-off { display: none !important; }
@@ -3051,10 +3074,8 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
    arrotondati, nessuno stacco in mezzo) ma nel colore della linea; il bordo sinistro ha lo spessore di quello dell'intestazione. */
 .ln-group > .group-body-track {
   --accent: var(--ln);
-  --paper: color-mix(in srgb, var(--ln) 9%, #f4f5f8);
 }
 .ln-group > .group-body-track > .group-body-inner > .group-shelves {
-  background: var(--paper);
   border-color: var(--ln);
   border-left-width: 7px;
 }
