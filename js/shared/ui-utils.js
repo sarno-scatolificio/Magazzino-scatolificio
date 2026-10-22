@@ -51,6 +51,13 @@ export function modalCloseMs() {
   return Number.isFinite(v) && v > 0 ? v : 340;
 }
 
+/** Tempo (ms) dopo cui un gruppo (scaffali, linee) è certamente aperto del tutto: prima l'intestazione si
+ *  colora (--dur-radial), poi la tendina scende (--dur-slow). Serve come ripiego se transitionend non arriva. */
+export function groupOpenMs() {
+  const r = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dur-radial'));
+  return (Number.isFinite(r) && r > 0 ? r : 520) + modalCloseMs() + 120;
+}
+
 /**
  * Apre una modale (overlay con classe .modal-overlay) con l'animazione
  * standard dell'app. Sicura se richiamata due volte o durante una chiusura.
