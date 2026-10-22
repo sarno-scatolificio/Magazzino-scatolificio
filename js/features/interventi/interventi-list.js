@@ -5,7 +5,7 @@
 
 import { $, CHIP_RICAMBI, STATO_CHIP, els, state } from './interventi-shared.js';
 import { LINEE, STATI, dayKey, formatOperatore, keyToDate, lineaLabel, listEffettuatiDays, listEffettuatiRange, listOperatori, listRapidi, operatoriDi, ricambiDi, ricambiLabel, signedUrls, sortOperatori } from './interventi-data.js';
-import { emptyStateHtml, modalCloseMs, staggerIndex, syncSegIndicator } from '../../shared/ui-utils.js';
+import { emptyStateHtml, groupOpenMs, staggerIndex, syncSegIndicator } from '../../shared/ui-utils.js';
 import { escapeHtml } from '../magazzino/products-shared.js';
 import feedback from '../../shared/feedback.js';
 import { openDetail } from './interventi-detail.js';
@@ -443,7 +443,7 @@ function buildGroup({ icon, title, sub, newCount, open, auto, set, key, headPad,
     el.classList.toggle('group-open', on);
     head.setAttribute('aria-expanded', String(on));
     clearTimeout(settleTimer);
-    if (on) settleTimer = setTimeout(settle, modalCloseMs() + 120); // ripiego se transitionend non arriva
+    if (on) settleTimer = setTimeout(settle, groupOpenMs()); // ripiego se transitionend non arriva
     else el.classList.remove('group-settled');
   };
   head.addEventListener('click', toggle);
