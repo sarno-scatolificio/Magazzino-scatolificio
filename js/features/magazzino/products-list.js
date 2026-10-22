@@ -268,11 +268,26 @@ function placeLowStock(filtersVisible) {
 
 const CATEGORY_ORDER = ['cuscinetti', 'cinghie', 'pezzi_ricambio']; // determina la direzione dello scivolamento
 
+/**
+ * Colori della categoria (blu/verde/ambra): cambiano solo quando il rettangolo dei tab è arrivato sul nuovo tab,
+ * non all'inizio dello scorrimento (altrimenti il tab di partenza si colora prima di cambiare).
+ */
+let catColorTimer = null;
+function applyCategoryColor(category, previous) {
+  const view = document.getElementById('view-products');
+  const set = () => {
+    view?.setAttribute('data-cat', category);
+    document.getElementById('product-new-btn')?.setAttribute('data-cat', category);
+  };
+  clearTimeout(catColorTimer);
+  if (!view?.hasAttribute('data-cat') || previous === category) set();
+  else catColorTimer = setTimeout(set, modalCloseMs());
+}
+
 export function setCategory(category) {
   const previous = state.currentCategory;
   state.currentCategory = category;
-  document.getElementById('view-products')?.setAttribute('data-cat', category); // colori della categoria (CSS: --accent)
-  document.getElementById('product-new-btn')?.setAttribute('data-cat', category);
+  applyCategoryColor(category, previous); // colori della categoria (CSS: --accent), dopo lo scorrimento del tab
   els.categoryTabs.forEach((btn) => btn.classList.toggle('category-tab-active', btn.dataset.categoryTab === category));
   syncSegs(); // il rettangolo blu scorre subito: è il feedback del tocco
 
