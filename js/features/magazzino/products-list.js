@@ -271,6 +271,7 @@ const CATEGORY_ORDER = ['cuscinetti', 'cinghie', 'pezzi_ricambio']; // determina
 export function setCategory(category) {
   const previous = state.currentCategory;
   state.currentCategory = category;
+  document.getElementById('view-products')?.setAttribute('data-cat', category); // colore della categoria (CSS: --cat-color)
   els.categoryTabs.forEach((btn) => btn.classList.toggle('category-tab-active', btn.dataset.categoryTab === category));
   syncSegs(); // il rettangolo blu scorre subito: è il feedback del tocco
 
