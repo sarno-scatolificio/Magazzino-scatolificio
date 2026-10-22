@@ -6,7 +6,7 @@
 
 import { openPicker } from '../../shared/picker.js';
 import { animateFluidSwap } from '../../core/app.js';
-import { staggerIndex, syncSegIndicator, modalCloseMs } from '../../shared/ui-utils.js';
+import { staggerIndex, syncSegIndicator, modalCloseMs, groupOpenMs } from '../../shared/ui-utils.js';
 import { listDistinctMacchine, listMachineEntries, machineOnLinea, getSectionIconUrl, getProductLocations, areaOfShelf, SHELF_AREAS } from '../../data/supabase.js';
 import { els, state, LINEA_OPTIONS, MACHINE_VIEW_CATEGORIES, escapeHtml, shelfLabel, hasMultipleShelves, binIconHtml } from './products-shared.js';
 import { refresh, refreshCategory } from './products-data.js';
@@ -271,7 +271,8 @@ const CATEGORY_ORDER = ['cuscinetti', 'cinghie', 'pezzi_ricambio']; // determina
 export function setCategory(category) {
   const previous = state.currentCategory;
   state.currentCategory = category;
-  document.getElementById('view-products')?.setAttribute('data-cat', category); // colore della categoria (CSS: --cat-color)
+  document.getElementById('view-products')?.setAttribute('data-cat', category); // colori della categoria (CSS: --accent)
+  document.getElementById('product-new-btn')?.setAttribute('data-cat', category);
   els.categoryTabs.forEach((btn) => btn.classList.toggle('category-tab-active', btn.dataset.categoryTab === category));
   syncSegs(); // il rettangolo blu scorre subito: è il feedback del tocco
 
@@ -831,7 +832,7 @@ function buildShelfGroup(series, keys, groups, unassignedLabel, iconName, search
     el.classList.toggle('group-open', on);
     clearTimeout(settleTimer);
     if (on) {
-      settleTimer = setTimeout(settle, modalCloseMs() + 120); // ripiego se transitionend non arriva
+      settleTimer = setTimeout(settle, groupOpenMs()); // ripiego se transitionend non arriva
     } else {
       el.classList.remove('group-settled'); // in chiusura si torna a ritagliare subito
     }
