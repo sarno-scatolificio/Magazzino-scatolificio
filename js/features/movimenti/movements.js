@@ -12,6 +12,14 @@ import { staggerIndex, emptyStateHtml, openOverlay, closeOverlay, enableSheetDra
 import { escapeHtml } from '../../shared/html-utils.js';
 
 const els = {};
+
+// Icone di categoria (al posto del vecchio tag testuale): cuscinetto, cinghia dentata ad anello, ingranaggio
+const CAT_ICONS = {
+  cuscinetti: '<circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="3"/><circle cx="18.2" cy="12" r="1.1"/><circle cx="15.1" cy="17.4" r="1.1"/><circle cx="8.9" cy="17.4" r="1.1"/><circle cx="5.8" cy="12" r="1.1"/><circle cx="8.9" cy="6.6" r="1.1"/><circle cx="15.1" cy="6.6" r="1.1"/>',
+  cinghie: '<ellipse cx="12" cy="9.5" rx="10" ry="5" transform="rotate(-20 12 9.5)"/><ellipse cx="12" cy="9.5" rx="7.4" ry="3.1" transform="rotate(-20 12 9.5)"/><path d="M2.45 12.02V15.52A10 5 -20 0 0 21.55 10.48V6.98"/><path d="M17.5 5.85v1.8M15.12 5.66v1.8M12.17 6.19v1.8M9.18 7.35v1.8M6.72 8.9v1.8M5.24 10.56v1.6" stroke-width="1.3"/>',
+  pezzi_ricambio: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+};
+const CAT_LABELS = { cuscinetti: 'Cuscinetto', cinghie: 'Cinghia', pezzi_ricambio: 'Ricambio tecnico' };
 let rows = [];
 let filter = 'tutti'; // 'tutti' | 'deposito' | 'prelievo'
 let openId = null; // id della riga con il dettaglio aperto (una sola alla volta)
@@ -88,9 +96,11 @@ export function movementRow(r, i, container = els.list, { compact = false } = {}
   wrap.className = 'list-item-in border-b border-graphite-800 last:border-0';
   wrap.style.setProperty('--i', staggerIndex(i));
 
-  // Tag della categoria; per i ricambi tecnici anche la descrizione (il solo codice non dice di che pezzo si tratta)
+  // Icona della categoria; per i ricambi tecnici anche la descrizione (il solo codice non dice di che pezzo si tratta)
   const cat = r.products?.categoria || '';
-  const tag = { cuscinetti: 'Cuscinetto', cinghie: 'Cinghia', pezzi_ricambio: 'Ricambio' }[cat] || '';
+  const icon = CAT_ICONS[cat]
+    ? `<span class="mv-ic mv-ic--${cat}" role="img" aria-label="${CAT_LABELS[cat]}" title="${CAT_LABELS[cat]}"><svg viewBox="0 0 24 24" aria-hidden="true">${CAT_ICONS[cat]}</svg></span>`
+    : '';
   // Ricambio tecnico: in evidenza (grassetto) la descrizione al posto del codice; il codice si legge in piccolo aprendo il movimento
   // Il nome di un ricambio è il «punto di utilizzo» (come nell'elenco articoli); la colonna «descrizione» c'è solo se compilata
   const desc = cat === 'pezzi_ricambio' ? (r.products?.punto_utilizzo_standard || r.products?.descrizione || '').trim() : '';
@@ -100,12 +110,10 @@ export function movementRow(r, i, container = els.list, { compact = false } = {}
   head.type = 'button';
   head.className = `w-full flex items-center gap-3 ${compact ? 'py-1.5' : 'py-2.5'} px-1 text-left`;
   head.innerHTML = `
-    <div class="min-w-0 flex-1">
-      <div class="flex items-center gap-1.5 min-w-0">
-        ${tag ? `<span class="mv-tag mv-tag--${escapeHtml(cat)}">${escapeHtml(tag)}</span>` : ''}
-        <p class="text-sm text-graphite-100 truncate ${desc ? 'font-bold' : 'font-medium'}">${escapeHtml(desc || code || '—')}</p>
-      </div>
-      <p class="ui-note text-graphite-500 mt-0.5 truncate">${escapeHtml(r.profiles?.full_name || 'Utente')} · ${date.toLocaleString('it-IT', {
+    ${icon}
+    <div class="mv-text min-w-0 flex-1">
+      <p class="text-sm text-graphite-100 ${desc ? 'font-bold' : 'font-medium'}">${escapeHtml(desc || code || '—')}</p>
+      <p class="ui-note text-graphite-500 mt-0.5">${escapeHtml(r.profiles?.full_name || 'Utente')} · ${date.toLocaleString('it-IT', {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',
@@ -131,7 +139,7 @@ export function movementRow(r, i, container = els.list, { compact = false } = {}
   ].filter(([, v]) => v);
   if (desc && code) detailRows.unshift(['Codice', code]);
   inner.innerHTML = `<div class="pl-1 pr-2 pb-3 pt-0.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">${detailRows
-    .map(([label, val]) => `<span class="ui-note text-graphite-500">${escapeHtml(label)}</span><span class="${label === 'Codice' ? 'font-mono text-xs text-graphite-400' : 'text-sm text-graphite-200'} truncate">${escapeHtml(val)}</span>`)
+    .map(([label, val]) => `<span class="ui-note text-graphite-500">${escapeHtml(label)}</span><span class="${label === 'Codice' ? 'font-mono text-xs text-graphite-400' : 'text-sm text-graphite-200'} mv-text min-w-0">${escapeHtml(val)}</span>`)
     .join('')}</div>${detailRows.length === 0 ? '<p class="ui-note text-graphite-500 pb-3 pl-1">Nessun altro dettaglio.</p>' : ''}`;
   track.appendChild(inner);
 
