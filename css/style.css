@@ -54,6 +54,7 @@
   /* Riempimento radiale degli scaffali: più lungo e con una curva più dolce di --ease-out
      (che brucia quasi tutto il movimento nei primi fotogrammi e sembra "a scatti"). */
   --dur-radial: 520ms;
+  --dur-group-lag: 240ms; /* apertura gruppi: la tendina parte quando l'intestazione è già quasi tutta colorata */
   --ease-radial: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);      /* comparse e movimenti in entrata */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* rimbalzo: tocchi e feedback */
@@ -1027,8 +1028,9 @@ button.category-tab-active:not(:disabled):active { background-color: transparent
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  transition: border-color var(--dur-base) ease, transform var(--dur-slow) var(--ease-spring);
+  transition: border-color var(--dur-base) ease, transform var(--dur-slow) var(--ease-spring), border-radius var(--dur-base) ease var(--dur-slow);
 }
+.shelf-card.shelf-open .shelf-header { transition: border-color var(--dur-base) ease, transform var(--dur-slow) var(--ease-spring), border-radius var(--dur-base) ease; }
 /* Intestazione scaffale attiva: il blu scuro dell'app parte dal centro e si allarga a cerchio
    (stesso riempimento radiale degli altri pulsanti di selezione); testi e icone virano al bianco.
    .shelf-active parte al tocco, .shelf-open (il cassetto) solo dopo la chiusura del vecchio. */
@@ -1067,12 +1069,12 @@ button.category-tab-active:not(:disabled):active { background-color: transparent
      riempito con il colore della pagina (4 quarti di cerchio): l'elenco, scorrendo, passa
      dietro al banner e negli angoli non si vede, resta "tagliato". */
   --shelf-r: 0.85rem;
+  /* Angoli arrotondati solo in alto; in basso l'intestazione è squadrata e si attacca all'elenco, come nei gruppi di scaffali */
   background:
     radial-gradient(circle at 100% 100%, transparent calc(var(--shelf-r) - 0.5px), var(--paper) var(--shelf-r)) top left / var(--shelf-r) var(--shelf-r) no-repeat,
-    radial-gradient(circle at 0 100%, transparent calc(var(--shelf-r) - 0.5px), var(--paper) var(--shelf-r)) top right / var(--shelf-r) var(--shelf-r) no-repeat,
-    radial-gradient(circle at 100% 0, transparent calc(var(--shelf-r) - 0.5px), var(--paper) var(--shelf-r)) bottom left / var(--shelf-r) var(--shelf-r) no-repeat,
-    radial-gradient(circle at 0 0, transparent calc(var(--shelf-r) - 0.5px), var(--paper) var(--shelf-r)) bottom right / var(--shelf-r) var(--shelf-r) no-repeat;
+    radial-gradient(circle at 0 100%, transparent calc(var(--shelf-r) - 0.5px), var(--paper) var(--shelf-r)) top right / var(--shelf-r) var(--shelf-r) no-repeat;
 }
+.shelf-card.shelf-open .shelf-header { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .shelf-card.shelf-open .shelf-header { border-color: var(--accent); }
 /* Un solo banner, una sola tinta: niente filo chiaro attorno. Il bordo della scheda aperta è
    trasparente e lo sfondo bianco si ferma al bordo interno (così non resta una cornice bianca). */
@@ -1240,7 +1242,7 @@ button.shelf-item:not(:disabled):active {
   transition: color var(--dur-base) ease var(--grp-hd-delay), background-color var(--dur-base) ease var(--grp-hd-delay), transform var(--dur-base) var(--ease-inout) var(--grp-hd-delay);
 }
 .shelf-group > .shelf-group-header .ig-new { transition-delay: var(--grp-hd-delay); }
-.shelf-group.group-open > .group-body-track { transition-delay: var(--dur-radial); } /* in apertura la tendina parte a intestazione colorata */
+.shelf-group.group-open > .group-body-track { transition-delay: var(--dur-group-lag); } /* in apertura la tendina parte a intestazione quasi colorata */
 
 /* Uscendo dal Magazzino tutto si richiude di scatto (nessuna animazione visibile). */
 .shelf-reset-instant .shelf-group-header,
