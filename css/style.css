@@ -2314,14 +2314,16 @@ input:disabled + .input-clear { display: none; }
   background: linear-gradient(160deg, rgba(40, 130, 225, 0.8) 0%, rgba(15, 88, 166, 0.8) 100%);
   mix-blend-mode: color;
 }
-/* Scurimento blu (più marcato ai bordi) per dare risalto al logo al centro */
+/* Alone scuro al centro, in corrispondenza del logo, per esaltarlo; ai bordi un velo blu leggero */
 #auth-view .login-video::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background: radial-gradient(85% 90% at 50% 45%, rgba(6, 44, 88, 0.3) 30%, rgba(6, 44, 88, 0.52) 100%);
+  background:
+    radial-gradient(ellipse 36% 72% at 50% 50%, rgba(3, 22, 46, 0.68) 0%, rgba(3, 22, 46, 0.52) 42%, rgba(3, 22, 46, 0) 100%),
+    rgba(6, 44, 88, 0.22);
 }
 
 /* ---- Scheda del modulo: sempre bianca ---- */
@@ -2868,36 +2870,28 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
 .mv-ic {
   flex: none; width: 34px; height: 34px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  background: #e3e9f6; color: #243767;
+  background: #e3e9f6; color: #243767; --mv-tile: #e3e9f6;
 }
 .mv-ic svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.mv-ic--cinghie { background: #dff3ec; color: #0b4f3d; }
-.mv-ic--pezzi_ricambio { background: #fbe9c9; color: #6a3a05; }
-/* Testi dei movimenti: su una sola riga, scorrono lateralmente al tocco invece di essere tagliati con «…» */
-.mv-text {
-  overflow-x: auto; overflow-y: hidden; white-space: nowrap;
-  scrollbar-width: none; -webkit-overflow-scrolling: touch;
-  padding-right: 14px;
-  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 14px), transparent);
-  mask-image: linear-gradient(90deg, #000 calc(100% - 14px), transparent);
+.mv-ic--cinghie { background: #dff3ec; color: #0b4f3d; --mv-tile: #dff3ec; }
+.mv-ic--cinghie svg { width: 24px; height: 24px; }
+.mv-ic--pezzi_ricambio { background: #fbe9c9; color: #6a3a05; --mv-tile: #fbe9c9; }
+/* Titolo di un movimento: una sola riga; se è più lungo dello spazio scorre da solo avanti e indietro (movements.js
+   calcola --mv-d, la distanza, e --mv-t, la durata). Utente e orario sotto restano fermi. */
+.mv-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mv-title-in { display: inline-block; }
+.mv-title.is-marquee { text-overflow: clip; }
+.mv-title.is-marquee .mv-title-in { animation: mv-pingpong var(--mv-t, 12s) ease-in-out infinite; }
+@keyframes mv-pingpong {
+  0%, 16% { transform: translateX(0); }
+  50%, 66% { transform: translateX(var(--mv-d, 0px)); }
+  100% { transform: translateX(0); }
 }
-.mv-text::-webkit-scrollbar { width: 0; height: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .mv-title.is-marquee { text-overflow: ellipsis; }
+  .mv-title.is-marquee .mv-title-in { animation: none; }
+}
 
-/* Magazzino: tutti i colori di accento della sezione (tab, intestazioni, vassoi, filtri, pulsante +) seguono la categoria:
-   blu cuscinetti (colore base dell'app), verde cinghie, ambra ricambi tecnici. Basta ridefinire --accent in questo ambito. */
-#view-products[data-cat="cinghie"], #product-new-btn[data-cat="cinghie"] {
-  --accent: #2f7d5b; --accent-rgb: 47, 125, 91; --accent-dark: #245f45; --accent-deep: #12301f;
-}
-#view-products[data-cat="pezzi_ricambio"], #product-new-btn[data-cat="pezzi_ricambio"] {
-  --accent: #a9650a; --accent-rgb: 169, 101, 10; --accent-dark: #855008; --accent-deep: #3d2504;
-}
-/* Le classi Tailwind «amber» sono colori fissi: nella sezione si riallineano all'accento */
-#view-products .text-amber-400 { color: var(--accent); }
-#view-products .bg-amber-400 { background-color: var(--accent); }
-#product-new-btn { background-color: var(--accent); }
-#product-category-seg.seg-ready .seg-indicator {
-  transition: transform var(--dur-slow) var(--ease-out), width var(--dur-slow) var(--ease-out), background-color var(--dur-slow) ease;
-}
 
 /* Annulla/Ripeti: compaiono solo quando l'operazione è possibile */
 .history-btn.history-off { display: none !important; }
