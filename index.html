@@ -70,6 +70,10 @@
         <video src="./assets/login/video-login.mp4" poster="./assets/login/video-login-poster.jpg" width="1694" height="720"
           muted loop playsinline preload="metadata" disablepictureinpicture disableremoteplayback></video>
       </div>
+      <!-- Carta millimetrata in due metà, sopra il video: quando l'ingranaggio inizia a girare si aprono dal centro verso i lati
+           e scoprono il video (login-video.js aggiunge .is-reveal; stili in style.css) -->
+      <span class="login-paper login-paper-l" aria-hidden="true"></span>
+      <span class="login-paper login-paper-r" aria-hidden="true"></span>
       <h1 class="mate-title" aria-label="MATE, Magazzino Tecnico">
         <span class="mate-logo-wrap">
           <!-- Ingranaggio: immagine metallica unica, dietro alla M. Due finestre identiche (parte superiore = "corona",
@@ -1193,11 +1197,6 @@
             <img class="mate-layer mate-sub mate-sub-r" src="./assets/icons/logo-sub.png" alt="" width="743" height="839" decoding="async">
             <span class="mate-shine" aria-hidden="true"><span class="mate-beam"></span></span>
           </span>
-        </div>
-        <!-- Banner video (login-video.js): dentro la targa blu, a tutta larghezza, proporzioni originali del video -->
-        <div id="nav-video-box" class="nav-video">
-          <video id="nav-video" data-src="./assets/login/video-login.mp4" poster="./assets/login/video-login-poster.jpg" width="1694" height="720"
-            muted loop playsinline preload="none" disablepictureinpicture disableremoteplayback aria-hidden="true" tabindex="-1"></video>
         </div>
       </div>
     </div>
