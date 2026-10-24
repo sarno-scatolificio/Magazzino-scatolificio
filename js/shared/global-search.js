@@ -208,6 +208,12 @@ export function closePanel({ clear = false, fromBack = false, silent = false } =
 function fitPanel() {
   if (!panelOpen) return;
   const top = el.header.getBoundingClientRect().bottom + 8;
+  if (el.input.closest('#search-dock')) {
+    // Barra in basso: il pannello occupa lo spazio tra la testata e la barra (che può essere salita sopra la tastiera)
+    const lift = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dock-lift')) || 0;
+    el.panel.style.maxHeight = `${Math.max(180, window.innerHeight - top - lift - 12)}px`;
+    return;
+  }
   const vh = window.visualViewport?.height ?? window.innerHeight;
   el.panel.style.maxHeight = `${Math.max(180, vh - top - 12)}px`;
 }
