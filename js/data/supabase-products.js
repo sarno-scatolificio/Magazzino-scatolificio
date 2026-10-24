@@ -45,19 +45,33 @@ export function getCachedProductByBarcode(codiceBarre) {
   const id = cache.byBarcode?.[codiceBarre];
   return id != null ? cache.byId?.[id] || null : null;
 }
-/** Cerca prodotti nella cache locale per codice articolo (o barcode),
- *  quando la rete non risponde — fallback offline della ricerca manuale
- *  per codice articolo nello scanner. */
+// Ricerca per INIZIO PAROLA: «27» trova 2740, 2710, «6000-27» o «cinghia 27», ma mai «CM27QA» (27 in mezzo alla parola).
+// Una parola comincia all'inizio del testo o dopo uno spazio o uno di questi separatori. Più parole nella ricerca = tutte devono trovarsi.
+const WORD_SEPARATORS = [' ', '-', '/', '.', '(', '_', ',', ';', ':'];
+const SEARCH_FIELDS = ['codice_articolo', 'codice_barre', 'locazione', 'punto_utilizzo_standard', 'descrizione', 'macchina'];
+const searchTokens = (text) => String(text || '').trim().split(/\s+/).filter(Boolean);
+const escapeRegex = (t) => t.replace(/[.*+?^${}()|[\]\\\-]/g, '\\$&');
+
+/** Vero se ogni parola cercata inizia una parola di almeno un campo dell'articolo (stessa regola della ricerca sul server) */
+function productMatchesTokens(p, tokens) {
+  const texts = [
+    ...SEARCH_FIELDS.map((c) => String(p[c] ?? '')),
+    ...getProductBarcodes(p).map((b) => String(b.codice_barre ?? '')),
+  ];
+  return tokens.every((t) => {
+    const re = new RegExp(`(^|[\\s\\-/.(_,;:])${escapeRegex(t)}`, 'i');
+    return texts.some((x) => re.test(x));
+  });
+}
+
+/** Cerca prodotti nella cache locale (codice, codici a barre, scaffale, descrizione, macchina),
+ *  quando la rete non risponde — fallback offline della ricerca. */
 export function searchCachedProducts(term) {
-  const q = (term || '').trim().toLowerCase();
-  if (!q) return [];
+  const tokens = searchTokens(term);
+  if (!tokens.length) return [];
   const cache = loadProductCache();
   const all = Object.values(cache.byId || {});
-  return all.filter(
-    (p) =>
-      (p.codice_articolo || '').toLowerCase().includes(q) ||
-      getProductBarcodes(p).some((b) => b.codice_barre.toLowerCase().includes(q))
-  );
+  return all.filter((p) => productMatchesTokens(p, tokens));
 }
 /**
  * Aggiorna otticamente la giacenza di un prodotto in cache dopo una
@@ -139,35 +153,40 @@ function normalizeProduct(row) {
 
 /**
  * Rende sicuro il testo cercato dall'utente dentro un filtro ilike.
- *  - `\`, `%` e `_` valgono come caratteri normali (non come jolly di LIKE);
- *  - con `quoted` il valore è tra virgolette: dentro un filtro `.or()` virgole, punti e parentesi
+ *  - `\`, `%` e `_` valgono come caratteri normali (non come jolly di LIKE) — likeEscape;
+ *  - dentro un filtro `.or()` ogni modello va tra virgolette (quoteForOr): virgole, punti e parentesi
  *    non vengono più scambiati per la sintassi del filtro (es. "6204,2RS" prima dava errore).
  */
-function ilikeContains(text, { quoted = false } = {}) {
-  const literal = String(text).replace(/[\\%_]/g, '\\$&');
-  if (!quoted) return `%${literal}%`;
-  return `"%${literal.replace(/[\\"]/g, '\\$&')}%"`;
+function likeEscape(text) {
+  return String(text).replace(/[\\%_]/g, '\\$&');
+}
+const quoteForOr = (pattern) => `"${pattern.replace(/[\\"]/g, '\\$&')}"`;
+
+/** Modelli LIKE «la parola inizia con»: all'inizio del campo oppure dopo uno spazio/separatore */
+function wordStartPatterns(token) {
+  const lit = likeEscape(token);
+  return [`${lit}%`, ...WORD_SEPARATORS.map((sep) => `%${likeEscape(sep)}${lit}%`)];
 }
 
 export async function listProducts({ search = '', onlyLowStock = false, categoria = null } = {}) {
   let query = supabase.from('products').select(PRODUCT_SELECT).order('codice_articolo', { ascending: true });
 
   if (categoria) query = query.eq('categoria', categoria);
-  if (search) {
+  // Ogni parola cercata deve iniziare una parola di un campo (vedi «ricerca per inizio parola» sopra): un .or() per parola, tra loro in AND
+  for (const token of searchTokens(search)) {
     // I codici a barre secondari stanno in un'altra tabella: si cercano prima lì e gli articoli trovati si aggiungono al filtro
     let extraIds = [];
     try {
-      const { data: hits } = await supabase.from('product_barcodes').select('product_id').ilike('codice_barre', ilikeContains(search));
+      const { data: hits } = await supabase.from('product_barcodes').select('product_id').ilike('codice_barre', `${likeEscape(token)}%`);
       extraIds = [...new Set((hits || []).map((h) => h.product_id))];
     } catch (err) {
       console.warn('Ricerca nei codici a barre secondari non riuscita.', err);
     }
     // `locazione` è il riepilogo testuale degli scaffali: cercare "SB002" trova anche gli articoli che ci stanno insieme ad altri scaffali
-    const like = ilikeContains(search, { quoted: true });
-    const campi = ['codice_articolo', 'codice_barre', 'locazione', 'punto_utilizzo_standard', 'descrizione', 'macchina'];
-    query = query.or(
-      campi.map((c) => `${c}.ilike.${like}`).join(',') + (extraIds.length ? `,id.in.(${extraIds.join(',')})` : '')
-    );
+    const patterns = wordStartPatterns(token);
+    const conds = SEARCH_FIELDS.flatMap((c) => patterns.map((pt) => `${c}.ilike.${quoteForOr(pt)}`));
+    if (extraIds.length) conds.push(`id.in.(${extraIds.join(',')})`);
+    query = query.or(conds.join(','));
   }
   const { data, error } = await query;
   if (error) throw error;
