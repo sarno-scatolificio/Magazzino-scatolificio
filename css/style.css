@@ -32,6 +32,11 @@
      attivo, bagliore di scansione riuscita, anello del Report usa lo stesso valore). */
   --deposito: #047857;
   --deposito-rgb: 4, 120, 87;
+  /* Rosso scuro del Prelievo: lo stesso su pulsante Movimenti, cassetto del movimento e risultati della ricerca rapida */
+  --prelievo: #9b1c31;
+  --prelievo-rgb: 155, 28, 49;
+  --prelievo-dark: #7a1626;
+  --prelievo-tint: #fbecee;
 
   /* Tinte OPACHE per stati attivi/premuti dei pulsanti (equivalgono al colore al 6/8/10% su
      bianco): con un colore semitrasparente il pulsante lascerebbe intravedere lo sfondo forato. */
@@ -866,7 +871,7 @@ button.lowstock-header:not(:disabled):active { transform: none; background: tran
   transform: scale(0.96);
 }
 /* Pulsanti pieni, sempre colorati, con scritte e icone bianche: Deposito = verde,
-   Prelievo = blu del tema. Niente filo di luce bianco in alto (quello della scheda
+   Prelievo = rosso scuro. Niente filo di luce bianco in alto (quello della scheda
    .card-plate): resta solo l'ombra sotto, così il colore arriva fino al bordo. */
 #mode-deposito, #mode-prelievo {
   color: #ffffff;
@@ -877,8 +882,8 @@ button.lowstock-header:not(:disabled):active { transform: none; background: tran
   border-color: var(--deposito);
 }
 #mode-prelievo {
-  background-color: var(--accent);
-  border-color: var(--accent);
+  background-color: var(--prelievo);
+  border-color: var(--prelievo);
 }
 /* Il colore è già pieno: niente riempimento radiale da selezionato. */
 #mode-deposito::before, #mode-prelievo::before { display: none; }
@@ -1002,7 +1007,7 @@ button.category-tab-active:not(:disabled):active { background-color: transparent
   clip-path: circle(75% at 50% 50%);
 }
 #mode-deposito { --rf-bg: var(--deposito); }
-#mode-prelievo { --rf-bg: var(--accent); }
+#mode-prelievo { --rf-bg: var(--prelievo); }
 .scan-linea-btn { --rf-bg: var(--accent); }
 /* Sui riempimenti pieni il testo vira al bianco con un attimo di ritardo, cosí non
    resta bianco su bianco mentre il cerchio è ancora piccolo. */
@@ -1536,7 +1541,7 @@ html { touch-action: manipulation; } /* niente ritardo/zoom col doppio tocco; pi
    contrasto ~5,5 sul verde e ~8 sul blu. L'icona e la parola rendono la
    modalità riconoscibile anche senza distinguere i colori. */
 #scan-modal-panel[data-mode="deposito"] { --mode: var(--deposito); --mode-rgb: var(--deposito-rgb); --mode-dark: #065f46; --mode-tint: #ecfdf5; }
-#scan-modal-panel[data-mode="prelievo"] { --mode: var(--accent); --mode-rgb: var(--accent-rgb); --mode-dark: #24406f; --mode-tint: #e8eefb; }
+#scan-modal-panel[data-mode="prelievo"] { --mode: var(--prelievo); --mode-rgb: var(--prelievo-rgb); --mode-dark: var(--prelievo-dark); --mode-tint: var(--prelievo-tint); }
 
 /* Dentro il cassetto anche i campi, l'elenco dei risultati e l'anello di focus
    seguono il colore della modalità (la X sulla testata ha il suo anello bianco). */
@@ -2510,18 +2515,29 @@ button.hdr-btn:not(:disabled):active { background: rgba(255,255,255,0.3); }
 }
 .hs-layer.hs-open .hs-backdrop { opacity: 1; pointer-events: auto; }
 .hs-layer.hs-open .hs-panel { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition-delay: 0s; }
-.hs-row { border-top: 1px solid #e6e9ee; animation: hs-row-in var(--dur-base) var(--ease-out) both; animation-delay: calc(var(--i, 0) * 24ms); }
+.hs-row { display: flex; align-items: center; border-top: 1px solid #e6e9ee; animation: hs-row-in var(--dur-base) var(--ease-out) both; animation-delay: calc(var(--i, 0) * 24ms); }
 .hs-row:first-child { border-top: 0; }
 @keyframes hs-row-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .hs-main {
-  width: 100%; min-height: 56px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; text-align: left; background: transparent; transition: background-color var(--dur-fast) ease;
+  flex: 1 1 auto; min-width: 0; min-height: 56px; padding: 10px 14px; display: flex; align-items: center;
+  gap: 12px; text-align: left; background: transparent; transition: background-color var(--dur-fast) ease;
 }
+.hs-text { flex: 1 1 auto; min-width: 0; }
 button.hs-main:not(:disabled):active { transform: none; background: var(--accent-tint); transition-duration: var(--dur-press); }
 .hs-code { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; color: #0d1117; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hs-code--text { font-family: inherit; font-weight: 600; }
 .hs-sub { display: block; font-size: 12px; color: #5c6672; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hs-actions { display: flex; gap: 8px; padding: 0 14px 12px; }
+.hs-actions { flex: none; display: flex; gap: 8px; padding: 0 12px 0 0; }
+/* Deposito / Prelievo accanto al codice: stesse icone dei pulsanti di Movimenti (scatolo con + e con −) */
+.hs-ico {
+  width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  color: #fff; box-shadow: 0 2px 5px -1px rgba(13, 17, 23, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: filter var(--dur-fast) ease, transform var(--dur-press) ease;
+}
+.hs-ico svg { width: 26px; height: 26px; }
+button.hs-ico:not(:disabled):active { filter: brightness(0.9); transform: scale(0.94); }
+.hs-ico--dep { background: var(--deposito); }
+.hs-ico--pre { background: var(--prelievo); }
 .hs-hint { padding: 22px 20px; text-align: center; color: #5c6672; font-size: 13px; line-height: 1.45; animation: empty-state-in var(--dur-slow) var(--ease-out); }
 .hs-hint svg { margin: 0 auto 8px; color: var(--accent-edge); }
 .hs-note { padding: 10px 14px 0; font-size: 12px; color: #b45309; }
@@ -2534,7 +2550,7 @@ button.hs-main:not(:disabled):active { transform: none; background: var(--accent
 button.hs-btn:not(:disabled):active { filter: brightness(0.92); }
 .hs-btn--lg { min-height: 48px; font-size: 13px; border-radius: 0.75rem; }
 .hs-btn--dep { background: var(--deposito); }
-.hs-btn--pre { background: var(--accent); }
+.hs-btn--pre { background: var(--prelievo); }
 .hs-btn--info { background: var(--accent-tint); color: var(--accent-dark, var(--accent)); border: 1px solid var(--accent-edge); }
 .qs-found { animation: empty-state-in var(--dur-slow) var(--ease-out); }
 .qs-link { display: block; width: 100%; margin-top: 6px; min-height: 44px; font-size: 13px; color: #5c6672; text-align: center; }
@@ -2557,7 +2573,7 @@ button.hs-btn:not(:disabled):active { filter: brightness(0.92); }
 .scanner-actions { perspective: 900px; padding-bottom: 6px; }
 
 #mode-deposito { --edge: color-mix(in srgb, var(--deposito) 62%, #000); }
-#mode-prelievo { --edge: color-mix(in srgb, var(--accent) 62%, #000); }
+#mode-prelievo { --edge: color-mix(in srgb, var(--prelievo) 62%, #000); }
 #mode-deposito, #mode-prelievo {
   /* luce dall'alto: lucido in cima, ombra sul fondo */
   background-image:
@@ -3197,7 +3213,18 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
   body:has(.search-dock.dock-kb) .int-fab { opacity: 0; visibility: hidden; pointer-events: none; }
 
   /* Risultati: si aprono sopra la barra, tra la testata e la barra */
-  .hs-panel { top: auto; bottom: calc(var(--dock-lift, 80px) + 8px); transform-origin: bottom center; transform: translateY(8px) scale(0.985); }
+  /* Ricerca aperta (stile One UI): via la barra in basso con i 4 pulsanti e via lo sfondo; la barra resta sopra la tastiera e
+     i risultati riempiono tutto lo spazio tra la testata e la barra, come un elenco a pagina intera. */
+  .nav-glass { transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) ease; }
+  body:has(.hs-layer.hs-open) .nav-glass, body:has(.search-dock:focus-within) .nav-glass { transform: translateY(110%); opacity: 0; pointer-events: none; }
+  body:has(.hs-layer.hs-open) .search-dock, body:has(.search-dock:focus-within) .search-dock { bottom: calc(var(--kb-h, 0px) + 10px); --dock-l: 16px; --dock-r: 16px; }
+  body:has(.search-dock:focus-within) .int-fab { opacity: 0; visibility: hidden; pointer-events: none; }
+  .hs-backdrop { background: var(--paper); }
+  .hs-panel {
+    top: var(--header-h, 56px); bottom: calc(var(--kb-h, 0px) + 10px + 48px + 8px); left: 0; right: 0; max-width: none; max-height: none;
+    border: 0; border-radius: 0; box-shadow: none; background: transparent; padding: 4px 6px; transform-origin: bottom center;
+    transform: translateY(8px) scale(0.985);
+  }
   .hs-layer.hs-open .hs-panel { transform: none; }
 
   /* Spazio in fondo ai contenuti per non coprire gli ultimi elementi con la barra */

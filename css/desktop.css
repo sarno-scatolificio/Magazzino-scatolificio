@@ -279,7 +279,7 @@
   .desk-mode kbd { font: 600 .62rem 'JetBrains Mono', monospace; border: 1px solid currentColor; border-radius: 5px; padding: 1px 5px; opacity: .6; }
   .desk-mode:hover { border-color: #9aa6c3; }
   .desk-mode.is-on.desk-mode--deposito { background: #176a3d; border-color: #176a3d; color: #fff; }
-  .desk-mode.is-on.desk-mode--prelievo { background: var(--accent, #1f3a8a); border-color: var(--accent, #1f3a8a); color: #fff; }
+  .desk-mode.is-on.desk-mode--prelievo { background: var(--prelievo, #9b1c31); border-color: var(--prelievo, #9b1c31); color: #fff; }
   #scanner-desk-input:focus { box-shadow: 0 0 0 3px #e4e9f6; }
 }
 
