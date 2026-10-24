@@ -2523,6 +2523,9 @@ button.hdr-btn:not(:disabled):active { background: rgba(255,255,255,0.3); }
   gap: 12px; text-align: left; background: transparent; transition: background-color var(--dur-fast) ease;
 }
 .hs-text { flex: 1 1 auto; min-width: 0; }
+.hs-chev { flex: none; color: #8a93a1; display: flex; }
+.hs-ask { padding: 12px 14px 8px; font-size: 13px; color: #5c6672; }
+.hs-ask strong { color: #0d1117; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 button.hs-main:not(:disabled):active { transform: none; background: var(--accent-tint); transition-duration: var(--dur-press); }
 .hs-code { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; color: #0d1117; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hs-code--text { font-family: inherit; font-weight: 600; }
@@ -2568,6 +2571,7 @@ button.hs-btn:not(:disabled):active { filter: brightness(0.92); }
 #view-scanner.intro-pending #scanner-prestiti-btn,
 #view-scanner.intro-pending #scanner-idle-panel > .card-plate:last-child,
 #view-scanner.intro-pending .scanner-actions > button { visibility: hidden; }
+body:has(#view-scanner.intro-pending) .search-dock { visibility: hidden; } /* la barra di ricerca entra dopo i due pulsanti (scanner.js) */
 /* I pulsanti arrivano da fuori schermo: il ritaglio laterale lo fa già .view-host (ai bordi dello schermo);
    ritagliare anche qui li tagliava 16px prima del bordo, in entrata e nel rimbalzo */
 .scanner-actions { perspective: 900px; padding-bottom: 6px; }
@@ -3161,12 +3165,15 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
 .search-dock { display: none; }
 @media (max-width: 1023.98px) {
   /* Testata: logo animato (M + ingranaggio che ruota) e nome al posto della ricerca */
-  .hdr-brand { display: flex; align-items: center; gap: 0.55rem; flex: 1; min-width: 0; }
-  .hdr-logo { position: relative; display: block; width: 36px; height: 42px; overflow: hidden; flex: none; }
-  .hdr-logo .mate-logo-wrap { position: absolute; left: -11px; top: -1px; height: 66px; }
+  /* «M» animata (con l'ingranaggio che ruota dietro) + «ATE»: una sola parola. La M è alta 30 px come le lettere (stessa linea di base in
+     basso), per questo il riquadro è esattamente quello della M con la corona dell'ingranaggio e non taglia più niente. */
+  .hdr-brand { display: flex; align-items: flex-end; gap: 2.5px; flex: 1; min-width: 0; }
+  .hdr-logo { position: relative; display: block; width: 39.4px; height: 32.3px; flex: none; }
+  .hdr-logo .mate-logo-wrap { position: absolute; left: -5.36px; top: -3.94px; height: 56.95px; }
   .hdr-logo .mate-gear-win, .hdr-logo .mate-gear-pop, .hdr-logo .mate-m { animation: none !important; }
   .hdr-logo .mate-gear { transform: rotate(380deg); animation: mate-gear-run 11s linear infinite !important; }
-  .hdr-brand-img { display: block; height: 26px; width: auto; flex: none; margin-left: 0.15rem; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+  /* Le lettere ATE (ritagliate dal logo) hanno 2 px di margine per l'ombra: si compensano per allinearle alla M */
+  .hdr-ate { display: block; flex: none; height: 34.1px; width: auto; margin: 0 0 -1.96px -1.96px; user-select: none; -webkit-user-drag: none; pointer-events: none; }
   .hdr-settings-title { display: none !important; }
   /* Con la ricerca in basso i pulsanti di destra della testata non spariscono più */
   .app-header.hs-active .hdr-right { max-width: none; margin-left: 0; opacity: 1; transform: none; pointer-events: auto; }
@@ -3203,6 +3210,8 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
   .dock-pill .hsearch-input::placeholder { color: rgba(255, 255, 255, 0.82); }
   .dock-pill .hsearch .hsearch-icon,
   .dock-pill .hsearch:focus-within .hsearch-icon { color: #ffffff; }
+  /* La X per cancellare: bianca su cerchio chiaro, ben visibile sul blu della barra (di base è blu su blu) */
+  .dock-pill .hsearch-clear, .dock-pill .hsearch:focus-within .hsearch-clear { background: rgba(255, 255, 255, 0.28); color: #ffffff; }
   .dock-pill .hdr-btn {
     flex: none; width: 36px; height: 36px; min-height: 0; border-radius: 18px; padding: 0;
     background: rgba(255, 255, 255, 0.17); border: 0;
