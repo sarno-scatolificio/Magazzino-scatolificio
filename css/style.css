@@ -3165,15 +3165,13 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
 .search-dock { display: none; }
 @media (max-width: 1023.98px) {
   /* Testata: logo animato (M + ingranaggio che ruota) e nome al posto della ricerca */
-  /* «M» animata (con l'ingranaggio che ruota dietro) + «ATE»: una sola parola. La M è alta 30 px come le lettere (stessa linea di base in
-     basso), per questo il riquadro è esattamente quello della M con la corona dell'ingranaggio e non taglia più niente. */
-  .hdr-brand { display: flex; align-items: flex-end; gap: 2.5px; flex: 1; min-width: 0; }
-  .hdr-logo { position: relative; display: block; width: 39.4px; height: 32.3px; flex: none; }
-  .hdr-logo .mate-logo-wrap { position: absolute; left: -5.36px; top: -3.94px; height: 56.95px; }
+  /* Solo la «M» animata, con l'ingranaggio che ruota dietro, grande quanto la testata consente (44 px con la corona). Il riquadro è
+     esattamente quello del logo (M + corona dell'ingranaggio): niente ritagli. */
+  .hdr-brand { display: flex; align-items: center; flex: 1; min-width: 0; }
+  .hdr-logo { position: relative; display: block; width: 53.6px; height: 44px; flex: none; }
+  .hdr-logo .mate-logo-wrap { position: absolute; left: -7.3px; top: -5.36px; height: 77.56px; }
   .hdr-logo .mate-gear-win, .hdr-logo .mate-gear-pop, .hdr-logo .mate-m { animation: none !important; }
   .hdr-logo .mate-gear { transform: rotate(380deg); animation: mate-gear-run 11s linear infinite !important; }
-  /* Le lettere ATE (ritagliate dal logo) hanno 2 px di margine per l'ombra: si compensano per allinearle alla M */
-  .hdr-ate { display: block; flex: none; height: 34.1px; width: auto; margin: 0 0 -1.96px -1.96px; user-select: none; -webkit-user-drag: none; pointer-events: none; }
   .hdr-settings-title { display: none !important; }
   /* Con la ricerca in basso i pulsanti di destra della testata non spariscono più */
   .app-header.hs-active .hdr-right { max-width: none; margin-left: 0; opacity: 1; transform: none; pointer-events: auto; }
