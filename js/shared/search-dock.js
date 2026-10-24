@@ -9,7 +9,7 @@ let pill = null;
 
 const desktopMq = window.matchMedia('(min-width: 1024px)');
 
-/** Margini laterali per sezione (dp): ricerca centrata e stretta dove non c'è il «+», più larga accanto al «+» */
+/** Sezioni col pulsante «+»: la barra ha comunque la stessa larghezza di Movimenti (margini in style.css) */
 const DOCK_VIEWS_WITH_FAB = new Set(['products', 'interventi']);
 
 function place() {
