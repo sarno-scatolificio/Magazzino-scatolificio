@@ -5,7 +5,6 @@
 // continua a importare tutto da './supabase.js', che riunisce questi moduli.
 
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
-import { getSession } from './supabase-auth.js';
 
 // --- MANUALI RICAMBI (PDF allegati alle macchine) -----------------
 // Un manuale per ogni coppia macchina+linea (tabella `machine_manuals`,
