@@ -18,9 +18,11 @@ import { openDetail } from '../features/magazzino/products-detail.js';
 import { searchInterventi, openInterventoDetail } from '../features/interventi/interventi.js';
 import { lineaLabel, STATI } from '../features/interventi/interventi-data.js';
 import { startMovement } from '../features/movimenti/scanner.js';
+import { getSpareManualChoices, refreshManualsCache } from '../features/manuali/manuals-data.js';
+import { openManualViewer } from '../features/manuali/manuals.js';
 import { catIconHtml, observeMarquee } from '../features/movimenti/movements.js';
 import { CATEGORY_LABELS, shelfLabel, escapeHtml } from '../features/magazzino/products-shared.js';
-import { toastError } from './toast.js';
+import { toastError, toastWarning } from './toast.js';
 import feedback from './feedback.js';
 
 const BADGE = {
@@ -37,7 +39,7 @@ let layer = null; // voce della cronologia (tasto indietro)
 let seq = 0;
 let debounce = null;
 let results = [];
-let resultsKind = 'articoli'; // 'articoli' | 'interventi'
+let resultsKind = 'articoli'; // 'articoli' | 'interventi' | 'manuali' (nei Manuali l'elenco non è di risultati: sono i macchinari tra cui scegliere)
 let initialized = false;
 
 const inInterventi = () => {
@@ -59,8 +61,8 @@ export function syncSearchContext(view) {
   const input = document.getElementById('hsearch-input');
   if (!input) return;
   const next = view
-    ? (view === 'interventi' ? 'interventi' : view === 'products' ? 'products' : 'altro')
-    : inInterventi() ? 'interventi' : inProducts() ? 'products' : 'altro';
+    ? (view === 'interventi' ? 'interventi' : view === 'products' ? 'products' : view === 'manuals' ? 'manuals' : 'altro')
+    : inInterventi() ? 'interventi' : inProducts() ? 'products' : inManuals() ? 'manuals' : 'altro';
   if (next !== ctx) {
     // Cambio di sezione: nel Magazzino la barra riprende il filtro dell'elenco, altrove riparte vuota
     input.value = next === 'products' ? (document.getElementById('product-search-input')?.value || '') : '';
@@ -69,12 +71,17 @@ export function syncSearchContext(view) {
   }
   const on = next === 'interventi';
   // Una sola dicitura per gli articoli, in qualsiasi sezione e categoria
-  const label = on ? 'Cerca interventi' : 'Cerca articoli';
+  const label = on ? 'Cerca interventi' : next === 'manuals' ? 'Codice da cercare' : 'Cerca articoli';
   input.placeholder = `${label}…`;
-  input.setAttribute('aria-label', label);
+  input.setAttribute('aria-label', next === 'manuals' ? 'Codice da cercare nei manuali ricambi' : label);
   const scan = document.getElementById('hsearch-scan-btn');
-  if (scan) scan.style.display = on ? 'none' : '';
+  if (scan) scan.style.display = on || next === 'manuals' ? 'none' : '';
 }
+
+const inManuals = () => {
+  const v = document.getElementById('view-manuals');
+  return !!v && !v.classList.contains('hidden');
+};
 
 const inProducts = () => {
   const v = document.getElementById('view-products');
@@ -125,6 +132,12 @@ export function initGlobalSearch() {
     if (e.key === 'Enter' && ctx === 'products') {
       e.preventDefault();
       el.input.blur(); // "Fine" sulla tastiera: l'elenco è già filtrato
+      return;
+    }
+    if (e.key === 'Enter' && ctx === 'manuals') {
+      e.preventDefault();
+      // Un solo manuale ricambi caricato: non c'è nulla da scegliere; altrimenti si sceglie il macchinario dall'elenco
+      if (el.input.value.trim() && results.length === 1) pickManual(results[0]);
       return;
     }
     if (e.key === 'Enter' && results[0]) {
@@ -182,7 +195,8 @@ function openPanel() {
     closePanel({ fromBack: true });
   });
   fitPanel();
-  if (el.input.value.trim()) runSearch(el.input.value.trim());
+  if (ctx === 'manuals') renderManualChoices();
+  else if (el.input.value.trim()) runSearch(el.input.value.trim());
   else renderHint();
 }
 
@@ -226,6 +240,10 @@ function onInput() {
   }
   const term = el.input.value.trim();
   el.clear.classList.toggle('on', el.input.value !== '');
+  if (ctx === 'manuals') {
+    renderManualChoices(); // nessuna ricerca: si scrive il codice e si dichiara in quale manuale cercarlo
+    return;
+  }
   clearTimeout(debounce);
   if (!term) {
     seq += 1;
@@ -234,6 +252,58 @@ function onInput() {
     return;
   }
   debounce = setTimeout(() => runSearch(term), 220);
+}
+
+/**
+ * Sezione Manuali: la barra non cerca nulla da sola. Si scrive un codice e l'elenco sotto chiede in quale manuale
+ * ricambi (di quale macchinario) cercarlo; il tocco apre quel manuale già posizionato sul codice.
+ */
+function renderManualChoices() {
+  resultsKind = 'manuali';
+  const code = el.input.value.trim();
+  if (!code) {
+    results = [];
+    el.panel.innerHTML = `<div class="hs-hint">${SEARCH_SVG}<p>Scrivi il codice del ricambio,<br>poi scegli in quale macchinario cercarlo.</p></div>`;
+    return;
+  }
+  results = getSpareManualChoices();
+  if (!results.length) {
+    el.panel.innerHTML = `<div class="hs-hint">${SEARCH_SVG}<p>Nessun manuale ricambi caricato.<br>Si carica da Impostazioni → Gestione macchine.</p></div>`;
+    refreshManualsCache().then(() => {
+      if (panelOpen && ctx === 'manuals' && getSpareManualChoices().length) renderManualChoices();
+    });
+    return;
+  }
+  const chevron =
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+  const rows = results
+    .map((c, i) => {
+      const linea = c.linea ? (/^l\s*\d/i.test(c.linea) ? `Linea ${c.linea.replace(/^l\s*/i, '')}` : c.linea) : '';
+      return `
+        <div class="hs-row" style="--i:${Math.min(i, 7)}">
+          <button type="button" class="hs-main" data-i="${i}" data-act="manuale">
+            ${catIconHtml('pezzi_ricambio')}
+            <span class="hs-text">
+              <span class="hs-code hs-code--text">${escapeHtml(c.nome)}</span>
+              ${linea ? `<span class="hs-sub">${escapeHtml(linea)}</span>` : ''}
+            </span>
+            <span class="hs-chev">${chevron}</span>
+          </button>
+        </div>`;
+    })
+    .join('');
+  el.panel.innerHTML = `<p class="hs-ask">Cerca <strong>${escapeHtml(code)}</strong> nei ricambi di:</p>${rows}`;
+}
+
+/** Apre il manuale ricambi scelto, già posizionato sul codice scritto nella barra */
+function pickManual(choice) {
+  const code = el.input.value.trim();
+  if (!code) {
+    toastWarning('Scrivi prima il codice da cercare.');
+    return;
+  }
+  closePanel({ clear: true });
+  setTimeout(() => openManualViewer(choice.manual, { searchTerm: code, title: 'Manuale ricambi' }), 140);
 }
 
 function renderHint() {
@@ -340,6 +410,10 @@ function onPanelClick(e) {
   if (!btn) return;
   const item = results[Number(btn.dataset.i)];
   if (!item) return;
+  if (resultsKind === 'manuali') {
+    pickManual(item);
+    return;
+  }
   if (resultsKind === 'interventi') {
     closePanel({ clear: true });
     setTimeout(() => openInterventoDetail(item), 140);
