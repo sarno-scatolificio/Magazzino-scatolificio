@@ -18,6 +18,7 @@ import { openDetail } from '../features/magazzino/products-detail.js';
 import { searchInterventi, openInterventoDetail } from '../features/interventi/interventi.js';
 import { lineaLabel, STATI } from '../features/interventi/interventi-data.js';
 import { startMovement } from '../features/movimenti/scanner.js';
+import { catIconHtml, observeMarquee } from '../features/movimenti/movements.js';
 import { CATEGORY_LABELS, shelfLabel, escapeHtml } from '../features/magazzino/products-shared.js';
 import { toastError } from './toast.js';
 import feedback from './feedback.js';
@@ -207,13 +208,13 @@ export function closePanel({ clear = false, fromBack = false, silent = false } =
 /** Il pannello non deve finire sotto la tastiera: altezza = spazio visibile sotto la testata. */
 function fitPanel() {
   if (!panelOpen) return;
-  const top = el.header.getBoundingClientRect().bottom + 8;
   if (el.input.closest('#search-dock')) {
     // Barra in basso: il pannello occupa lo spazio tra la testata e la barra (che può essere salita sopra la tastiera)
-    const lift = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dock-lift')) || 0;
-    el.panel.style.maxHeight = `${Math.max(180, window.innerHeight - top - lift - 12)}px`;
+    // Il pannello è teso dalla testata alla barra (top/bottom in style.css): nessuna altezza massima da calcolare
+    el.panel.style.maxHeight = '';
     return;
   }
+  const top = el.header.getBoundingClientRect().bottom + 8;
   const vh = window.visualViewport?.height ?? window.innerHeight;
   el.panel.style.maxHeight = `${Math.max(180, vh - top - 12)}px`;
 }
@@ -284,22 +285,23 @@ function renderResults(offline) {
   const rows = results
     .map((p, i) => {
       const sub = [shelfLabel(p), p.macchina].filter(Boolean).join(' · ');
-      const badge = BADGE[p.categoria] || 'bg-graphite-700 text-graphite-200';
-      const label = CATEGORY_LABELS[p.categoria] || p.categoria;
+      const code = escapeHtml(p.codice_articolo);
+      // A sinistra l'icona della categoria (la stessa degli ultimi movimenti); il codice, se è troppo lungo, scorre da solo
+      // avanti e indietro come là. In Movimenti a destra due pulsanti: scatolo con + (deposito) e scatolo con − (prelievo).
       return `
         <div class="hs-row" style="--i:${Math.min(i, 7)}">
           <button type="button" class="hs-main" data-i="${i}" data-act="scheda">
-            <span class="min-w-0">
-              <span class="hs-code">${escapeHtml(p.codice_articolo)}</span>
+            ${catIconHtml(p.categoria)}
+            <span class="hs-text">
+              <span class="hs-code mv-title" title="${code}"><span class="mv-title-in">${code}</span></span>
               ${sub ? `<span class="hs-sub">${escapeHtml(sub)}</span>` : ''}
             </span>
-            <span class="shrink-0 whitespace-nowrap px-2 py-0.5 rounded-full ui-label font-display font-semibold uppercase tracking-wide ${badge}">${escapeHtml(label)}</span>
           </button>
           ${
             withActions
               ? `<div class="hs-actions">
-                  <button type="button" class="hs-btn hs-btn--dep font-display" data-i="${i}" data-act="deposito">Deposito</button>
-                  <button type="button" class="hs-btn hs-btn--pre font-display" data-i="${i}" data-act="prelievo">Prelievo</button>
+                  <button type="button" class="hs-ico hs-ico--dep" data-i="${i}" data-act="deposito" aria-label="Deposito ${code}" title="Deposito"><i data-lucide="package-plus" stroke-width="1.7"></i></button>
+                  <button type="button" class="hs-ico hs-ico--pre" data-i="${i}" data-act="prelievo" aria-label="Prelievo ${code}" title="Prelievo"><i data-lucide="package-minus" stroke-width="1.7"></i></button>
                 </div>`
               : ''
           }
@@ -307,6 +309,8 @@ function renderResults(offline) {
     })
     .join('');
   el.panel.innerHTML = (offline ? '<p class="hs-note">Offline: risultati dall\'ultima sincronizzazione.</p>' : '') + rows;
+  window.lucide?.createIcons();
+  el.panel.querySelectorAll('.mv-title').forEach(observeMarquee);
 }
 
 function renderInterventiResults() {
@@ -320,7 +324,7 @@ function renderInterventiResults() {
       return `
         <div class="hs-row" style="--i:${Math.min(i, 7)}">
           <button type="button" class="hs-main" data-i="${i}" data-act="intervento">
-            <span class="min-w-0">
+            <span class="hs-text">
               <span class="hs-code hs-code--text">${escapeHtml(r.descrizione)}</span>
               <span class="hs-sub">${escapeHtml(sub)}</span>
             </span>
