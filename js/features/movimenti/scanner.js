@@ -165,7 +165,8 @@ export function startMovement(product, mode) {
    Ingresso animato di Movimenti (solo al primo arrivo dopo l'apertura/accesso):
    1. le schede "Articoli sotto scorta", "Prestiti in sospeso" (solo admin) e "Ultimi movimenti" salgono una dopo l'altra
       da dietro la barra in basso;
-   2. Deposito e poi Prelievo entrano uno dopo l'altro, in modo semplice (nessun rimbalzo).
+   2. Deposito e poi Prelievo entrano uno dopo l'altro, in modo semplice (nessun rimbalzo);
+   3. per ultima sale la barra di ricerca in basso.
    Web Animations API: solo transform/opacity, nessuno stato lasciato dietro.
    ------------------------------------------------------------------ */
 export function playScannerIntro() {
@@ -200,8 +201,8 @@ export function playScannerIntro() {
       });
 
       // 2) Pulsanti: dopo la lista, entrano semplicemente uno dopo l'altro (Deposito, poi Prelievo): niente rimbalzo
+      const base = 160 + Math.max(0, cards.length) * 170;
       if (dep && pre) {
-        const base = 160 + Math.max(0, cards.length) * 170;
         [dep, pre].forEach((btn, i) => {
           anims.push(
             btn.animate(
@@ -213,6 +214,20 @@ export function playScannerIntro() {
             )
           );
         });
+      }
+
+      // 3) Barra di ricerca in basso: compare per ultima, appena Deposito e Prelievo hanno finito di entrare
+      const dock = document.getElementById('search-dock');
+      if (dock && dep && pre && getComputedStyle(dock).display !== 'none') {
+        anims.push(
+          dock.animate(
+            [
+              { transform: 'translateY(38px)', opacity: 0 },
+              { transform: 'translateY(0)', opacity: 1 },
+            ],
+            { duration: 520, delay: base + 130 + 440, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'backwards' }
+          )
+        );
       }
 
       view.classList.remove('intro-pending'); // le animazioni (fill backwards) tengono già la posizione di partenza
