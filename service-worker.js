@@ -18,7 +18,7 @@
 // non succede nulla di grave: semplicemente niente copia offline.
 // =============================================================
 
-const CACHE_NAME = 'magazzino-shell-v253';
+const CACHE_NAME = 'magazzino-shell-v254';
 const APP_SHELL = [
   './',
   './index.html',
@@ -120,6 +120,7 @@ const APP_SHELL = [
   './assets/icons/logo-m.png',
   './assets/icons/logo-gear.png',
   './assets/icons/logo-text.png',
+  './assets/icons/logo-mate-text.png',
   './assets/icons/logo-sub.png',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
