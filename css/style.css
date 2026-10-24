@@ -2323,7 +2323,7 @@ input:disabled + .input-clear { display: none; }
   pointer-events: none;
   background:
     radial-gradient(ellipse 36% 72% at 50% 50%, rgba(3, 22, 46, 0.78) 0%, rgba(3, 22, 46, 0.6) 42%, rgba(3, 22, 46, 0) 100%),
-    radial-gradient(ellipse 82% 105% at 50% 50%, rgba(2, 12, 28, 0) 52%, rgba(2, 12, 28, 0.62) 100%),
+    radial-gradient(ellipse farthest-corner at 50% 50%, rgba(2, 8, 20, 0) 34%, rgba(2, 8, 20, 0.5) 66%, rgba(2, 8, 20, 0.94) 100%),
     rgba(6, 44, 88, 0.16);
 }
 
@@ -3139,7 +3139,7 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
 
 /* =============================================================
    Ricerca in basso, stile One UI di Samsung (solo telefono/tablet: sul desktop resta nella testata).
-   Margini laterali: 66 dp in Movimenti e Manuali; 16 dp a sinistra in Magazzino e Interventi, dove a destra c'è il «+».
+   Margini laterali: 66 dp in Movimenti e Manuali; in Magazzino e Interventi gli stessi, ma mai meno dell'ingombro del «+» (barra sempre centrata); con la tastiera aperta 16 dp.
    ============================================================= */
 .hdr-brand { display: none; }
 .search-dock { display: none; }
@@ -3150,7 +3150,7 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
   .hdr-logo .mate-logo-wrap { position: absolute; left: -11px; top: -1px; height: 66px; }
   .hdr-logo .mate-gear-win, .hdr-logo .mate-gear-pop, .hdr-logo .mate-m { animation: none !important; }
   .hdr-logo .mate-gear { transform: rotate(380deg); animation: mate-gear-run 11s linear infinite !important; }
-  .hdr-brand-text { color: #ffffff; font-weight: 800; font-size: 1.2rem; line-height: 1; letter-spacing: 0.18em; }
+  .hdr-brand-img { display: block; height: 26px; width: auto; flex: none; margin-left: 0.15rem; user-select: none; -webkit-user-drag: none; pointer-events: none; }
   .hdr-settings-title { display: none !important; }
   /* Con la ricerca in basso i pulsanti di destra della testata non spariscono più */
   .app-header.hs-active .hdr-right { max-width: none; margin-left: 0; opacity: 1; transform: none; pointer-events: auto; }
@@ -3164,7 +3164,9 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
     display: flex; pointer-events: none;
     transition: bottom var(--dur-base) var(--ease-out), padding var(--dur-base) var(--ease-out), opacity var(--dur-base) ease, transform var(--dur-base) var(--ease-out), visibility 0s linear 0s;
   }
-  .search-dock.dock-fab { --dock-l: 16px; --dock-r: calc(var(--fab-r) + 56px + 10px); }
+  /* Magazzino e Interventi (c'è il «+»): barra stretta come in Movimenti e centrata sullo schermo (margini uguali a destra e a sinistra),
+     alla stessa altezza del «+». Il margine non scende sotto l'ingombro del «+» (largo 56 dp + 10 dp di respiro), così non lo tocca mai. */
+  .search-dock.dock-fab { --dock-l: max(66px, calc(var(--fab-r) + 56px + 10px)); --dock-r: var(--dock-l); }
   .search-dock.dock-kb { bottom: calc(var(--kb-h, 0px) + 10px); --dock-l: 16px; --dock-r: 16px; }
   .search-dock.dock-hidden { opacity: 0; transform: translateY(20px); visibility: hidden; transition-delay: 0s, 0s, 0s, 0s, var(--dur-base); }
   body.manuals-detail-active .search-dock { display: none; }
