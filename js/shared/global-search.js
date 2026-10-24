@@ -53,6 +53,14 @@ const STATO_BADGE = {
   effettuato: 'bg-emerald-100 text-emerald-800',
 };
 
+// Nel Magazzino la dicitura segue la categoria aperta (evento «products:category» di products-list.js)
+const PRODUCT_SEARCH_LABELS = { cuscinetti: 'Ricerca cuscinetti', cinghie: 'Ricerca cinghie', pezzi_ricambio: 'Ricerca ricambi' };
+let productCategory = 'cuscinetti';
+document.addEventListener('products:category', (e) => {
+  productCategory = e.detail || productCategory;
+  if (ctx === 'products') syncSearchContext('products');
+});
+
 /**
  * Nella sezione Interventi la barra in testata cerca negli interventi (non negli articoli) e la
  * fotocamera, che legge i codici degli articoli, non serve: si nasconde. Chiamata a ogni cambio di sezione.
@@ -72,7 +80,7 @@ export function syncSearchContext(view) {
   const on = next === 'interventi';
   // Una sola dicitura per gli articoli, in qualsiasi sezione e categoria
   const label = on ? 'Cerca interventi' : next === 'manuals' ? 'Codice da cercare' : 'Cerca articoli';
-  input.placeholder = `${label}…`;
+  input.placeholder = next === 'products' ? `${PRODUCT_SEARCH_LABELS[productCategory] || 'Cerca articoli'}…` : `${label}…`;
   input.setAttribute('aria-label', next === 'manuals' ? 'Codice da cercare nei manuali ricambi' : label);
   const scan = document.getElementById('hsearch-scan-btn');
   if (scan) scan.style.display = on || next === 'manuals' ? 'none' : '';
