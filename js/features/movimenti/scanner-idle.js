@@ -5,7 +5,6 @@
 
 import { animateNumber, emptyStateHtml } from '../../shared/ui-utils.js';
 import { els } from './scanner-shared.js';
-import { escapeHtml } from '../../shared/html-utils.js';
 import { listProducts, listTransactions } from '../../data/supabase.js';
 import { refreshPrestitiCount } from './prestiti.js';
 import { movementRow } from './movements.js';
