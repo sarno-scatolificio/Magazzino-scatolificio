@@ -3206,6 +3206,9 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
     color: #ffffff; padding-left: 2.8rem; font-size: 0.95rem;
   }
   .dock-pill .hsearch-input::placeholder { color: rgba(255, 255, 255, 0.82); }
+  /* Campo vuoto = la X non c'è: il suo spazio a destra si libera, così «Ricerca ricambi…» ci sta per intero anche nella barra stretta */
+  .dock-pill .hsearch-input { padding-left: 2.6rem; }
+  .dock-pill .hsearch-input:placeholder-shown { padding-right: 2px; text-overflow: ellipsis; }
   .dock-pill .hsearch .hsearch-icon,
   .dock-pill .hsearch:focus-within .hsearch-icon { color: #ffffff; }
   /* La X per cancellare: bianca su cerchio chiaro, ben visibile sul blu della barra (di base è blu su blu) */
