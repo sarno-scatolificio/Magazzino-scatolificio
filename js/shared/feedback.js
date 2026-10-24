@@ -135,6 +135,114 @@ function vibrateSoft(pattern) {
 }
 
 // -----------------------------------------------------------------
+// Suoni «materici» della barra di navigazione: rumore filtrato + piccole risonanze metalliche,
+// sempre generati al volo (nessun file audio). Servono a dare a ogni sezione un suono pertinente.
+// -----------------------------------------------------------------
+
+let noiseBuffer = null;
+/** Un secondo di rumore bianco, creato una volta sola e riusato da tutti i suoni */
+function getNoise(ctx) {
+  if (!noiseBuffer || noiseBuffer.sampleRate !== ctx.sampleRate) {
+    noiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+  }
+  return noiseBuffer;
+}
+
+/**
+ * Soffio/fruscio/scatto di rumore filtrato.
+ * @param {{ delayMs?: number, durMs: number, type?: BiquadFilterType, f0: number, f1?: number, q?: number, gain?: number, attackMs?: number }} o
+ *   f0 → f1 = frequenza del filtro all'inizio e alla fine (un passaggio di frequenza dà il «fruscio» che sale o scende).
+ */
+function noiseBurst({ delayMs = 0, durMs, type = 'bandpass', f0, f1 = f0, q = 1, gain = 0.1, attackMs = 4 }) {
+  if (!settings.sound) return;
+  const ctx = ensureAudioCtx();
+  if (!ctx) return;
+  const at = ctx.currentTime + delayMs / 1000;
+  const end = at + durMs / 1000;
+  const src = ctx.createBufferSource();
+  src.buffer = getNoise(ctx);
+  src.loop = true;
+  const filter = ctx.createBiquadFilter();
+  filter.type = type;
+  filter.Q.value = q;
+  filter.frequency.setValueAtTime(f0, at);
+  if (f1 !== f0) filter.frequency.exponentialRampToValueAtTime(f1, end);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, at);
+  g.gain.linearRampToValueAtTime(gain, at + attackMs / 1000);
+  g.gain.exponentialRampToValueAtTime(0.0001, end);
+  src.connect(filter);
+  filter.connect(g);
+  g.connect(ctx.destination);
+  src.start(at, Math.random() * 0.7);
+  src.stop(end + 0.03);
+}
+
+/** Risonanza che si spegne (metallo, legno): sinusoide con decadimento esponenziale */
+function ping(freq, durMs, { delayMs = 0, gain = 0.1 } = {}) {
+  if (!settings.sound) return;
+  const ctx = ensureAudioCtx();
+  if (!ctx) return;
+  const at = ctx.currentTime + delayMs / 1000;
+  const end = at + durMs / 1000;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, at);
+  g.gain.setValueAtTime(0.0001, at);
+  g.gain.linearRampToValueAtTime(gain, at + 0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001, end);
+  osc.connect(g);
+  g.connect(ctx.destination);
+  osc.start(at);
+  osc.stop(end + 0.02);
+}
+
+/** Movimenti: le due frecce che scorrono (un fruscio che sale e uno che scende) e il colpo morbido di uno scatolo appoggiato */
+function soundMovimenti() {
+  noiseBurst({ durMs: 120, f0: 700, f1: 2600, q: 0.9, gain: 0.247, attackMs: 14 });
+  noiseBurst({ delayMs: 70, durMs: 120, f0: 2800, f1: 650, q: 0.9, gain: 0.247, attackMs: 14 });
+  ping(150, 90, { delayMs: 165, gain: 0.228 });
+  noiseBurst({ delayMs: 165, durMs: 40, f0: 320, q: 0.8, gain: 0.171 });
+}
+
+/** Magazzino: serratura che scatta: «tic» secco della chiavetta e poi il «clac» più pieno del chiavistello */
+function soundMagazzino() {
+  noiseBurst({ durMs: 14, type: 'highpass', f0: 2600, gain: 0.15, attackMs: 1 });
+  ping(3150, 55, { gain: 0.035 });
+  ping(5200, 35, { gain: 0.018 });
+  noiseBurst({ delayMs: 80, durMs: 38, f0: 1300, q: 1.1, gain: 0.21, attackMs: 1 });
+  ping(820, 110, { delayMs: 80, gain: 0.065 });
+  ping(2250, 70, { delayMs: 80, gain: 0.025 });
+}
+
+/** Manuali: tre pagine sfogliate di seguito (bordo della pagina + fruscio d'aria che scende) */
+function soundManuali() {
+  [0, 105, 215].forEach((d, i) => {
+    noiseBurst({ delayMs: d, durMs: 9, type: 'highpass', f0: 3200, gain: 0.168, attackMs: 1 });
+    noiseBurst({ delayMs: d + 4, durMs: 150, f0: 5200 - i * 400, f1: 1500, q: 0.7, gain: 0.158, attackMs: 8 });
+  });
+}
+
+/** Interventi: pennino che scrive su carta: tratti ruvidi avanti e indietro e un puntino finale */
+function soundInterventi() {
+  const strokes = [
+    [0, 85, 3600, 5600],
+    [95, 70, 5400, 3900],
+    [180, 95, 3800, 6000],
+    [285, 75, 5600, 4100],
+  ];
+  strokes.forEach(([d, dur, a, b]) => {
+    noiseBurst({ delayMs: d, durMs: dur, f0: a, f1: b, q: 1.4, gain: 0.204, attackMs: 18 });
+    noiseBurst({ delayMs: d, durMs: dur, type: 'highpass', f0: 7000, gain: 0.06, attackMs: 18 });
+  });
+  ping(520, 45, { delayMs: 375, gain: 0.144 });
+  noiseBurst({ delayMs: 375, durMs: 14, f0: 1800, q: 1, gain: 0.24, attackMs: 1 });
+}
+
+// -----------------------------------------------------------------
 // Eventi di interazione — un nome per ciascuna azione dell'app
 // -----------------------------------------------------------------
 
@@ -278,10 +386,25 @@ const feedback = {
     vibrate(20);
   },
 
-  /** Cambio sezione nella barra di navigazione inferiore */
-  navTap() {
-    tone(600, 30, { type: 'sine', gain: 0.06 });
-    vibrate(8);
+  /** Cambio sezione nella barra di navigazione inferiore: ogni sezione ha il suo suono
+   *  (scanner = frecce che scorrono, products = serratura, manuals = pagine sfogliate, interventi = penna su carta) */
+  navTap(section) {
+    if (section === 'scanner') {
+      soundMovimenti();
+      vibrate(8);
+    } else if (section === 'products') {
+      soundMagazzino();
+      vibrate([10, 55, 16]);
+    } else if (section === 'manuals') {
+      soundManuali();
+      vibrate([6, 90, 6, 90, 6]);
+    } else if (section === 'interventi') {
+      soundInterventi();
+      vibrate([8, 60, 8, 60, 8, 60, 8]);
+    } else {
+      tone(600, 30, { type: 'sine', gain: 0.06 });
+      vibrate(8);
+    }
   },
 
   /** Conferma generica (es. pulsante "Conferma" in un dialog, salvataggio form) */
