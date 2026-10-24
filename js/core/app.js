@@ -2,7 +2,7 @@
 // app.js — Entry point: routing viste, ruoli, orchestrazione moduli
 // =============================================================
 
-import { initAuth, authState, isAdmin } from './auth.js';
+import { initAuth, isAdmin } from './auth.js';
 import { initScanner, teardownScanner, activateMode, playScannerIntro } from '../features/movimenti/scanner.js';
 import { initProducts, refresh as refreshProducts, enterProducts, resetProducts, teardownProducts } from '../features/magazzino/products.js';
 import { initDashboard, enterDashboard, resetDashboard, refresh as refreshDashboard } from '../features/report/dashboard.js';

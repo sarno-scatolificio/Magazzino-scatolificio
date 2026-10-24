@@ -3,7 +3,7 @@
 // =============================================================
 
 import { supabase, signIn, signOut, getSession, getMyProfile } from '../data/supabase.js';
-import { toastError, toastWarning } from '../shared/toast.js';
+import { toastWarning } from '../shared/toast.js';
 import { isNetworkError } from './offline-queue.js';
 
 /** Stato applicativo dell'utente corrente, popolato dopo il login */
