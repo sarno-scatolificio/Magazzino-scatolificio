@@ -250,7 +250,7 @@ function initSwipeNav() {
     const btn = document.querySelector(`[data-nav-target="${target}"]`);
     switchView(target, {
       onStart: () => {
-        feedback.navTap();
+        feedback.navTap(target);
         if (btn) triggerNavTap(btn);
       },
     });
@@ -263,7 +263,7 @@ function initNav() {
       // Feedback e rimbalzo partono solo quando il cambio vista avviene davvero
       switchView(btn.dataset.navTarget, {
         onStart: () => {
-          feedback.navTap();
+          feedback.navTap(btn.dataset.navTarget);
           triggerNavTap(btn);
         },
       });
