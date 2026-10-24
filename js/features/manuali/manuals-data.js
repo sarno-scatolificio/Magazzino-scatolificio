@@ -122,6 +122,25 @@ export function getAnyManualForMachine(machineId) {
   return byLinea.get('') || byLinea.values().next().value;
 }
 
+/**
+ * Elenco dei manuali ricambi tra cui scegliere dove cercare un codice (barra di ricerca della sezione Manuali):
+ * uno per macchina e per linea, in ordine alfabetico. Se esistono sia L1 sia L2 la voce combinata (L1-L2) è superflua e salta.
+ * @returns {{ manual: object, machineId: string, nome: string, linea: string }[]}
+ */
+export function getSpareManualChoices() {
+  const norm = (k) => String(k || '').replace(/\s+/g, '').toLowerCase();
+  const out = [];
+  for (const [machineId, byLinea] of manualsByMachineId) {
+    const keys = [...byLinea.keys()].map(norm);
+    const hasBoth = keys.includes('l1') && keys.includes('l2');
+    for (const [linea, manual] of byLinea) {
+      if (hasBoth && /^l1[-\u2013/&+]l2$/.test(norm(linea))) continue;
+      out.push({ manual, machineId, nome: manual.machines?.nome || 'Macchina', linea: linea || '' });
+    }
+  }
+  return out.sort((a, b) => a.nome.localeCompare(b.nome, 'it') || a.linea.localeCompare(b.linea, 'it', { numeric: true }));
+}
+
 /** Tutti i manuali operatore caricati per una macchina (nell'ordine di caricamento), dato il suo id. */
 export function getOperatorManualsForMachine(machineId) {
   return operatorManualsByMachineId.get(machineId) || [];
