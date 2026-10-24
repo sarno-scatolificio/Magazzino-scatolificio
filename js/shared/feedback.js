@@ -200,6 +200,57 @@ function ping(freq, durMs, { delayMs = 0, gain = 0.1 } = {}) {
   osc.stop(end + 0.02);
 }
 
+// ---- Suoni registrati (opzionali) ----
+// Se in assets/sounds/ ci sono i file delle sezioni (movimenti, magazzino, manuali, interventi, in .mp3 / .ogg / .wav) si usano quelli:
+// sono registrazioni vere, molto più realistiche dei suoni generati qui sotto, che restano come ripiego se un file manca.
+const SAMPLE_NAMES = { scanner: 'movimenti', products: 'magazzino', manuals: 'manuali', interventi: 'interventi' };
+const SAMPLE_EXTENSIONS = ['mp3', 'ogg', 'wav'];
+const SAMPLE_GAIN = 0.9;
+const samples = new Map(); // sezione -> AudioBuffer | null (null = nessun file: si usa il suono generato)
+let samplesRequested = false;
+
+/** Scarica e decodifica i file (una volta sola). Si decodifica con un contesto «offline», così non serve alcun gesto dell'utente. */
+export function preloadSounds() {
+  if (samplesRequested) return;
+  samplesRequested = true;
+  const Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (!Offline || typeof fetch !== 'function') return;
+  Object.entries(SAMPLE_NAMES).forEach(async ([section, name]) => {
+    samples.set(section, null);
+    for (const ext of SAMPLE_EXTENSIONS) {
+      try {
+        const res = await fetch(`./assets/sounds/${name}.${ext}`);
+        if (!res.ok) continue;
+        const type = res.headers.get('content-type') || '';
+        if (type.includes('text/html')) continue; // alcuni server rispondono con la pagina iniziale invece di un 404
+        const data = await res.arrayBuffer();
+        const buffer = await new Offline(1, 1, 44100).decodeAudioData(data);
+        samples.set(section, buffer);
+        return;
+      } catch (err) {
+        /* file assente o non decodificabile: si prova il formato successivo */
+      }
+    }
+  });
+}
+
+/** Suona il file della sezione, se c'è. Vero = fatto; falso = ripiego sul suono generato. */
+function playSample(section) {
+  if (!settings.sound) return true; // suoni spenti: niente da suonare, e niente ripiego
+  const buffer = samples.get(section);
+  if (!buffer) return false;
+  const ctx = ensureAudioCtx();
+  if (!ctx) return false;
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  const g = ctx.createGain();
+  g.gain.value = SAMPLE_GAIN;
+  src.connect(g);
+  g.connect(ctx.destination);
+  src.start();
+  return true;
+}
+
 /** Movimenti: le due frecce che scorrono (un fruscio che sale e uno che scende) e il colpo morbido di uno scatolo appoggiato */
 function soundMovimenti() {
   noiseBurst({ durMs: 120, f0: 700, f1: 2600, q: 0.9, gain: 0.247, attackMs: 14 });
@@ -389,17 +440,18 @@ const feedback = {
   /** Cambio sezione nella barra di navigazione inferiore: ogni sezione ha il suo suono
    *  (scanner = frecce che scorrono, products = serratura, manuals = pagine sfogliate, interventi = penna su carta) */
   navTap(section) {
+    preloadSounds(); // la prima volta avvia il caricamento dei file (dal tocco successivo sono pronti)
     if (section === 'scanner') {
-      soundMovimenti();
+      if (!playSample(section)) soundMovimenti();
       vibrate(8);
     } else if (section === 'products') {
-      soundMagazzino();
+      if (!playSample(section)) soundMagazzino();
       vibrate([10, 55, 16]);
     } else if (section === 'manuals') {
-      soundManuali();
+      if (!playSample(section)) soundManuali();
       vibrate([6, 90, 6, 90, 6]);
     } else if (section === 'interventi') {
-      soundInterventi();
+      if (!playSample(section)) soundInterventi();
       vibrate([8, 60, 8, 60, 8, 60, 8]);
     } else {
       tone(600, 30, { type: 'sine', gain: 0.06 });
@@ -603,6 +655,7 @@ initGlobalHaptics();
  * Impostazioni, se presenti nel DOM, e li allinea allo stato salvato.
  */
 export function initFeedbackSettings() {
+  preloadSounds(); // i suoni registrati (assets/sounds/) sono pronti già al primo tocco
   const soundToggle = document.getElementById('feedback-sound-toggle');
   const hapticsToggle = document.getElementById('feedback-haptics-toggle');
   const hapticsRow = document.getElementById('feedback-haptics-row');
