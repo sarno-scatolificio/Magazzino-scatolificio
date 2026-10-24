@@ -22,6 +22,7 @@ import { initUnseenBadge } from '../features/interventi/interventi-unseen.js';
 import { takeCameraResume } from '../features/interventi/interventi-photo.js';
 import { initPicker } from '../shared/picker.js';
 import { initGlobalSearch, resetGlobalSearch, syncSearchContext, closePanel as closeGlobalSearch } from '../shared/global-search.js';
+import { initSearchDock, syncSearchDock } from '../shared/search-dock.js';
 import feedback, { initFeedbackSettings } from '../shared/feedback.js';
 import { initOfflineSync } from './offline-queue.js';
 import { processTransaction, adjustCachedProductQuantity, bumpProductsVersion, preloadMachineEntries } from '../data/supabase.js';
@@ -91,6 +92,7 @@ function onAuthed(profile) {
     initNav();
     initSwipeNav();
     initGlobalSearch();
+    initSearchDock(); // su telefono la ricerca sta in basso, sopra la barra di navigazione
     initFeedbackSettings();
     initSettingsRefreshButton();
     initPdfCacheButton();
@@ -372,6 +374,7 @@ export function switchView(view, { animate = true, onStart, fromBack = false } =
   document.querySelector('header.app-header')?.classList.toggle('hdr-settings', view === 'settings');
   document.getElementById('product-new-btn')?.classList.toggle('int-fab--on', view === 'products'); // "+" tondo del Magazzino
   syncSearchContext(view);
+  syncSearchDock(view);
   const headerTitle = document.getElementById('app-header-title');
   if (headerTitle) headerTitle.textContent = VIEW_TITLES[view] || VIEW_TITLES.scanner;
 
