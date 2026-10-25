@@ -61,9 +61,6 @@ const BTN_TOOL =
 // Barra fissa del conteggio: tre pulsanti di pari larghezza (testo e icona centrati, mai a capo)
 const BTN_BAR =
   'press-spring min-w-0 min-h-[44px] rounded-lg border border-graphite-700 bg-graphite-900 hover:bg-graphite-700 px-1.5 flex items-center justify-center gap-1.5 text-xs font-display font-semibold uppercase tracking-wide whitespace-nowrap transition-colors';
-// Chip "aggiungi codice a barre" dentro la riga di un articolo che non ne ha
-const BTN_CODE =
-  'press-spring inline-flex items-center gap-1.5 min-h-[34px] rounded-full border border-amber-400/50 bg-amber-400/10 px-3 text-[11px] font-display font-semibold uppercase tracking-wide text-amber-300';
 const ROW_BASE = 'inv-row rounded-xl border p-3 transition-colors';
 const ROW_STATE = {
   todo: 'border-graphite-700 bg-graphite-800/40',
@@ -616,10 +613,6 @@ function buildCount() {
     </div>
     <div class="inv-bar bg-graphite-800 px-4 pt-3 pb-3 shrink-0 space-y-2">
       <div class="flex gap-2">
-        <button type="button" data-act="scan" aria-label="Scansiona codice a barre" title="Scansiona" class="press-spring relative shrink-0 w-11 min-h-[44px] rounded-lg border border-graphite-700 bg-graphite-900 hover:bg-graphite-700 flex items-center justify-center transition-colors">
-          <i data-lucide="scan-barcode" class="w-5 h-5"></i>
-          <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-white flex items-center justify-center pointer-events-none"><i data-lucide="plus" class="w-3 h-3" stroke-width="3.5"></i></span>
-        </button>
         <button type="button" data-act="add" class="${BTN_BAR} flex-1"><i data-lucide="plus" class="w-4 h-4 shrink-0"></i>Aggiungi</button>
         <button type="button" data-act="todo" aria-pressed="false" class="${BTN_BAR} flex-1"><i data-lucide="list-checks" class="w-4 h-4 shrink-0"></i>Da contare</button>
       </div>
@@ -642,7 +635,6 @@ function buildCount() {
   enableSheetDrag(panel, closeCount);
   els.count.addEventListener('overlay-cancel', cleanupCount); // tasto indietro del telefono
   els.count.querySelector('[data-act="back"]').addEventListener('click', closeCount);
-  els.count.querySelector('[data-act="scan"]').addEventListener('click', toggleCamera);
   els.count.querySelector('[data-act="discard"]').addEventListener('click', discardCurrent);
   els.count.querySelector('[data-act="add"]').addEventListener('click', openAddSheet);
   els.count.querySelector('[data-act="finish"]').addEventListener('click', openSummary);
@@ -792,9 +784,11 @@ function rowHtml(r, i) {
       <div class="min-w-0">
         <p class="font-display font-bold leading-tight break-words">${e(r.codice)}</p>
         ${r.descr ? `<p class="text-xs text-graphite-400 mt-0.5 break-words">${e(r.descr)}</p>` : ''}
-        ${r.barcodes.length ? '' : `<button type="button" data-act="barcode" class="${BTN_CODE} mt-2"><i data-lucide="scan-barcode" class="w-4 h-4"></i>Aggiungi codice a barre</button>`}
       </div>
-      <span class="shrink-0 text-[10px] uppercase tracking-wider font-display font-semibold rounded-full px-2 py-0.5 bg-graphite-700/60 text-graphite-300">${e(categoriaLabel(r.categoria))}${r.aggiunto ? ' · aggiunto' : ''}</span>
+      <div class="shrink-0 flex items-center gap-2">
+        ${r.barcodes.length ? '' : `<button type="button" data-act="barcode" aria-label="Aggiungi codice a barre" title="Aggiungi codice a barre" class="press-spring relative shrink-0 w-10 h-10 rounded-lg border border-graphite-700 bg-graphite-900 hover:bg-graphite-700 flex items-center justify-center transition-colors"><i data-lucide="scan-barcode" class="w-5 h-5 pointer-events-none"></i><span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-white flex items-center justify-center pointer-events-none"><i data-lucide="plus" class="w-3 h-3" stroke-width="3.5"></i></span></button>`}
+        <span class="text-[10px] uppercase tracking-wider font-display font-semibold rounded-full px-2 py-0.5 bg-graphite-700/60 text-graphite-300">${e(categoriaLabel(r.categoria))}${r.aggiunto ? ' · aggiunto' : ''}</span>
+      </div>
     </div>
     <div class="mt-2.5 flex items-center gap-2">
       ${
