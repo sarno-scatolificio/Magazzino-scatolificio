@@ -18,7 +18,7 @@
 // non succede nulla di grave: semplicemente niente copia offline.
 // =============================================================
 
-const CACHE_NAME = 'magazzino-shell-v258';
+const CACHE_NAME = 'magazzino-shell-v259';
 const APP_SHELL = [
   './',
   './index.html',
@@ -30,6 +30,7 @@ const APP_SHELL = [
   './js/core/app.js',
   './js/core/auth.js',
   './js/shared/camera.js',
+  './js/shared/hold-repeat.js',
   './js/features/movimenti/scanner.js',
   './js/features/movimenti/scanner-desktop.js',
   './js/features/movimenti/scanner-shared.js',
@@ -87,6 +88,7 @@ const APP_SHELL = [
   './js/features/interventi/interventi-desktop.js',
   './js/features/interventi/interventi-operatori-pick.js',
   './js/features/impostazioni/inventory.js',
+  './js/features/impostazioni/inventory-camera.js',
   './js/data/supabase-inventory.js',
   './js/features/interventi/verbi-passato.js',
   './js/features/interventi/interventi-pdf-sheet.js',
