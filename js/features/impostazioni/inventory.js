@@ -22,6 +22,8 @@ import { closeOverlay, enableSheetDrag, loadLib, modalCloseMs, openOverlay, setB
 import { escapeHtml } from '../../shared/html-utils.js';
 import { isAdmin } from '../../core/auth.js';
 import { startCamera, stopCamera } from '../../shared/camera.js';
+import { openCameraSheet } from './inventory-camera.js';
+import { createHoldRepeater } from '../../shared/hold-repeat.js';
 import {
   cacheProductsList,
   getCachedProductByBarcode,
@@ -613,10 +615,13 @@ function buildCount() {
       <span data-role="progress" class="shrink-0 font-display font-bold text-sm rounded-full px-3 py-1 bg-graphite-800 border border-graphite-700"></span>
     </div>
     <div class="inv-bar bg-graphite-800 px-4 pt-3 pb-3 shrink-0 space-y-2">
-      <div class="grid grid-cols-3 gap-2">
-        <button type="button" data-act="scan" class="${BTN_BAR}"><i data-lucide="scan-barcode" class="w-4 h-4 shrink-0"></i>Scansiona</button>
-        <button type="button" data-act="add" class="${BTN_BAR}"><i data-lucide="plus" class="w-4 h-4 shrink-0"></i>Aggiungi</button>
-        <button type="button" data-act="todo" aria-pressed="false" class="${BTN_BAR}"><i data-lucide="list-checks" class="w-4 h-4 shrink-0"></i>Da contare</button>
+      <div class="flex gap-2">
+        <button type="button" data-act="scan" aria-label="Scansiona codice a barre" title="Scansiona" class="press-spring relative shrink-0 w-11 min-h-[44px] rounded-lg border border-graphite-700 bg-graphite-900 hover:bg-graphite-700 flex items-center justify-center transition-colors">
+          <i data-lucide="scan-barcode" class="w-5 h-5"></i>
+          <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-white flex items-center justify-center pointer-events-none"><i data-lucide="plus" class="w-3 h-3" stroke-width="3.5"></i></span>
+        </button>
+        <button type="button" data-act="add" class="${BTN_BAR} flex-1"><i data-lucide="plus" class="w-4 h-4 shrink-0"></i>Aggiungi</button>
+        <button type="button" data-act="todo" aria-pressed="false" class="${BTN_BAR} flex-1"><i data-lucide="list-checks" class="w-4 h-4 shrink-0"></i>Da contare</button>
       </div>
       <div data-role="cam" class="hidden">
         <div id="inv-reader" class="w-full h-52 rounded-lg overflow-hidden bg-black"></div>
@@ -663,12 +668,12 @@ function buildCount() {
     } else if (act === 'zero') {
       feedback.tap();
       setContato(i, 0);
-    } else if (act === 'inc' || act === 'dec') {
-      feedback.qtyTick(0);
-      const base = r.contato ?? (st.session.ciechi || r.aggiunto ? 0 : r.atteso);
-      setContato(i, Math.max(0, base + (act === 'inc' ? 1 : -1)));
+    } else if ((act === 'inc' || act === 'dec') && ev.detail === 0) {
+      // Solo tastiera / tecnologie assistive (click senza puntatore): col dito o il mouse gestisce tutto pointerdown
+      stepContato(i, act === 'inc' ? 1 : -1);
     }
   });
+  bindHoldSteppers(els.rows);
   els.rows.addEventListener('input', (ev) => {
     const input = ev.target.closest('[data-input]');
     if (!input) return;
@@ -679,6 +684,56 @@ function buildCount() {
     if (Number.isFinite(n) && n >= 0) setContato(i, n, true);
   });
   els.rows.addEventListener('keydown', (ev) => ev.key === 'Enter' && ev.target.matches('[data-input]') && ev.target.blur());
+}
+
+// Valore da cui parte un passo: il conteggio, oppure (riga non ancora contata) la quantità attesa
+function baseContato(r) {
+  return r.contato ?? (st.session.ciechi || r.aggiunto ? 0 : r.atteso);
+}
+
+function stepContato(i, dir) {
+  const r = st.session?.rows[i];
+  if (!r) return;
+  feedback.qtyTick(0);
+  setContato(i, Math.max(0, baseContato(r) + dir));
+}
+
+// Pressione prolungata su + / −: stessa accelerazione graduale di Deposito e Prelievo
+// (shared/hold-repeat.js). Un solo ascoltatore sulla lista: le righe vengono ridisegnate.
+function bindHoldSteppers(container) {
+  const repeater = createHoldRepeater();
+  const stop = () => repeater.stop();
+  container.addEventListener('pointerdown', (ev) => {
+    const btn = ev.target.closest('[data-act="inc"], [data-act="dec"]');
+    if (!btn || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+    const row = btn.closest('[data-row]');
+    if (!row) return;
+    const i = Number(row.dataset.row);
+    const dir = btn.dataset.act === 'inc' ? 1 : -1;
+    try {
+      btn.setPointerCapture(ev.pointerId);
+    } catch (err) {
+      // non essenziale: il rilascio è comunque gestito da pointerup/pointercancel
+    }
+    repeater.start(dir, {
+      min: 0,
+      getValue: () => {
+        const r = st.session?.rows[i];
+        return r ? baseContato(r) : 0;
+      },
+      setValue: (v) => setContato(i, v),
+      firstStep: () => stepContato(i, dir),
+    });
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((name) => container.addEventListener(name, stop));
+  window.addEventListener('blur', stop);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stop();
+  });
+  // Tasto lungo su touch = menu contestuale/selezione: interromperebbe la ripetizione
+  container.addEventListener('contextmenu', (ev) => {
+    if (ev.target.closest('[data-act="inc"], [data-act="dec"]')) ev.preventDefault();
+  });
 }
 
 function openCount() {
@@ -748,10 +803,10 @@ function rowHtml(r, i) {
           : '<span class="mr-auto"></span>'
       }
       ${visibile ? `<button type="button" data-act="ok" aria-label="Quantità giusta" aria-pressed="${r.contato === r.atteso}" class="${BTN_STEP_OK} text-emerald-700"><i data-lucide="check" class="w-5 h-5" stroke-width="3"></i></button>` : ''}
-      <button type="button" data-act="dec" aria-label="Meno" class="${BTN_STEP}">−</button>
+      <button type="button" data-act="dec" data-no-haptic aria-label="Meno" class="${BTN_STEP}">−</button>
       <input data-input data-no-clear type="number" inputmode="numeric" min="0" step="1" value="${r.contato ?? ''}" placeholder="${visibile ? r.atteso : '–'}"
         class="w-16 h-11 rounded-lg bg-graphite-800 border border-graphite-700 text-center font-display font-bold text-base focus:border-amber-400 outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-      <button type="button" data-act="inc" aria-label="Più" class="${BTN_STEP}">+</button>
+      <button type="button" data-act="inc" data-no-haptic aria-label="Più" class="${BTN_STEP}">+</button>
       <button type="button" data-act="zero" aria-label="Non c'è" class="${BTN_STEP} text-rose-700">0</button>
     </div>
   </div>`;
@@ -983,9 +1038,6 @@ function openBarcodeSheet(i) {
           class="min-w-0 flex-1 h-11 rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 text-sm focus:border-amber-400 outline-none transition-colors" />
         <button type="button" data-act="scan" aria-label="Scansiona" class="${BTN_STEP}"><i data-lucide="scan-barcode" class="w-5 h-5"></i></button>
       </div>
-      <div data-role="cam" class="hidden">
-        <div id="inv-bc-reader" class="w-full h-48 rounded-lg overflow-hidden bg-black"></div>
-      </div>
       <p data-role="err" class="hidden text-xs text-rose-700"></p>
     </div>
     <div class="px-5 pt-3 pb-5 shrink-0">
@@ -993,22 +1045,16 @@ function openBarcodeSheet(i) {
     </div>`
   );
   const input = overlay.querySelector('[data-role="code"]');
-  const cam = overlay.querySelector('[data-role="cam"]');
   const err = overlay.querySelector('[data-role="err"]');
   const saveBtn = overlay.querySelector('[data-act="save"]');
   const showErr = (msg) => {
     err.textContent = msg || '';
     err.classList.toggle('hidden', !msg);
   };
-  const stopCam = () => {
-    cam.classList.add('hidden');
-    stopCamera().catch(() => {});
-  };
   let closed = false;
   const cleanup = () => {
     if (closed) return;
     closed = true;
-    stopCam();
     setTimeout(() => overlay.remove(), modalCloseMs() + 60);
   };
   const close = () => {
@@ -1021,27 +1067,16 @@ function openBarcodeSheet(i) {
   enableSheetDrag(overlay.querySelector('.modal-panel'), close);
   input.addEventListener('input', () => showErr(''));
 
-  overlay.querySelector('[data-act="scan"]').addEventListener('click', async () => {
+  // Il pulsante di scansione apre il cassetto fotocamera (già acceso, con cambio fotocamera e flash)
+  overlay.querySelector('[data-act="scan"]').addEventListener('click', () => {
     feedback.tap();
-    if (!cam.classList.contains('hidden')) {
-      stopCam();
-      return;
-    }
-    cam.classList.remove('hidden');
-    const ok = await startCamera(
-      'inv-bc-reader',
-      (code) => {
-        input.value = String(code || '').trim();
+    openCameraSheet({
+      title: 'Scansiona codice',
+      onCode: (code) => {
+        input.value = code;
         showErr('');
-        feedback.scanFound();
-        stopCam();
       },
-      {}
-    );
-    if (ok === false) {
-      stopCam();
-      toastError('Fotocamera non disponibile. Controlla i permessi del browser.');
-    }
+    });
   });
 
   const save = async () => {
