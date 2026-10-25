@@ -1316,7 +1316,8 @@ button.shelf-item:not(:disabled):active {
 
 /* ---- Reader camera ---------------------------------------------- */
 #scanner-reader,
-#qs-reader {
+#qs-reader,
+#inv-cam-reader {
   border-radius: 0.75rem;
   overflow: hidden;
   border: 2px dashed #aeb4bd;
@@ -1325,6 +1326,7 @@ button.shelf-item:not(:disabled):active {
 }
 #scanner-reader,
 #qs-reader,
+#inv-cam-reader,
 #product-barcode-scanner-reader,
 #product-search-scanner-reader {
   cursor: crosshair;
@@ -1346,6 +1348,8 @@ button.shelf-item:not(:disabled):active {
 #scanner-reader canvas,
 #qs-reader video,
 #qs-reader canvas,
+#inv-cam-reader video,
+#inv-cam-reader canvas,
 #product-barcode-scanner-reader video,
 #product-barcode-scanner-reader canvas,
 #product-search-scanner-reader video,
@@ -1398,9 +1402,16 @@ button.shelf-item:not(:disabled):active {
   40%  { transform: scale(1.25); filter: brightness(1.6); }
   100% { transform: scale(1); filter: brightness(1); }
 }
-#scanner-torch-btn.torch-active svg {
+#scanner-torch-btn.torch-active svg,
+.inv-cam-btn.torch-active svg {
   animation: torch-flash var(--dur-slow) var(--ease-spring);
 }
+/* Flash acceso nel cassetto fotocamera dell'Inventario */
+.inv-cam-btn.torch-active {
+  background: rgba(251, 191, 36, 0.18);
+  border-color: #fbbf24;
+}
+.inv-cam-btn:not(.hidden) { display: flex; }
 
 /* ---- Modali (tutte): stessa struttura e stessi tempi di Deposito/Prelievo.
    Overlay = .modal-overlay, pannello = .modal-panel, stato aperto = .modal-visible.
