@@ -1016,81 +1016,13 @@ function openBarcodeSheet(i) {
   const r = st.session.rows[i];
   feedback.tap();
   setCameraVisible(false); // una sola fotocamera alla volta
-  const overlay = makeOverlay(
-    97,
-    'sm:max-w-md',
-    `
-    <div data-sheet-drag class="sheet-grabber sm:hidden"><span class="sheet-grabber-pill"></span></div>
-    <div data-sheet-drag class="flex items-center justify-between px-5 pb-3 pt-1 sm:pt-3 border-b border-graphite-800 shrink-0">
-      <h3 class="font-display font-bold text-lg uppercase tracking-wide">Codice a barre</h3>
-      <button type="button" data-act="close" aria-label="Chiudi" class="modal-close modal-close--on-light"><i data-lucide="x" class="w-6 h-6" stroke-width="2.5"></i></button>
-    </div>
-    <div class="px-5 pt-3 shrink-0 space-y-3">
-      <p class="text-sm"><span class="font-display font-bold">${e(r.codice)}</span>${r.descr ? `<span class="text-graphite-400"> · ${e(r.descr)}</span>` : ''}</p>
-      <div class="flex gap-2">
-        <input data-role="code" data-no-clear type="text" autocomplete="off" autocapitalize="off" placeholder="Scrivi o scansiona il codice"
-          class="min-w-0 flex-1 h-11 rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 text-sm focus:border-amber-400 outline-none transition-colors" />
-        <button type="button" data-act="scan" aria-label="Scansiona" class="${BTN_STEP}"><i data-lucide="scan-barcode" class="w-5 h-5"></i></button>
-      </div>
-      <p data-role="err" class="hidden text-xs text-rose-700"></p>
-    </div>
-    <div class="px-5 pt-3 pb-5 shrink-0">
-      <button type="button" data-act="save" class="press-spring w-full rounded-lg py-3 bg-amber-400 hover:bg-amber-300 text-white font-display font-semibold uppercase tracking-wide transition-colors">Salva codice</button>
-    </div>`
-  );
-  const input = overlay.querySelector('[data-role="code"]');
-  const err = overlay.querySelector('[data-role="err"]');
-  const saveBtn = overlay.querySelector('[data-act="save"]');
-  const showErr = (msg) => {
-    err.textContent = msg || '';
-    err.classList.toggle('hidden', !msg);
-  };
-  let closed = false;
-  const cleanup = () => {
-    if (closed) return;
-    closed = true;
-    setTimeout(() => overlay.remove(), modalCloseMs() + 60);
-  };
-  const close = () => {
-    cleanup();
-    closeOverlay(overlay);
-  };
-  overlay.addEventListener('click', (ev) => ev.target === overlay && close());
-  overlay.addEventListener('overlay-cancel', cleanup); // tasto indietro del telefono
-  overlay.querySelector('[data-act="close"]').addEventListener('click', close);
-  enableSheetDrag(overlay.querySelector('.modal-panel'), close);
-  input.addEventListener('input', () => showErr(''));
-
-  // Il pulsante di scansione apre il cassetto fotocamera (già acceso, con cambio fotocamera e flash)
-  overlay.querySelector('[data-act="scan"]').addEventListener('click', () => {
-    feedback.tap();
-    openCameraSheet({
-      title: 'Scansiona codice',
-      onCode: (code) => {
-        input.value = code;
-        showErr('');
-      },
-    });
+  // Niente campo di testo: si apre subito la fotocamera; il codice letto si mostra e si conferma (o si riscansiona)
+  openCameraSheet({
+    title: 'Codice a barre',
+    subtitle: `${r.codice}${r.descr ? ` · ${r.descr}` : ''}`,
+    confirmLabel: 'Salva codice',
+    onConfirm: (code) => saveBarcode(i, code),
   });
-
-  const save = async () => {
-    showErr('');
-    setButtonBusy(saveBtn, true, 'Salvataggio…');
-    try {
-      await saveBarcode(i, input.value);
-      close();
-    } catch (ex) {
-      feedback.errorAction();
-      showErr(ex.message);
-    } finally {
-      setButtonBusy(saveBtn, false);
-    }
-  };
-  saveBtn.addEventListener('click', save);
-  input.addEventListener('keydown', (ev) => ev.key === 'Enter' && save());
-
-  openOverlay(overlay);
-  window.lucide?.createIcons();
 }
 
 /** Scelta dell'articolo (tra quelli dello scaffale senza codice a barre) a cui assegnare un codice appena scansionato */
