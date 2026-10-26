@@ -9,7 +9,7 @@ let pill = null;
 
 const desktopMq = window.matchMedia('(min-width: 1024px)');
 
-/** Sezioni col pulsante «+»: la barra ha comunque la stessa larghezza di Movimenti (margini in style.css) */
+/** Sezioni col pulsante «+»: la barra ha la stessa lunghezza di Movimenti e trasla solo a sinistra (margini in style.css) */
 const DOCK_VIEWS_WITH_FAB = new Set(['products', 'interventi']);
 
 function place() {
