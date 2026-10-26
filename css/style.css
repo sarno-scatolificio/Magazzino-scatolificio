@@ -2209,13 +2209,14 @@ input:disabled + .input-clear { display: none; }
         restano parte superiore e inferiore, nella stessa posizione */
   .mate-gear-win-t { animation: mate-gear-cut-t 0.25s ease-in-out 2.22s both; }
   .mate-gear-win-b { animation: mate-gear-cut-b 0.25s ease-in-out 2.22s both; }
-  /* 4) Finita la luce sulla M, l'ingranaggio (entrambe le parti) si muove a tranche lente e poi gira a velocità costante:
-        la stessa curva apre la carta del video (login-paper-open-*), che dipende dalla rotazione dell'ingranaggio */
+  /* 4) Finita la luce sulla M, l'ingranaggio (entrambe le parti) si muove a scatti con attrito, poi si apre veloce con urto e vibrazione, e poi gira a velocità costante:
+        la stessa curva apre la carta del video (login-paper-open-*), che dipende dalla rotazione dell'ingranaggio;
+        all'urto finale vibrano ingranaggio e scheda (login-impact) */
   .mate-gear {
     animation:
       mate-gear-roll-rot 1.1s linear 0.6s both,
-      mate-gear-open 2.67s linear 4.0s forwards,
-      mate-gear-run 14s linear 6.67s infinite;
+      mate-gear-open 1.60s linear 4.0s forwards,
+      mate-gear-run 14s linear 5.6s infinite;
   }
   /* 5) Infine la luce */
   .mate-beam     { animation: mate-beam 1.1s ease-in-out 2.9s both; }
@@ -2270,21 +2271,99 @@ input:disabled + .input-clear { display: none; }
   85%  { opacity: 1; }
   100% { opacity: 0; transform: translateX(400%) skewX(-18deg); }
 }
-/* Apertura: l'angolo dell'ingranaggio è il motore della tendina (carta del video: ogni metà scorre di angolo / 54° · 50% della scheda).
-   Tre tranche lente con una breve sosta tra l'una e l'altra, poi corsa lineare alla stessa velocità di regime dell'ingranaggio
-   (25.71°/s), così al passaggio a "mate-gear-run" non c'è nessuno scatto. Durata 2.67 s, ritardo 4.0 s (fine della luce). */
+/* Apertura: l'angolo dell'ingranaggio è il motore della tendina (carta del video: ogni metà scorre di angolo / 48° · 50% della scheda).
+   Fase 1, attrito meccanico: cinque scatti che si staccano a fatica (parte forte e si spegne) con soste tra l'uno e l'altro.
+   Fase 2, apertura veloce: accelera in caduta fino all'urto (a 1.16 s), poi l'ingranaggio vibra e si assesta in 0.44 s.
+   Poi gira a velocità costante (25.71°/s) con "mate-gear-run". Durata 1.60 s, ritardo 4.0 s (fine della luce). */
 @keyframes mate-gear-open {
-  0% { transform: rotate(360.000deg); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
-  14.981% { transform: rotate(364.000deg); animation-timing-function: linear; }
-  19.476% { transform: rotate(364.000deg); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
-  34.457% { transform: rotate(371.000deg); animation-timing-function: linear; }
-  38.202% { transform: rotate(371.000deg); animation-timing-function: cubic-bezier(0.4, 0, 0.75, 0.76); }
-  55.056% { transform: rotate(383.143deg); animation-timing-function: linear; }
-  100% { transform: rotate(414.000deg); animation-timing-function: linear; }
+  0% { transform: rotate(360.000deg); animation-timing-function: linear; }
+  5% { transform: rotate(360.000deg); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  10% { transform: rotate(361.200deg); animation-timing-function: linear; }
+  16.25% { transform: rotate(361.200deg); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  23.75% { transform: rotate(363.000deg); animation-timing-function: linear; }
+  28.125% { transform: rotate(363.000deg); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  34.375% { transform: rotate(364.800deg); animation-timing-function: linear; }
+  38.125% { transform: rotate(364.800deg); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  45% { transform: rotate(367.200deg); animation-timing-function: linear; }
+  47.5% { transform: rotate(367.200deg); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  53.75% { transform: rotate(370.000deg); animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
+  72.5% { transform: rotate(408.000deg); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  76.25% { transform: rotate(411.400deg); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  81.25% { transform: rotate(406.200deg); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  85.625% { transform: rotate(408.900deg); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  90% { transform: rotate(407.500deg); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  94.375% { transform: rotate(408.200deg); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  100% { transform: rotate(408.000deg); animation-timing-function: linear; }
 }
 @keyframes mate-gear-run {
-  from { transform: rotate(414deg); }
-  to   { transform: rotate(774deg); }
+  from { transform: rotate(408deg); }
+  to   { transform: rotate(768deg); }
+}
+
+/* ---- Scintille alla base dell'ingranaggio durante l'attrito ----
+   Una raffica per ognuno dei cinque scatti della prima fase dell'apertura (stessi istanti di "mate-gear-open": 4.0 s di ritardo
+   + inizio dello scatto). Ogni raffica è un solo punto con sette ombre che si allontanano (box-shadow) e cadono per gravità,
+   poi svaniscono; la forza cresce a ogni scatto. Nascoste di base: con "riduci animazioni" non si vedono. */
+.mate-sparks { position: absolute; left: 49.6%; top: 61.5%; width: 0; height: 0; z-index: 3; pointer-events: none; }
+.mate-spark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 2px;
+  height: 2px;
+  margin: -1px 0 0 -1px;
+  border-radius: 50%;
+  background: #fff4cf;
+  opacity: 0;
+  pointer-events: none;
+}
+.mate-spark.s1 { --k: 0.7; --fx: 1; }
+.mate-spark.s2 { --k: 0.85; --fx: -1; }
+.mate-spark.s3 { --k: 1; --fx: 1; }
+.mate-spark.s4 { --k: 1.15; --fx: -1; }
+.mate-spark.s5 { --k: 1.3; --fx: 1; }
+@keyframes mate-spark {
+  0% {
+    opacity: 1;
+    box-shadow:
+    0px 0px 1px 0 rgba(255, 196, 92, 1),
+    0px 0px 1px 0 rgba(255, 196, 92, 1),
+    0px 0px 1px 0 rgba(255, 196, 92, 1),
+    0px 0px 1px 0 rgba(255, 196, 92, 1),
+    0px 0px 1px 0 rgba(255, 196, 92, 1),
+    0px 0px 1px 0 rgba(255, 196, 92, 1),
+    0px 0px 1px 0 rgba(255, 196, 92, 1);
+  }
+  35% {
+    opacity: 1;
+    box-shadow:
+    -9px 4px 1px 0 rgba(255, 196, 92, 0.95),
+    11px 6px 1px 0 rgba(255, 196, 92, 0.95),
+    -15px 11px 1px 0 rgba(255, 196, 92, 0.95),
+    7px 13px 1px 0 rgba(255, 196, 92, 0.95),
+    -4px 9px 1px 0 rgba(255, 196, 92, 0.95),
+    16px 12px 1px 0 rgba(255, 196, 92, 0.95),
+    -12px 15px 1px 0 rgba(255, 196, 92, 0.95);
+  }
+  100% {
+    opacity: 0;
+    box-shadow:
+    -17px 17px 0.5px 0 rgba(255, 196, 92, 0),
+    21px 22px 0.5px 0 rgba(255, 196, 92, 0),
+    -26px 27px 0.5px 0 rgba(255, 196, 92, 0),
+    13px 29px 0.5px 0 rgba(255, 196, 92, 0),
+    -8px 25px 0.5px 0 rgba(255, 196, 92, 0),
+    29px 28px 0.5px 0 rgba(255, 196, 92, 0),
+    -22px 31px 0.5px 0 rgba(255, 196, 92, 0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mate-spark { scale: calc(var(--k) * var(--fx)) var(--k); animation: mate-spark 0.36s cubic-bezier(0.2, 0.7, 0.4, 1) forwards; /* forwards e non both: durante il ritardo resta nascosta */ }
+  .mate-spark.s1 { animation-delay: 4.10s; }
+  .mate-spark.s2 { animation-delay: 4.28s; }
+  .mate-spark.s3 { animation-delay: 4.47s; }
+  .mate-spark.s4 { animation-delay: 4.63s; }
+  .mate-spark.s5 { animation-delay: 4.78s; }
 }
 
 /* ---- Carosello: cornice in acciaio scuro ---- */
@@ -2374,26 +2453,50 @@ input:disabled + .input-clear { display: none; }
 #auth-view .login-paper-l { clip-path: inset(0 50% 0 0); }
 #auth-view .login-paper-r { clip-path: inset(0 0 0 50%); }
 /* Con .is-reveal (parte quando l'ingranaggio inizia a muoversi, a luce finita) le metà si aprono con la stessa curva dell'ingranaggio:
-   prima a tranche lente, poi in modo lineare fino in fondo; a fine corsa spariscono del tutto. Stessa durata di "mate-gear-open". */
-.mate-brand-video.is-reveal .login-paper-l { animation: login-paper-open-l 2.67s linear forwards; }
-.mate-brand-video.is-reveal .login-paper-r { animation: login-paper-open-r 2.67s linear forwards; }
+   scatti con attrito, poi apertura veloce che finisce contro i lati (1.16 s) e le metà spariscono. Al momento dell'urto
+   la scheda intera vibra (login-impact, smorzata, stesso istante della vibrazione dell'ingranaggio). */
+.mate-brand-video.is-reveal .login-paper-l { animation: login-paper-open-l 1.16s linear forwards; }
+.mate-brand-video.is-reveal .login-paper-r { animation: login-paper-open-r 1.16s linear forwards; }
+@media (prefers-reduced-motion: no-preference) {
+  .mate-brand-video.is-reveal { animation: login-impact 0.44s linear 1.16s; }
+}
 @keyframes login-paper-open-l {
-  0% { transform: translateX(0); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
-  14.981% { transform: translateX(-3.704%); animation-timing-function: linear; }
-  19.476% { transform: translateX(-3.704%); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
-  34.457% { transform: translateX(-10.185%); animation-timing-function: linear; }
-  38.202% { transform: translateX(-10.185%); animation-timing-function: cubic-bezier(0.4, 0, 0.75, 0.76); }
-  55.056% { transform: translateX(-21.428%); animation-timing-function: linear; }
+  0% { transform: translateX(-0.000%); animation-timing-function: linear; }
+  6.897% { transform: translateX(0.000%); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  13.793% { transform: translateX(-1.250%); animation-timing-function: linear; }
+  22.414% { transform: translateX(-1.250%); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  32.759% { transform: translateX(-3.125%); animation-timing-function: linear; }
+  38.793% { transform: translateX(-3.125%); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  47.414% { transform: translateX(-5.000%); animation-timing-function: linear; }
+  52.586% { transform: translateX(-5.000%); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  62.069% { transform: translateX(-7.500%); animation-timing-function: linear; }
+  65.517% { transform: translateX(-7.500%); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  74.138% { transform: translateX(-10.417%); animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
   100% { transform: translateX(-50%); visibility: hidden; }
 }
 @keyframes login-paper-open-r {
-  0% { transform: translateX(0); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
-  14.981% { transform: translateX(3.704%); animation-timing-function: linear; }
-  19.476% { transform: translateX(3.704%); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
-  34.457% { transform: translateX(10.185%); animation-timing-function: linear; }
-  38.202% { transform: translateX(10.185%); animation-timing-function: cubic-bezier(0.4, 0, 0.75, 0.76); }
-  55.056% { transform: translateX(21.428%); animation-timing-function: linear; }
+  0% { transform: translateX(0.000%); animation-timing-function: linear; }
+  6.897% { transform: translateX(0.000%); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  13.793% { transform: translateX(1.250%); animation-timing-function: linear; }
+  22.414% { transform: translateX(1.250%); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  32.759% { transform: translateX(3.125%); animation-timing-function: linear; }
+  38.793% { transform: translateX(3.125%); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  47.414% { transform: translateX(5.000%); animation-timing-function: linear; }
+  52.586% { transform: translateX(5.000%); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  62.069% { transform: translateX(7.500%); animation-timing-function: linear; }
+  65.517% { transform: translateX(7.500%); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  74.138% { transform: translateX(10.417%); animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
   100% { transform: translateX(50%); visibility: hidden; }
+}
+@keyframes login-impact {
+  0%   { translate: 0 0; }
+  10%  { translate: 4px 1px; }
+  24%  { translate: -3.5px -1px; }
+  38%  { translate: 2.6px 0.6px; }
+  52%  { translate: -1.8px -0.4px; }
+  66%  { translate: 1.1px 0.2px; }
+  80%  { translate: -0.5px 0; }
+  100% { translate: 0 0; }
 }
 
 /* Nuova presentazione della schermata: la carta si richiude di scatto, senza animazione */
@@ -3211,7 +3314,7 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
   .hdr-logo { position: relative; display: block; width: 53.6px; height: 44px; flex: none; }
   .hdr-logo .mate-logo-wrap { position: absolute; left: -7.3px; top: -5.36px; height: 77.56px; }
   .hdr-logo .mate-gear-win, .hdr-logo .mate-gear-pop, .hdr-logo .mate-m { animation: none !important; }
-  .hdr-logo .mate-gear { transform: rotate(414deg); animation: mate-gear-run 11s linear infinite !important; }
+  .hdr-logo .mate-gear { transform: rotate(408deg); animation: mate-gear-run 11s linear infinite !important; }
   .hdr-settings-title { display: none !important; }
   /* Con la ricerca in basso i pulsanti di destra della testata non spariscono più */
   .app-header.hs-active .hdr-right { max-width: none; margin-left: 0; opacity: 1; transform: none; pointer-events: auto; }
