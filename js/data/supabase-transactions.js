@@ -145,6 +145,19 @@ export async function deleteTransactions(ids) {
   if (error) throw error;
 }
 
+/**
+ * Corregge un movimento già registrato (solo Admin, dalla Gestione cronologia). Modifica solo il registro:
+ * la giacenza non viene ricalcolata. Se il database non permette l'aggiornamento (policy mancante)
+ * la risposta è vuota e si segnala l'errore invece di fingere che sia andata bene.
+ */
+export async function updateTransaction(id, patch) {
+  const { data, error } = await supabase.from('transactions').update(patch).eq('id', id).select('id');
+  if (error) throw error;
+  if (!data?.length) {
+    throw new Error('Modifica non consentita dal database: serve eseguire la migrazione 2026-10-26-modifica-movimenti-admin.sql.');
+  }
+}
+
 /** Aggregazione consumi (prelievi) per articolo, lato client su dataset filtrato */
 export async function getConsumptionStats({ from, to } = {}) {
   const rows = await listTransactions({ from, to, limit: 2000 });
