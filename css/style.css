@@ -2458,7 +2458,10 @@ input:disabled + .input-clear { display: none; }
 .mate-brand-video.is-reveal .login-paper-l { animation: login-paper-open-l 1.16s linear forwards; }
 .mate-brand-video.is-reveal .login-paper-r { animation: login-paper-open-r 1.16s linear forwards; }
 @media (prefers-reduced-motion: no-preference) {
-  .mate-brand-video.is-reveal { animation: login-impact 0.44s linear 1.16s; }
+  /* Caduta della M: l'impatto (a 0.30 s dei 0.52 s di mate-m-drop, che parte a 1.7 s, cioè a 2.0 s) fa vibrare la scheda come all'urto finale */
+  .mate-brand-video { animation: login-impact-m 0.44s linear 2s; }
+  /* Con l'apertura la lista mantiene la prima voce identica (non riparte) e aggiunge la vibrazione dell'urto finale */
+  .mate-brand-video.is-reveal { animation: login-impact-m 0.44s linear 2s, login-impact 0.44s linear 1.16s; }
 }
 @keyframes login-paper-open-l {
   0% { transform: translateX(-0.000%); animation-timing-function: linear; }
@@ -2489,6 +2492,17 @@ input:disabled + .input-clear { display: none; }
   100% { transform: translateX(50%); visibility: hidden; }
 }
 @keyframes login-impact {
+  0%   { translate: 0 0; }
+  10%  { translate: 4px 1px; }
+  24%  { translate: -3.5px -1px; }
+  38%  { translate: 2.6px 0.6px; }
+  52%  { translate: -1.8px -0.4px; }
+  66%  { translate: 1.1px 0.2px; }
+  80%  { translate: -0.5px 0; }
+  100% { translate: 0 0; }
+}
+/* Stessa vibrazione, nome separato: così le due possono stare nella stessa lista di animazioni senza riavviarsi a vicenda */
+@keyframes login-impact-m {
   0%   { translate: 0 0; }
   10%  { translate: 4px 1px; }
   24%  { translate: -3.5px -1px; }
