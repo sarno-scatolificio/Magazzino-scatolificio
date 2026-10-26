@@ -1,7 +1,7 @@
 // =============================================================
 // login-video.js — video di presentazione della schermata di accesso (al posto del vecchio carosello)
 // Parte da solo, senza audio e in ciclo, appena la schermata di accesso è a vista (all'apertura dell'app), dietro la carta
-// millimetrata; quando l'ingranaggio inizia a girare la carta si apre dal centro verso i lati e scopre il video.
+// millimetrata; finita la luce sulla M l'ingranaggio si muove a tranche lente e poi a velocità costante: la carta si apre dal centro verso i lati con la stessa curva (dipende dalla rotazione) e scopre il video.
 // Si ferma da solo quando la schermata non si vede più (dopo l'accesso, scheda in secondo piano) per non
 // scaricare e decodificare video inutilmente. Un tocco lo mette in pausa o lo riprende.
 // Con «riduci animazioni» attive non parte da solo: si vede l'immagine di anteprima e si avvia con un tocco.
@@ -55,13 +55,18 @@ function initLoginVideo() {
         video.pause();
         try { video.currentTime = 0; } catch (_) { /* non ancora pronto */ }
         sync();
-      } else if (e.animationName === 'mate-gear-start') {
+      } else if (e.animationName === 'mate-gear-open') {
         reveal();
       }
     });
     // Se la sequenza era già arrivata alla rotazione prima che questo codice partisse, non aspetta oltre
-    const gearAnim = view.querySelector('.mate-gear')?.getAnimations?.().find((a) => a.animationName === 'mate-gear-start');
-    if (gearAnim && gearAnim.currentTime > 0) card?.classList.add('is-reveal');
+    const gearAnim = view.querySelector('.mate-gear')?.getAnimations?.().find((a) => a.animationName === 'mate-gear-open');
+    const gearDelay = gearAnim?.effect?.getComputedTiming?.().delay ?? 0;
+    if (gearAnim && gearAnim.currentTime > gearDelay && card) {
+      card.classList.add('is-reveal');
+      void card.offsetWidth; // fa partire le animazioni della carta, poi le allinea a quella dell'ingranaggio (stessa durata)
+      card.querySelectorAll('.login-paper').forEach((el) => el.getAnimations?.().forEach((a) => { a.currentTime = gearAnim.currentTime - gearDelay; }));
+    }
   }
 
   // Il video è lo sfondo della scheda del logo: un tocco sulla scheda (fuori dal logo, che ha i suoi gesti) lo ferma o lo riprende

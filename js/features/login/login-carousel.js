@@ -93,12 +93,12 @@ function initLoginCarousel() {
       if (e.animationName === 'mate-rise') {
         setStarted(false);               // nuova presentazione della schermata (parte il logo): di nuovo fermo e bloccato
         vel = 0;
-      } else if (e.animationName === 'mate-gear-start') {
+      } else if (e.animationName === 'mate-gear-open') {
         setStarted(true);                // l'ingranaggio inizia a girare: parte il carosello
       }
     });
     // Se la sequenza era già arrivata alla rotazione prima che questo codice partisse, non aspetta oltre
-    const gearAnim = view.querySelector('.mate-gear')?.getAnimations?.().find((a) => a.animationName === 'mate-gear-start');
+    const gearAnim = view.querySelector('.mate-gear')?.getAnimations?.().find((a) => a.animationName === 'mate-gear-open');
     if (gearAnim && gearAnim.currentTime > 0) setStarted(true);
   }
   const autoSpeed = () => (reduceMotion.matches || !started ? 0 : -SPEED); // negativo = verso sinistra

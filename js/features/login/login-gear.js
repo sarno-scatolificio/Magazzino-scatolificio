@@ -6,7 +6,7 @@
 // qui se ne guida il tempo a mano, poi si restituisce il controllo al CSS.
 // =============================================================
 const RUN_NAME = 'mate-gear-run';
-const RUN_DELAY_MS = 3020;       // deve coincidere con il ritardo di mate-gear-run in style.css
+const RUN_DELAY_MS = 6670;       // deve coincidere con il ritardo di mate-gear-run in style.css
 const RUN_PERIOD_MS = 14000;     // durata di un giro in style.css
 const BASE_DEG_S = 360 / (RUN_PERIOD_MS / 1000); // velocità normale (gradi al secondo)
 const MS_PER_DEG = RUN_PERIOD_MS / 360;
