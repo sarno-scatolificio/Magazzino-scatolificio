@@ -3170,7 +3170,7 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
 
 /* =============================================================
    Ricerca in basso, stile One UI di Samsung (solo telefono/tablet: sul desktop resta nella testata).
-   Margini laterali: 66 dp in Movimenti e Manuali; in Magazzino e Interventi gli stessi, ma mai meno dell'ingombro del «+» (barra sempre centrata); con la tastiera aperta 16 dp.
+   Margini laterali: 66 dp in Movimenti e Manuali; in Magazzino e Interventi la barra ha la stessa lunghezza ma trasla a sinistra per lasciare spazio al «+»; con la tastiera aperta 16 dp.
    ============================================================= */
 .hdr-brand { display: none; }
 .search-dock { display: none; }
@@ -3196,9 +3196,9 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
     display: flex; pointer-events: none;
     transition: bottom var(--dur-base) var(--ease-out), padding var(--dur-base) var(--ease-out), opacity var(--dur-base) ease, transform var(--dur-base) var(--ease-out), visibility 0s linear 0s;
   }
-  /* Magazzino e Interventi (c'è il «+»): barra stretta come in Movimenti e centrata sullo schermo (margini uguali a destra e a sinistra),
-     alla stessa altezza del «+». Il margine non scende sotto l'ingombro del «+» (largo 56 dp + 10 dp di respiro), così non lo tocca mai. */
-  .search-dock.dock-fab { --dock-l: max(66px, calc(var(--fab-r) + 56px + 10px)); --dock-r: var(--dock-l); }
+  /* Magazzino e Interventi (c'è il «+»): la barra ha la stessa lunghezza che in Movimenti e Manuali (100vw − 132 px) e si sposta soltanto
+     verso sinistra: il margine destro non scende sotto l'ingombro del «+» (56 dp + 10 dp di respiro), quello sinistro si riduce di altrettanto. */
+  .search-dock.dock-fab { --dock-r: max(66px, calc(var(--fab-r) + 56px + 10px)); --dock-l: max(16px, calc(132px - var(--dock-r))); }
   .search-dock.dock-kb { bottom: calc(var(--kb-h, 0px) + 10px); --dock-l: 16px; --dock-r: 16px; }
   .search-dock.dock-hidden { opacity: 0; transform: translateY(20px); visibility: hidden; transition-delay: 0s, 0s, 0s, 0s, var(--dur-base); }
   body.manuals-detail-active .search-dock { display: none; }
