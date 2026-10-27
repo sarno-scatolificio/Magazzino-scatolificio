@@ -3030,7 +3030,7 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
 }
 
 /* Prelievo a prestito: restano solo l'interruttore e il campo "A chi viene dato" (niente linea, macchinario, punto di utilizzo) */
-#scan-prelievo-fields.is-prestito > :not(#scan-prestito-wrap) { display: none !important; }
+#scan-prelievo-fields.is-prestito > :not(#scan-advanced) { display: none !important; }
 #scan-prestito-toggle[aria-checked="true"] { background: #2f4f92; border-color: #2f4f92; color: #ffffff; }
 #scan-prestito-toggle[aria-checked="true"] #scan-prestito-state { color: #ffffff; }
 
