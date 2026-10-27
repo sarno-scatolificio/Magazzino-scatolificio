@@ -603,7 +603,7 @@ function renderDetail(p) {
     const locazione = (locs[0]?.locazione || '').trim();
     els.detailLocazione.innerHTML = `<p class="${locazione ? '' : 'text-graphite-400'}">${locazione ? `<span data-shelf="${escapeHtml(locazione)}">${escapeHtml(locazione)}</span>` : '—'}${locazione ? detailAreaChip(locazione) : ''}</p>`;
   }
-  els.detailLocazioneLabel.textContent = multiple ? 'Locazioni magazzino' : 'Locazione magazzino';
+  els.detailLocazioneLabel.textContent = multiple ? 'Locazioni' : 'Locazione';
   enhanceShelfNames(els.detailLocazione, p); // gli scaffali con foto diventano pulsanti toccabili
   els.detailQuantitaLabel.textContent = multiple ? 'Quantità totale' : 'Quantità disponibile';
 
