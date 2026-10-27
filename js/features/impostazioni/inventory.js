@@ -24,6 +24,7 @@ import { isAdmin } from '../../core/auth.js';
 import { startCamera, stopCamera } from '../../shared/camera.js';
 import { openCameraSheet } from './inventory-camera.js';
 import { createHoldRepeater } from '../../shared/hold-repeat.js';
+import { openNewProductModal } from '../magazzino/products-detail.js';
 import {
   cacheProductsList,
   getCachedProductByBarcode,
@@ -657,9 +658,6 @@ function buildCount() {
       setContato(i, r.contato === r.atteso ? null : r.atteso);
     } else if (act === 'barcode') {
       openBarcodeSheet(i);
-    } else if (act === 'zero') {
-      feedback.tap();
-      setContato(i, 0);
     } else if ((act === 'inc' || act === 'dec') && ev.detail === 0) {
       // Solo tastiera / tecnologie assistive (click senza puntatore): col dito o il mouse gestisce tutto pointerdown
       stepContato(i, act === 'inc' ? 1 : -1);
@@ -683,11 +681,21 @@ function baseContato(r) {
   return r.contato ?? (st.session.ciechi || r.aggiunto ? 0 : r.atteso);
 }
 
+// Ciclo del conteggio: trattino (non contato) → 1 con «+»; 1 → 0 → trattino con «−».
+// Dal trattino il «−» non scrive 0: lo lascia com'è (se la quantità attesa è visibile, parte da quella).
 function stepContato(i, dir) {
   const r = st.session?.rows[i];
   if (!r) return;
+  let next;
+  if (r.contato == null) {
+    next = baseContato(r) + dir;
+    if (next < 0) return; // da contare: sotto lo 0 non si va
+  } else {
+    next = r.contato + dir;
+    if (next < 0) next = null; // sotto lo 0 si torna a "non contato"
+  }
   feedback.qtyTick(0);
-  setContato(i, Math.max(0, baseContato(r) + dir));
+  setContato(i, next);
 }
 
 // Pressione prolungata su + / −: stessa accelerazione graduale di Deposito e Prelievo
@@ -709,10 +717,7 @@ function bindHoldSteppers(container) {
     }
     repeater.start(dir, {
       min: 0,
-      getValue: () => {
-        const r = st.session?.rows[i];
-        return r ? baseContato(r) : 0;
-      },
+      getValue: () => st.session?.rows[i]?.contato ?? null, // null (non contato) ferma la ripetizione: sotto lo 0 si passa solo con un tocco
       setValue: (v) => setContato(i, v),
       firstStep: () => stepContato(i, dir),
     });
@@ -801,7 +806,6 @@ function rowHtml(r, i) {
       <input data-input data-no-clear type="number" inputmode="numeric" min="0" step="1" value="${r.contato ?? ''}" placeholder="${visibile ? r.atteso : '–'}"
         class="w-16 h-11 rounded-lg bg-graphite-800 border border-graphite-700 text-center font-display font-bold text-base focus:border-amber-400 outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
       <button type="button" data-act="inc" data-no-haptic aria-label="Più" class="${BTN_STEP}">+</button>
-      <button type="button" data-act="zero" aria-label="Non c'è" class="${BTN_STEP} text-rose-700">0</button>
     </div>
   </div>`;
 }
@@ -971,6 +975,17 @@ async function addProductToSession(product) {
   focusRow(0);
 }
 
+/** Riga per un articolo appena creato dal modulo "Nuovo cuscinetto": entra in elenco come trovato sullo scaffale. */
+function addNewProductRow(product) {
+  if (!st.session || !product || st.session.rows.some((r) => r.id === product.id)) return;
+  st.session.rows.unshift(rowFromProduct(product));
+  st.onlyTodo = false;
+  paintRows();
+  saveDraft();
+  feedback.confirmAction();
+  focusRow(0);
+}
+
 // ---- Codici a barre nuovi per articoli che non ne hanno
 /** Salva il codice come principale dell'articolo della riga i. Lancia un Error con messaggio leggibile se non è possibile. */
 async function saveBarcode(i, code) {
@@ -1086,9 +1101,10 @@ function openAddSheet() {
       <h3 class="font-display font-bold text-lg uppercase tracking-wide">Aggiungi articolo</h3>
       <button type="button" data-act="close" aria-label="Chiudi" class="modal-close modal-close--on-light"><i data-lucide="x" class="w-6 h-6" stroke-width="2.5"></i></button>
     </div>
-    <div class="px-5 pt-3 shrink-0">
+    <div class="px-5 pt-3 shrink-0 space-y-2">
       <input data-role="q" type="text" autocomplete="off" placeholder="Codice, descrizione o codice a barre"
         class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors" />
+      <button type="button" data-act="new" class="press-spring w-full min-h-[44px] rounded-lg border border-graphite-700 bg-graphite-900 hover:bg-graphite-700 flex items-center justify-center gap-2 text-xs font-display font-semibold uppercase tracking-wide transition-colors"><i data-lucide="plus" class="w-4 h-4 shrink-0"></i>Nuovo cuscinetto</button>
     </div>
     <div data-role="res" class="flex-1 overflow-y-auto px-5 py-3 space-y-2"></div>`
   );
@@ -1106,6 +1122,15 @@ function openAddSheet() {
   overlay.addEventListener('click', (ev) => ev.target === overlay && close());
   overlay.querySelector('[data-act="close"]').addEventListener('click', close);
   enableSheetDrag(overlay.querySelector('.modal-panel'), close);
+  // Stesso modulo "Nuovo articolo" del Magazzino, con categoria Cuscinetti e questo scaffale già compilato
+  overlay.querySelector('[data-act="new"]').addEventListener('click', () => {
+    feedback.tap();
+    close();
+    setTimeout(
+      () => openNewProductModal({ categoria: 'cuscinetti', locazione: st.session.shelf, zIndex: 94, onCreated: addNewProductRow }),
+      modalCloseMs() * 0.6
+    );
+  });
 
   const paint = () => {
     if (!found.length) {
