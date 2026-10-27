@@ -5,7 +5,8 @@
 // registrati compaiono nella tendina "Locazione magazzino" del form articolo.
 // =============================================================
 
-import { listShelvesWithCounts, createShelf, deleteShelf, setShelfArea, SHELF_AREAS, DEFAULT_SHELF_AREA, bumpProductsVersion } from '../../data/supabase.js';
+import { listShelvesWithCounts, createShelf, deleteShelf, setShelfArea, SHELF_AREAS, DEFAULT_SHELF_AREA, bumpProductsVersion, loadShelfPhotos, getShelfPhoto, deleteShelfPhoto } from '../../data/supabase.js';
+import { openShelfPhotoManager } from './shelf-photos.js';
 import { toastSuccess, toastError } from '../../shared/toast.js';
 import { isAdmin } from '../../core/auth.js';
 import { staggerIndex, setButtonBusy, openOverlay, closeOverlay, enableSheetDrag } from '../../shared/ui-utils.js';
@@ -67,7 +68,7 @@ export async function refreshShelves() {
   els.skeleton.classList.remove('hidden');
   els.list.classList.add('hidden');
   try {
-    const result = await listShelvesWithCounts();
+    const [result] = await Promise.all([listShelvesWithCounts(), loadShelfPhotos(true)]);
     tableMissing = result.tableMissing;
     areaMissing = result.areaMissing;
     render(result.shelves);
@@ -130,7 +131,18 @@ function render(shelves) {
     removeBtn.className = 'shrink-0 w-11 h-11 rounded-lg flex items-center justify-center text-rose-700 hover:bg-rose-50 transition-colors';
     removeBtn.innerHTML = '<i data-lucide="trash-2" class="w-5 h-5" stroke-width="2"></i>';
     removeBtn.addEventListener('click', () => handleRemove(sh, removeBtn));
-    row.append(info, removeBtn);
+    // Foto dello scaffale: scatta/carica, ritaglia, elimina. L'icona è piena (ambra) se la foto c'è già.
+    const hasPhoto = !!getShelfPhoto(sh.nome);
+    const photoBtn = document.createElement('button');
+    photoBtn.type = 'button';
+    photoBtn.setAttribute('aria-label', `${hasPhoto ? 'Gestisci la foto' : 'Aggiungi una foto'} di ${sh.nome}`);
+    photoBtn.className = `shrink-0 w-11 h-11 rounded-lg flex items-center justify-center hover:bg-graphite-800 transition-colors ${hasPhoto ? 'text-amber-400' : 'text-graphite-400'}`;
+    photoBtn.innerHTML = `<i data-lucide="${hasPhoto ? 'image' : 'camera'}" class="w-5 h-5" stroke-width="2"></i>`;
+    photoBtn.addEventListener('click', () => {
+      feedback.tap();
+      openShelfPhotoManager(sh, { onChanged: refreshShelves });
+    });
+    row.append(info, photoBtn, removeBtn);
     els.list.appendChild(row);
   });
   els.list.classList.remove('hidden');
@@ -167,6 +179,7 @@ async function handleRemove(shelf, btn) {
   setButtonBusy(btn, true);
   try {
     const { articoliSvuotati } = await deleteShelf(shelf);
+    if (getShelfPhoto(shelf.nome)) await deleteShelfPhoto(shelf.nome).catch((e) => console.warn('Foto dello scaffale non eliminata.', e));
     feedback.deleteAction();
     toastSuccess(
       articoliSvuotati > 0
