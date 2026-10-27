@@ -17,7 +17,7 @@ import { enhanceSelect } from '../../shared/ui-select.js';
 import feedback from '../../shared/feedback.js';
 import { openOverlay, closeOverlay, enableSheetDrag, replayAnimation, setButtonBusy, loadLib } from '../../shared/ui-utils.js';
 import { els, state, CATEGORY_LABELS, LINEA_OPTIONS, escapeHtml } from './products-shared.js';
-import { renderShelfPhotoButtons } from '../../shared/shelf-photo-viewer.js';
+import { enhanceShelfNames } from '../../shared/shelf-photo-viewer.js';
 import { refresh, pushHistory } from './products-data.js';
 
 let editingId = null;
@@ -33,7 +33,6 @@ export function initProductsDetail() {
   els.detailCategory = document.getElementById('product-detail-category');
   els.detailCode = document.getElementById('product-detail-code');
   els.detailLocazione = document.getElementById('product-detail-locazione');
-  els.detailShelfPhotos = document.getElementById('product-detail-shelf-photos');
   els.detailLocazioneLabel = document.getElementById('product-detail-locazione-label');
   els.detailQuantita = document.getElementById('product-detail-quantita');
   els.detailQuantitaLabel = document.getElementById('product-detail-quantita-label');
@@ -590,17 +589,17 @@ function renderDetail(p) {
       .map(
         (l) => `
         <div class="flex items-center justify-between gap-2">
-          <span class="min-w-0 break-words${l.locazione ? '' : ' text-graphite-400'}">${escapeHtml(l.locazione || 'Senza scaffale')}${l.locazione ? detailAreaChip(l.locazione) : ''}</span>
+          <span class="min-w-0 break-words${l.locazione ? '' : ' text-graphite-400'}">${l.locazione ? `<span data-shelf="${escapeHtml(l.locazione)}">${escapeHtml(l.locazione)}</span>` : 'Senza scaffale'}${l.locazione ? detailAreaChip(l.locazione) : ''}</span>
           <span class="shrink-0 inline-block px-2 py-0.5 rounded-full bg-graphite-700 text-graphite-200 font-mono text-sm font-bold">${l.quantita}</span>
         </div>`
       )
       .join('');
   } else {
     const locazione = (locs[0]?.locazione || '').trim();
-    els.detailLocazione.innerHTML = `<p class="${locazione ? '' : 'text-graphite-400'}">${escapeHtml(locazione || '—')}${locazione ? detailAreaChip(locazione) : ''}</p>`;
+    els.detailLocazione.innerHTML = `<p class="${locazione ? '' : 'text-graphite-400'}">${locazione ? `<span data-shelf="${escapeHtml(locazione)}">${escapeHtml(locazione)}</span>` : '—'}${locazione ? detailAreaChip(locazione) : ''}</p>`;
   }
   els.detailLocazioneLabel.textContent = multiple ? 'Locazioni magazzino' : 'Locazione magazzino';
-  renderShelfPhotoButtons(els.detailShelfPhotos, p); // foto dello scaffale con la posizione (solo se esiste una foto)
+  enhanceShelfNames(els.detailLocazione, p); // gli scaffali con foto diventano pulsanti toccabili
   els.detailQuantitaLabel.textContent = multiple ? 'Quantità totale' : 'Quantità disponibile';
 
   const qty = p.quantita_disponibile ?? 0;
