@@ -46,9 +46,13 @@ export function getCachedProductByBarcode(codiceBarre) {
   return id != null ? cache.byId?.[id] || null : null;
 }
 // Ricerca per INIZIO PAROLA: «27» trova 2740, 2710, «6000-27» o «cinghia 27», ma mai «CM27QA» (27 in mezzo alla parola).
+// Eccezione per i numeri di almeno 3 cifre cercati nel CODICE: «4905» trova anche «NA4905-XL» (cifre dopo un prefisso di lettere),
+// ma non «14905» (a metà di un numero).
 // Una parola comincia all'inizio del testo o dopo uno spazio o uno di questi separatori. Più parole nella ricerca = tutte devono trovarsi.
 const WORD_SEPARATORS = [' ', '-', '/', '.', '(', '_', ',', ';', ':'];
 const SEARCH_FIELDS = ['codice_articolo', 'codice_barre', 'locazione', 'punto_utilizzo_standard', 'descrizione', 'macchina'];
+/** Numero di almeno 3 cifre: si cerca anche dopo un prefisso di lettere nel codice (NA4905-XL) */
+export const isCodeNumber = (t) => /^\d{3,}$/.test(t);
 const searchTokens = (text) => String(text || '').trim().split(/\s+/).filter(Boolean);
 const escapeRegex = (t) => t.replace(/[.*+?^${}()|[\]\\\-]/g, '\\$&');
 
@@ -60,7 +64,8 @@ function productMatchesTokens(p, tokens) {
   ];
   return tokens.every((t) => {
     const re = new RegExp(`(^|[\\s\\-/.(_,;:])${escapeRegex(t)}`, 'i');
-    return texts.some((x) => re.test(x));
+    if (texts.some((x) => re.test(x))) return true;
+    return isCodeNumber(t) && new RegExp(`[a-z]${escapeRegex(t)}`, 'i').test(String(p.codice_articolo ?? ''));
   });
 }
 
@@ -185,12 +190,16 @@ export async function listProducts({ search = '', onlyLowStock = false, categori
     // `locazione` è il riepilogo testuale degli scaffali: cercare "SB002" trova anche gli articoli che ci stanno insieme ad altri scaffali
     const patterns = wordStartPatterns(token);
     const conds = SEARCH_FIELDS.flatMap((c) => patterns.map((pt) => `${c}.ilike.${quoteForOr(pt)}`));
+    // «4905» deve trovare anche «NA4905-XL»: sul server si prende ogni codice che lo contiene, poi il filtro qui sotto toglie «14905»
+    if (isCodeNumber(token)) conds.push(`codice_articolo.ilike.${quoteForOr(`%${likeEscape(token)}%`)}`);
     if (extraIds.length) conds.push(`id.in.(${extraIds.join(',')})`);
     query = query.or(conds.join(','));
   }
   const { data, error } = await query;
   if (error) throw error;
-  const list = data.map(normalizeProduct);
+  let list = data.map(normalizeProduct);
+  const tokens = searchTokens(search);
+  if (tokens.length) list = list.filter((p) => productMatchesTokens(p, tokens)); // stessa regola del server, più il caso «4905» → NA4905-XL
   cacheProductsList(list);
   // La scorta minima vale sul totale di tutti gli scaffali (quantita_disponibile è il totale)
   if (onlyLowStock) return list.filter((p) => p.quantita_disponibile < p.scorta_minima);
