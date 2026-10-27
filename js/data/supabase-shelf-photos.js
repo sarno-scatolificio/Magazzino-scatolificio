@@ -98,6 +98,13 @@ export async function getProductPosition(productId, nome) {
   return data || null;
 }
 
+/** Posizioni dell'articolo su tutte le foto: Map chiave scaffale -> { x, y } (vuota se non ce ne sono) */
+export async function listProductPositions(productId) {
+  const { data, error } = await supabase.from('product_shelf_positions').select('locazione_key, x, y').eq('product_id', productId);
+  if (error) throw error;
+  return new Map((data || []).map((r) => [r.locazione_key, { x: r.x, y: r.y }]));
+}
+
 export async function setProductPosition(productId, nome, x, y) {
   const row = { product_id: productId, locazione_key: shelfKey(nome), x, y, updated_at: new Date().toISOString() };
   const { error } = await supabase.from('product_shelf_positions').upsert(row, { onConflict: 'product_id,locazione_key' });
