@@ -60,13 +60,13 @@ export function markerSvg(x, y, W, H) {
 }
 
 const PILL_BASE =
-  'shelf-pill press-spring inline-flex items-center gap-1.5 max-w-full min-h-[34px] rounded-lg border px-2.5 align-middle font-display font-bold tracking-wide transition-colors';
+  'shelf-pill press-spring inline-flex items-center gap-1.5 max-w-full min-h-[34px] rounded-lg border px-2.5 py-1 align-middle text-left leading-tight font-display font-bold tracking-wide transition-colors';
 const PILL_SET = 'bg-amber-400 border-amber-400 text-white shadow-edge'; // posizione già indicata: in evidenza
 const PILL_UNSET = 'bg-amber-400/10 border-amber-400 text-graphite-100'; // foto presente, posizione ancora da indicare
 
 function paintPill(btn, hasPos) {
   btn.className = `${PILL_BASE} ${hasPos ? PILL_SET : PILL_UNSET}`;
-  btn.innerHTML = `<i data-lucide="${hasPos ? 'map-pin' : 'image'}" class="w-4 h-4 shrink-0" stroke-width="2.4"></i><span class="truncate"></span><i data-lucide="chevron-right" class="w-3.5 h-3.5 shrink-0 opacity-70" stroke-width="2.6"></i>`;
+  btn.innerHTML = `<i data-lucide="${hasPos ? 'map-pin' : 'image'}" class="w-4 h-4 shrink-0" stroke-width="2.4"></i><span class="min-w-0 break-words"></span><i data-lucide="chevron-right" class="w-3.5 h-3.5 shrink-0 opacity-70" stroke-width="2.6"></i>`;
   btn.querySelector('span').textContent = btn.dataset.shelf; // testo, mai HTML
   window.lucide?.createIcons();
 }
