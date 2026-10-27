@@ -7,7 +7,7 @@
 // stato aperto (o toccato sul pallino). Gli interventi già presenti alla prima apertura
 // non vengono segnati (altrimenti sarebbero tutti «nuovi»).
 //
-// Il numero dei nuovi compare anche sul pulsante «Interventi» della barra in basso, così
+// Il numero dei nuovi (ancora da effettuare) compare anche sul pulsante «Interventi» della barra in basso, così
 // si nota un nuovo inserimento senza entrare nella sezione: si controlla all'avvio, una
 // volta al minuto e quando l'app torna in primo piano.
 
@@ -120,6 +120,7 @@ export async function refreshUnseenBadge() {
     const { data, error } = await supabase
       .from('manutenzioni_soste')
       .select('id')
+      .in('stato', ['da_effettuare', 'sospeso']) // solo quelli ancora da fare: gli effettuati non stanno nella lista aperta e il numero non si azzererebbe mai
       .gt('created_at', new Date(baseline).toISOString())
       .neq('created_by', uid)
       .limit(200);
