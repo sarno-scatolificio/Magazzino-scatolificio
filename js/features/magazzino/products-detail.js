@@ -17,6 +17,7 @@ import { enhanceSelect } from '../../shared/ui-select.js';
 import feedback from '../../shared/feedback.js';
 import { openOverlay, closeOverlay, enableSheetDrag, replayAnimation, setButtonBusy, loadLib } from '../../shared/ui-utils.js';
 import { els, state, CATEGORY_LABELS, LINEA_OPTIONS, escapeHtml } from './products-shared.js';
+import { renderShelfPhotoButtons } from '../../shared/shelf-photo-viewer.js';
 import { refresh, pushHistory } from './products-data.js';
 
 let editingId = null;
@@ -32,6 +33,7 @@ export function initProductsDetail() {
   els.detailCategory = document.getElementById('product-detail-category');
   els.detailCode = document.getElementById('product-detail-code');
   els.detailLocazione = document.getElementById('product-detail-locazione');
+  els.detailShelfPhotos = document.getElementById('product-detail-shelf-photos');
   els.detailLocazioneLabel = document.getElementById('product-detail-locazione-label');
   els.detailQuantita = document.getElementById('product-detail-quantita');
   els.detailQuantitaLabel = document.getElementById('product-detail-quantita-label');
@@ -598,6 +600,7 @@ function renderDetail(p) {
     els.detailLocazione.innerHTML = `<p class="${locazione ? '' : 'text-graphite-400'}">${escapeHtml(locazione || '—')}${locazione ? detailAreaChip(locazione) : ''}</p>`;
   }
   els.detailLocazioneLabel.textContent = multiple ? 'Locazioni magazzino' : 'Locazione magazzino';
+  renderShelfPhotoButtons(els.detailShelfPhotos, p); // foto dello scaffale con la posizione (solo se esiste una foto)
   els.detailQuantitaLabel.textContent = multiple ? 'Quantità totale' : 'Quantità disponibile';
 
   const qty = p.quantita_disponibile ?? 0;
