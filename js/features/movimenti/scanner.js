@@ -4,7 +4,7 @@
 // Questo file tiene l'avvio dello scanner e le funzioni usate dal resto dell'app; il resto è diviso in
 // scanner-shared / -camera / -search / -result / -punti / -transaction / -idle.
 
-import { bindHoldRepeat, handleDetectedCode, onProductMatched, setLinea, setPrestito } from './scanner-result.js';
+import { bindHoldRepeat, handleDetectedCode, onProductMatched, setAdvancedOpen, setLinea, setPrestito } from './scanner-result.js';
 import { bindScanModalBack, closeScanModal, collapseCamera, expandCamera, selectMode, toggleScanCameraSection, updateOfflineBadge } from './scanner-camera.js';
 import { confirmTransaction, resetAll, resetResult } from './scanner-transaction.js';
 import { els, ss } from './scanner-shared.js';
@@ -39,7 +39,6 @@ export function initScanner() {
   els.productCode = document.getElementById('scan-product-code');
   els.productStock = document.getElementById('scan-product-stock');
   els.productLoc = document.getElementById('scan-product-loc');
-  els.shelfPhotos = document.getElementById('scan-shelf-photos');
   els.shelfWrap = document.getElementById('scan-shelf-wrap');
   els.shelfGroup = document.getElementById('scan-shelf-group');
   els.qtyInput = document.getElementById('scan-qty-input');
@@ -61,6 +60,8 @@ els.macchinarioValue = document.getElementById('scan-macchinario-value');
   els.lineaFixedName = document.getElementById('scan-linea-fixed-name');
   els.macchinarioWrap = document.getElementById('scan-macchinario-wrap');
   els.macchinarioSelect = document.getElementById('scan-macchinario-input');
+  els.advancedToggle = document.getElementById('scan-advanced-toggle');
+  els.advancedPanel = document.getElementById('scan-advanced-panel');
   els.prestitoToggle = document.getElementById('scan-prestito-toggle');
   els.prestitoState = document.getElementById('scan-prestito-state');
   els.prestitoDestWrap = document.getElementById('scan-prestito-dest-wrap');
@@ -131,6 +132,10 @@ els.macchinarioValue = document.getElementById('scan-macchinario-value');
   els.cancelBtn.addEventListener('click', () => {
     feedback.cancelAction();
     resetResult();
+  });
+  els.advancedToggle?.addEventListener('click', () => {
+    feedback.tap();
+    setAdvancedOpen(els.advancedPanel.classList.contains('is-open') ? false : true);
   });
   els.prestitoToggle?.addEventListener('click', () => {
     feedback.focusTap();

@@ -10,7 +10,8 @@ import { getCachedProductByBarcode, getProductByBarcode, getProductLocations, ma
 import { hideFindMethods } from './scanner-camera.js';
 import { replayAnimation } from '../../shared/ui-utils.js';
 import { createHoldRepeater } from '../../shared/hold-repeat.js';
-import { renderShelfPhotoButtons } from '../../shared/shelf-photo-viewer.js';
+import { enhanceShelfNames } from '../../shared/shelf-photo-viewer.js';
+import { escapeHtml } from '../../shared/html-utils.js';
 import { toastError, toastWarning } from '../../shared/toast.js';
 
 export async function handleDetectedCode(code) {
@@ -170,12 +171,16 @@ function renderResult(product) {
   els.productCode.classList.toggle('hidden', !descrizioneInTitolo);
   els.productStock.textContent = product.quantita_disponibile;
   const locNames = getProductLocations(product).map((l) => l.locazione).filter(Boolean);
-  els.productLoc.textContent = locNames.length ? locNames.join(', ') : '—';
-  renderShelfPhotoButtons(els.shelfPhotos, product); // foto dello scaffale con la posizione (solo se esiste una foto)
+  // Un elemento per scaffale (data-shelf): quelli con una foto diventano pulsanti toccabili (vedi enhanceShelfNames)
+  els.productLoc.innerHTML = locNames.length
+    ? locNames.map((n) => `<span data-shelf="${escapeHtml(n)}">${escapeHtml(n)}</span>`).join('<span class="shelf-sep">, </span>')
+    : '—';
+  enhanceShelfNames(els.productLoc, product);
   renderShelfChoices(product);
   els.puntoInput.value = product.punto_utilizzo_standard || '';
   setupPrelievoFields(product);
   setPrestito(false); // ogni articolo riparte come prelievo normale
+  setAdvancedOpen(false);
   setQty(1);
 
   // Il colore del pulsante segue la modalità (variabili di data-mode sul pannello)
@@ -225,8 +230,17 @@ function renderShelfChoices(product) {
 }
 
 /** Prelievo a prestito: con "Prestito" attivo si chiede solo a chi viene dato (niente linea/macchinario/punto di utilizzo) */
+/** Apre o chiude "Avanzate" (dove sta il Prestito) con l'estensione animata */
+export function setAdvancedOpen(open) {
+  els.advancedPanel?.classList.toggle('is-open', !!open);
+  els.advancedPanel?.setAttribute('aria-hidden', String(!open));
+  els.advancedToggle?.setAttribute('aria-expanded', String(!!open));
+  els.advancedToggle?.querySelector('[data-role="chev"]')?.classList.toggle('rotate-180', !!open);
+}
+
 export function setPrestito(on, { focus = false } = {}) {
   ss.prestito = !!on && ss.currentMode === 'prelievo';
+  if (ss.prestito) setAdvancedOpen(true); // con il prestito attivo "Avanzate" resta aperto: è l'unico modo per disattivarlo
   els.prelievoFields.classList.toggle('is-prestito', ss.prestito);
   els.prestitoToggle.setAttribute('aria-checked', String(ss.prestito));
   els.prestitoState.textContent = ss.prestito ? 'sì' : 'no';
@@ -277,12 +291,13 @@ function setupPrelievoFields(product) {
   els.lineaGroup.classList.toggle('hidden', !!fixedLinea);
   els.lineaFixed.classList.toggle('hidden', !fixedLinea);
   els.lineaFixedName.textContent = fixedLinea === 'L1' ? 'Linea 1' : fixedLinea === 'L2' ? 'Linea 2' : '';
-  // Punto di utilizzo già assegnato al cuscinetto: nessun suggerimento (non c'è nulla da scegliere) e linea e macchinario
-  // vanno indicati ogni volta dall'operatore, senza macchina preimpostata
+  // Punto di utilizzo già assegnato al cuscinetto: nessun suggerimento (non c'è nulla da scegliere) e, insieme al punto,
+  // si precompila anche il macchinario abbinato all'articolo (resta modificabile). Senza punto assegnato il macchinario
+  // viene precompilato lo stesso se l'articolo ne ha uno.
   // Cuscinetto in Prelievo: ordine Linea → Macchinario → Punto di utilizzo (il campo scende sotto il macchinario)
   (isPrelievo && isBearing ? els.prelievoFields : els.puntoHome).appendChild(els.puntoWrap);
   ss.puntoPrefilled = isBearing && (product.punto_utilizzo_standard || '').trim() !== '';
-  if (isPrelievo && isBearing) fillMacchinari(ss.puntoPrefilled ? '' : product.macchina);
+  if (isPrelievo && isBearing) fillMacchinari(product.macchina);
   ss.puntiOpen = false;
   refreshPuntiSuggeriti();
 }
