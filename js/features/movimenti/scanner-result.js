@@ -10,6 +10,7 @@ import { getCachedProductByBarcode, getProductByBarcode, getProductLocations, ma
 import { hideFindMethods } from './scanner-camera.js';
 import { replayAnimation } from '../../shared/ui-utils.js';
 import { createHoldRepeater } from '../../shared/hold-repeat.js';
+import { renderShelfPhotoButtons } from '../../shared/shelf-photo-viewer.js';
 import { toastError, toastWarning } from '../../shared/toast.js';
 
 export async function handleDetectedCode(code) {
@@ -170,6 +171,7 @@ function renderResult(product) {
   els.productStock.textContent = product.quantita_disponibile;
   const locNames = getProductLocations(product).map((l) => l.locazione).filter(Boolean);
   els.productLoc.textContent = locNames.length ? locNames.join(', ') : '—';
+  renderShelfPhotoButtons(els.shelfPhotos, product); // foto dello scaffale con la posizione (solo se esiste una foto)
   renderShelfChoices(product);
   els.puntoInput.value = product.punto_utilizzo_standard || '';
   setupPrelievoFields(product);

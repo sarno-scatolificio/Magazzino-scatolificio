@@ -39,6 +39,7 @@ export function initScanner() {
   els.productCode = document.getElementById('scan-product-code');
   els.productStock = document.getElementById('scan-product-stock');
   els.productLoc = document.getElementById('scan-product-loc');
+  els.shelfPhotos = document.getElementById('scan-shelf-photos');
   els.shelfWrap = document.getElementById('scan-shelf-wrap');
   els.shelfGroup = document.getElementById('scan-shelf-group');
   els.qtyInput = document.getElementById('scan-qty-input');
