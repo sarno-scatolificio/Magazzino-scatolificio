@@ -53,6 +53,10 @@ export function createHoldRepeater() {
     if (!active) return;
     const { dir, getValue, setValue, min } = active;
     const cur = getValue();
+    if (cur == null) {
+      stop(); // riga non (più) contata: la ripetizione non ha un punto di partenza
+      return;
+    }
     const { value, step } = nextHoldValue(cur, dir);
     const clamped = Math.max(min, value);
     if (clamped === cur) {
