@@ -426,8 +426,6 @@
               <span>Giacenza: <strong id="scan-product-stock" class="text-graphite-100 font-mono"></strong></span>
               <span class="min-w-0">Locazione: <strong id="scan-product-loc" class="text-graphite-100 break-words"></strong></span>
             </div>
-            <!-- Foto dello scaffale con la posizione dell'articolo (compare solo se lo scaffale ha una foto) -->
-            <div id="scan-shelf-photos" class="mt-2 flex flex-wrap gap-2"></div>
 
             <!-- Articolo su più scaffali: si sceglie lo scaffale del movimento (con la quantità di ciascuno) -->
             <div id="scan-shelf-wrap" class="hidden mt-4">
@@ -463,19 +461,6 @@
 
             <!-- Solo nel Prelievo: linea per tutti gli articoli, macchinario (e punto di utilizzo, sopra) solo per i cuscinetti -->
             <div id="scan-prelievo-fields" class="hidden mt-3 space-y-3">
-              <!-- Prestito: il pezzo esce dal magazzino ma va reintegrato; si indica a chi viene dato (niente linea/macchinario) -->
-              <div id="scan-prestito-wrap">
-                <button type="button" id="scan-prestito-toggle" role="switch" aria-checked="false"
-                  class="press-spring w-full min-h-[44px] rounded-lg border px-3 flex items-center justify-between gap-3 font-display font-semibold uppercase tracking-wide text-sm bg-graphite-900 text-graphite-200 border-graphite-700">
-                  <span class="flex items-center gap-2"><i data-lucide="handshake" class="w-4 h-4"></i>Prestito</span>
-                  <span id="scan-prestito-state" class="ui-note normal-case font-normal text-graphite-500">no</span>
-                </button>
-                <div id="scan-prestito-dest-wrap" class="hidden mt-2">
-                  <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="scan-prestito-dest">A chi viene dato</label>
-                  <input id="scan-prestito-dest" type="text" maxlength="80" autocomplete="off" placeholder="Nome, reparto o ditta"
-                    class="w-full rounded-lg bg-graphite-900 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors">
-                </div>
-              </div>
               <div>
                 <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Linea</label>
                 <div id="scan-linea-group" class="grid grid-cols-3 gap-2" role="group" aria-label="Linea">
@@ -502,6 +487,33 @@
                   <i data-lucide="chevron-down" class="w-4 h-4 text-graphite-500 shrink-0"></i>
                 </button>
                 <select id="scan-macchinario-input" class="hidden" tabindex="-1" aria-hidden="true"></select>
+              </div>
+              <!-- Avanzate (in fondo, chiuso): qui sta il Prestito, per non appesantire il prelievo normale -->
+              <div id="scan-advanced">
+                <button type="button" id="scan-advanced-toggle" aria-expanded="false" aria-controls="scan-advanced-panel"
+                  class="press-spring w-full min-h-[40px] flex items-center justify-between gap-2 border-t border-graphite-800 pt-2 text-xs font-display font-semibold uppercase tracking-wide text-graphite-500 hover:text-graphite-300 transition-colors">
+                  <span class="flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>Avanzate</span>
+                  <i data-role="chev" data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-300"></i>
+                </button>
+                <div id="scan-advanced-panel" class="punti-expand" aria-hidden="true">
+                  <div class="punti-expand-inner">
+                    <div class="pt-2">
+<!-- Prestito: il pezzo esce dal magazzino ma va reintegrato; si indica a chi viene dato (niente linea/macchinario) -->
+                      <div id="scan-prestito-wrap">
+                        <button type="button" id="scan-prestito-toggle" role="switch" aria-checked="false"
+                          class="press-spring w-full min-h-[44px] rounded-lg border px-3 flex items-center justify-between gap-3 font-display font-semibold uppercase tracking-wide text-sm bg-graphite-900 text-graphite-200 border-graphite-700">
+                          <span class="flex items-center gap-2"><i data-lucide="handshake" class="w-4 h-4"></i>Prestito</span>
+                          <span id="scan-prestito-state" class="ui-note normal-case font-normal text-graphite-500">no</span>
+                        </button>
+                        <div id="scan-prestito-dest-wrap" class="hidden mt-2">
+                          <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5" for="scan-prestito-dest">A chi viene dato</label>
+                          <input id="scan-prestito-dest" type="text" maxlength="80" autocomplete="off" placeholder="Nome, reparto o ditta"
+                            class="w-full rounded-lg bg-graphite-900 border border-graphite-700 px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none transition-colors">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1304,7 +1316,6 @@
           <p id="product-detail-locazione-label" class="ui-label font-display font-semibold uppercase tracking-wide text-graphite-400">Locazione magazzino</p>
           <!-- Una riga per scaffale (con la quantità di ciascuno se l'articolo sta su più scaffali) -->
           <div id="product-detail-locazione" class="font-display font-bold text-xl leading-tight break-words mt-1.5 space-y-1.5"></div>
-          <div id="product-detail-shelf-photos" class="mt-2 flex flex-wrap gap-2"></div>
         </div>
         <div class="card-plate rounded-xl p-4 min-w-0">
           <p id="product-detail-quantita-label" class="ui-label font-display font-semibold uppercase tracking-wide text-graphite-400">Quantità disponibile</p>
