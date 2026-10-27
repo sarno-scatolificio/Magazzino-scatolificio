@@ -443,7 +443,12 @@ function collectBarcodes() {
 
 function updateLineaMacchinaVisibility() {
   const categoria = els.categoriaSelect.value;
-  els.lineaMacchinaWrap.classList.toggle('hidden', categoria !== 'cinghie' && categoria !== 'pezzi_ricambio');
+  // Cinghie e ricambi: linea + macchina. Cuscinetti: solo la macchina (abbinata all'articolo, si precompila nel prelievo)
+  const isBearing = categoria === 'cuscinetti';
+  els.lineaMacchinaWrap.classList.toggle('hidden', categoria !== 'cinghie' && categoria !== 'pezzi_ricambio' && !isBearing);
+  document.getElementById('product-linea-col')?.classList.toggle('hidden', isBearing);
+  els.lineaMacchinaWrap.classList.toggle('grid-cols-2', !isBearing);
+  els.lineaMacchinaWrap.classList.toggle('grid-cols-1', isBearing);
   updateGenerateBarcodeVisibility();
   updateManualButtonVisibility();
   updatePuntoStandardField(categoria);
@@ -625,6 +630,7 @@ function renderDetail(p) {
     rows.push({ label: 'Linea', value: p.linea });
     rows.push({ label: 'Macchina', value: p.macchina });
   }
+  if (isCuscinetto && (p.macchina || '').trim()) rows.push({ label: 'Macchina', value: p.macchina });
   if (!isRicambi && (hasMachine || (p.punto_utilizzo_standard || '').trim())) {
     rows.push({ label: 'Punto utilizzo standard', value: p.punto_utilizzo_standard });
   }
