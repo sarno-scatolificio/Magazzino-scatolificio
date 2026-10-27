@@ -10,7 +10,7 @@ import { isNetworkError } from '../../core/offline-queue.js';
 import { listProducts, searchCachedProducts } from '../../data/supabase.js';
 import { onProductMatched } from './scanner-result.js';
 import { shelfLabel } from '../magazzino/products-shared.js';
-import { getProductBarcodes } from '../../data/supabase.js';
+import { getProductBarcodes, isCodeNumber } from '../../data/supabase.js';
 
 // --- RICERCA PER CODICE ARTICOLO --------------------------------------
 // Alternativa alla scansione: filtro dinamico mentre si scrive, selezione
@@ -91,6 +91,7 @@ function relevance(product, tokens) {
     };
     consider(100, startsWith(product.codice_articolo, t));
     consider(90, wordStart(product.codice_articolo, t));
+    consider(85, isCodeNumber(t) && new RegExp(`[a-z]${escapeRe(t)}`, 'i').test(String(product.codice_articolo || ''))); // NA4905-XL per «4905»
     consider(95, barcodes.some((b) => startsWith(b, t)));
     for (const text of [product.punto_utilizzo_standard, product.descrizione]) {
       consider(bearing ? 55 : 70, startsWith(text, t));
