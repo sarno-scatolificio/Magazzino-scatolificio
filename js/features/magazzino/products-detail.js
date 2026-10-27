@@ -23,6 +23,7 @@ let editingId = null;
 let editingSnapshot = null; // riga completa del prodotto in modifica/eliminazione, per l'undo
 let detailProduct = null; // articolo mostrato nella scheda di sola lettura
 let returnToDetail = null; // se il modale di modifica è stato aperto dalla scheda, articolo a cui tornare annullando
+let onCreatedCb = null; // chiamata con l'articolo appena creato quando il modale è stato aperto da fuori (es. Inventario)
 
 export function initProductsDetail() {
   // Scheda articolo (sola lettura): si apre toccando un articolo
@@ -192,7 +193,7 @@ function applyModalPermissions() {
   els.modalTitle.textContent = readOnly ? 'Dettaglio articolo' : (editingId ? 'Modifica articolo' : 'Nuovo articolo');
 }
 
-function openModal(product = null, { fromDetail = false } = {}) {
+function openModal(product = null, { fromDetail = false, prefill = {} } = {}) {
   returnToDetail = fromDetail ? product : null;
   editingId = product?.id || null;
   editingSnapshot = product ? { ...product } : null;
@@ -200,7 +201,8 @@ function openModal(product = null, { fromDetail = false } = {}) {
   els.form.reset();
   stopBarcodeScan();
 
-  els.categoriaSelect.value = product?.categoria || state.currentCategory;
+  const categoriaIniziale = product?.categoria || prefill.categoria || state.currentCategory;
+  els.categoriaSelect.value = categoriaIniziale;
   els.categoriaSelectUI?.sync();
   document.getElementById('product-codice-articolo').value = product?.codice_articolo || '';
   els.lineaHidden.value = product?.linea || '';
@@ -213,8 +215,8 @@ function openModal(product = null, { fromDetail = false } = {}) {
   els.macchinaValue.classList.toggle('text-graphite-100', !!product?.macchina);
   document.getElementById('product-punto-standard').value = product?.punto_utilizzo_standard || '';
   document.getElementById('product-descrizione').value = product?.descrizione || '';
-  renderShelfRows(product ? getProductLocations(product) : []);
-  document.getElementById('product-scorta-minima').value = product?.scorta_minima ?? (state.currentCategory === 'cuscinetti' ? 5 : 0);
+  renderShelfRows(product ? getProductLocations(product) : prefill.locazione ? [{ locazione: prefill.locazione, quantita: 0 }] : []);
+  document.getElementById('product-scorta-minima').value = product?.scorta_minima ?? (categoriaIniziale === 'cuscinetti' ? 5 : 0);
   document.getElementById('product-codice-barre').value = product?.codice_barre || '';
   els.barcodeMakerInput.value = product?.produttore_barcode || '';
   els.barcodesExtraRows.innerHTML = '';
@@ -233,6 +235,19 @@ function openModal(product = null, { fromDetail = false } = {}) {
   refreshManualsCache().then(() => {
     if (editingId === openedId) updateManualButtonVisibility();
   });
+}
+
+/**
+ * Apre lo stesso modulo "Nuovo articolo" del Magazzino da un'altra schermata (es. Inventario di uno scaffale).
+ * @param {{ categoria?: string, locazione?: string, zIndex?: number, onCreated?: (product: object) => void }} opts
+ *   locazione: scaffale già compilato nel modulo (quantità 0); zIndex: per aprirlo sopra altre finestre;
+ *   onCreated: chiamata con l'articolo salvato, dopo la chiusura del modulo (non viene chiamata se si annulla).
+ */
+export function openNewProductModal({ categoria = 'cuscinetti', locazione = '', zIndex, onCreated } = {}) {
+  openModal(null, { prefill: { categoria, locazione } });
+  els.categoriaSelectUI?.sync();
+  if (zIndex) els.modal.style.zIndex = String(zIndex);
+  onCreatedCb = onCreated || null; // dopo openModal: questo non passa da closeModal
 }
 
 // --- SCAFFALI DELL'ARTICOLO (modulo di modifica) -----------------------
@@ -497,6 +512,8 @@ function setPickerValue(hiddenInput, labelEl, value) {
  * (backToDetail: false), perché i dati mostrati sarebbero superati.
  */
 function closeModal({ backToDetail = true } = {}) {
+  onCreatedCb = null;
+  els.modal.style.zIndex = ''; // torna al livello normale (può essere stato alzato per aprirlo sopra l'Inventario)
   stopBarcodeScan();
   const back = backToDetail ? returnToDetail : null;
   returnToDetail = null;
@@ -759,6 +776,7 @@ async function handleSubmit(e) {
 
   const submitBtn = els.form.querySelector('button[type="submit"]');
   setButtonBusy(submitBtn, true, 'Salvataggio…');
+  let created = null;
   try {
     if (editingId) {
       const before = editingSnapshot;
@@ -771,8 +789,11 @@ async function handleSubmit(e) {
       pushHistory({ type: 'create', before: null, after });
       feedback.confirmAction();
       toastSuccess('Articolo creato.');
+      created = after;
     }
+    const cb = created ? onCreatedCb : null;
     closeModal({ backToDetail: false });
+    cb?.(created);
     if (payload.categoria === state.currentCategory) refresh();
   } catch (err) {
     console.error(err);
