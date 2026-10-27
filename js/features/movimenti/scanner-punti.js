@@ -3,7 +3,7 @@
 // =============================================================
 // Parte di quello che prima era un unico scanner.js (vedi scanner.js).
 
-import { els, ss } from './scanner-shared.js';
+import { els, ss, effectiveLinea } from './scanner-shared.js';
 import feedback from '../../shared/feedback.js';
 import { flagMissing } from './scanner-transaction.js';
 import { listMachineEntries } from '../../data/supabase.js';
@@ -28,9 +28,9 @@ export async function refreshPuntiSuggeriti({ autoOpen = false } = {}) {
   const seq = ++ss.puntiSeq;
   ss.puntiSuggeriti = [];
   ss.puntiOpen = false;
-  if (suggestionsOn() && els.lineaInput.value && els.macchinarioSelect.value) {
+  if (suggestionsOn() && effectiveLinea() && els.macchinarioSelect.value) {
     try {
-      const list = await listPuntiSuggeriti({ productId: ss.currentProduct.id, linea: els.lineaInput.value, macchinario: els.macchinarioSelect.value });
+      const list = await listPuntiSuggeriti({ productId: ss.currentProduct.id, linea: effectiveLinea(), macchinario: els.macchinarioSelect.value });
       if (seq !== ss.puntiSeq) return; // nel frattempo è cambiata la scelta
       ss.puntiSuggeriti = list;
       // Appena scelti linea e macchinario, se ci sono precedenti la tendina si estende da sola (se non si sta già scrivendo)
@@ -78,6 +78,7 @@ export function paintPunti() {
     row.append(name, meta);
     row.addEventListener('click', () => {
       els.puntoInput.value = s.punto;
+      els.puntoInput.dispatchEvent(new Event('input')); // aggiorna "Consigliato"
       ss.puntiOpen = false;
       feedback.presetPick();
       paintPunti();
@@ -86,17 +87,11 @@ export function paintPunti() {
   });
 }
 
-/** Macchinario: finestra dell'app (non l'elenco di sistema). Prima va scelta la linea. */
+/** Macchinario: finestra dell'app (non l'elenco di sistema). Si può scegliere anche senza aver scelto la linea. */
 export async function pickMacchinario() {
-  if (!els.lineaInput.value) {
-    feedback.errorAction();
-    flagMissing(els.lineaGroup);
-    toastError('Scegli prima la linea.');
-    return;
-  }
   const options = [...els.macchinarioSelect.options].map((o) => o.value).filter(Boolean);
   const picked = await openPicker({
-    title: `Macchinario · ${{ L1: 'Linea 1', L2: 'Linea 2', REP: 'Reparto' }[els.lineaInput.value] || ''}`,
+    title: `Macchinario${{ L1: ' · Linea 1', L2: ' · Linea 2' }[els.lineaInput.value] || ''}`,
     options,
     keepOrder: true,
     currentValue: els.macchinarioSelect.value,

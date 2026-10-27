@@ -6,7 +6,7 @@
 import { els, ss } from './scanner-shared.js';
 import feedback from '../../shared/feedback.js';
 import { fillMacchinari, refreshPuntiSuggeriti, renderMacchinariOptions } from './scanner-punti.js';
-import { getCachedProductByBarcode, getProductByBarcode, getProductLocations, machineOnLinea } from '../../data/supabase.js';
+import { getCachedProductByBarcode, getProductByBarcode, getProductLocations, machineOnLinea, REPARTO } from '../../data/supabase.js';
 import { hideFindMethods } from './scanner-camera.js';
 import { replayAnimation } from '../../shared/ui-utils.js';
 import { createHoldRepeater } from '../../shared/hold-repeat.js';
@@ -98,7 +98,7 @@ function updateAfterPreview() {
   const isDeposit = ss.currentMode === 'deposito';
   if (multiple && !ss.currentLocationId) {
     // Articolo su più scaffali: finché non si sceglie lo scaffale non c'è una giacenza da confrontare
-    els.afterBox.classList.remove('scan-after-warn');
+    els.afterBox.classList.remove('hidden', 'scan-after-warn');
     els.afterLabel.textContent = 'Scegli lo scaffale';
     els.afterValue.textContent = '—';
     return;
@@ -110,6 +110,8 @@ function updateAfterPreview() {
   const after = isDeposit ? stock + qty : stock - qty;
   const insufficient = !isDeposit && after < 0;
   els.afterBox.classList.toggle('scan-after-warn', insufficient);
+  // La riga "Giacenza dopo" non si mostra più: resta solo l'avviso quando un prelievo supera quanto c'è
+  els.afterBox.classList.toggle('hidden', !insufficient);
   if (insufficient) {
     els.afterLabel.textContent = chosen ? 'Non basta su questo scaffale' : 'Non basta la giacenza';
     els.afterValue.textContent = `disponibili ${stock}`;
@@ -179,6 +181,7 @@ function renderResult(product) {
   renderShelfChoices(product);
   els.puntoInput.value = product.punto_utilizzo_standard || '';
   setupPrelievoFields(product);
+  refreshPuntoHint();
   setPrestito(false); // ogni articolo riparte come prelievo normale
   setAdvancedOpen(false);
   setQty(1);
@@ -230,6 +233,19 @@ function renderShelfChoices(product) {
 }
 
 /** Prelievo a prestito: con "Prestito" attivo si chiede solo a chi viene dato (niente linea/macchinario/punto di utilizzo) */
+/** "Consigliato" accanto al Punto di utilizzo: compare finché il campo contiene il punto già assegnato all'articolo
+ *  (usato le altre volte); se l'operatore lo cambia sparisce */
+export function refreshPuntoHint() {
+  if (!els.puntoHint) return;
+  const standard = (ss.currentProduct?.punto_utilizzo_standard || '').trim().toLowerCase();
+  const on =
+    ss.currentMode === 'prelievo' &&
+    ss.currentProduct?.categoria === 'cuscinetti' &&
+    !!standard &&
+    els.puntoInput.value.trim().toLowerCase() === standard;
+  els.puntoHint.classList.toggle('hidden', !on);
+}
+
 /** Apre o chiude "Avanzate" (dove sta il Prestito) con l'estensione animata */
 export function setAdvancedOpen(open) {
   els.advancedPanel?.classList.toggle('is-open', !!open);
@@ -266,9 +282,10 @@ export function setLinea(value) {
   }
 }
 
-/** Nomi delle macchine presenti sulla linea (tutte se la linea non è ancora scelta), nell'ordine dell'admin */
+/** Nomi delle macchine presenti sulla linea o di reparto (tutte se la linea non è ancora scelta), nell'ordine dell'admin */
 export function machineNamesForLinea(linea) {
-  return (ss.machinesCache || []).filter((e) => machineOnLinea(e, linea)).map((e) => e.nome);
+  // Le macchine di reparto restano scegliibili anche con una linea già scelta (con una di esse la linea non serve)
+  return (ss.machinesCache || []).filter((e) => machineOnLinea(e, linea) || (Array.isArray(e.linee) && e.linee.includes(REPARTO))).map((e) => e.nome);
 }
 
 /**
@@ -280,6 +297,7 @@ function setupPrelievoFields(product) {
   const isPrelievo = ss.currentMode === 'prelievo';
   const isBearing = product.categoria === 'cuscinetti';
   els.prelievoFields.classList.toggle('hidden', !isPrelievo);
+  els.advancedWrap?.classList.toggle('hidden', !isPrelievo); // "Avanzate" (Prestito) solo nel prelievo
   els.macchinarioWrap.classList.toggle('hidden', !(isPrelievo && isBearing));
   els.puntoWrap.classList.toggle('hidden', isPrelievo && !isBearing);
   els.puntoLabel.textContent = isPrelievo && isBearing ? 'Punto di utilizzo' : 'Punto utilizzo';

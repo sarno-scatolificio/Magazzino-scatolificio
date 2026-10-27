@@ -6,7 +6,7 @@
 import { adjustCachedProductQuantity, bumpProductsVersion, getProductLocations, processPrestito, processTransaction } from '../../data/supabase.js';
 import { animateNumber, replayAnimation, setButtonBusy } from '../../shared/ui-utils.js';
 import { closeScanModal, showFindMethods } from './scanner-camera.js';
-import { els, ss } from './scanner-shared.js';
+import { els, ss, effectiveLinea } from './scanner-shared.js';
 import { enqueueTransaction, isNetworkError } from '../../core/offline-queue.js';
 import feedback from '../../shared/feedback.js';
 import { loadIdlePanel } from './scanner-idle.js';
@@ -160,11 +160,12 @@ export async function confirmTransaction() {
   let macchinario = null;
   let punto = els.puntoInput.value.trim();
   if (ss.currentMode === 'prelievo') {
-    linea = els.lineaInput.value;
+    // La linea si sceglie con i pulsanti; non serve se il macchinario scelto è di reparto o sta su una sola linea
+    linea = effectiveLinea();
     if (!linea) {
       feedback.errorAction();
       flagMissing(els.lineaGroup);
-      toastError('Seleziona la linea (Linea 1, Linea 2 o Reparto).');
+      toastError('Seleziona la linea (Linea 1 o Linea 2) oppure un macchinario di reparto.');
       return;
     }
     if (ss.currentProduct.categoria === 'cuscinetti') {

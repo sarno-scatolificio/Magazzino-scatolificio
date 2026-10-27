@@ -4,7 +4,7 @@
 // Questo file tiene l'avvio dello scanner e le funzioni usate dal resto dell'app; il resto è diviso in
 // scanner-shared / -camera / -search / -result / -punti / -transaction / -idle.
 
-import { bindHoldRepeat, handleDetectedCode, onProductMatched, setAdvancedOpen, setLinea, setPrestito } from './scanner-result.js';
+import { bindHoldRepeat, handleDetectedCode, onProductMatched, refreshPuntoHint, setAdvancedOpen, setLinea, setPrestito } from './scanner-result.js';
 import { bindScanModalBack, closeScanModal, collapseCamera, expandCamera, selectMode, toggleScanCameraSection, updateOfflineBadge } from './scanner-camera.js';
 import { confirmTransaction, resetAll, resetResult } from './scanner-transaction.js';
 import { els, ss } from './scanner-shared.js';
@@ -60,6 +60,8 @@ els.macchinarioValue = document.getElementById('scan-macchinario-value');
   els.lineaFixedName = document.getElementById('scan-linea-fixed-name');
   els.macchinarioWrap = document.getElementById('scan-macchinario-wrap');
   els.macchinarioSelect = document.getElementById('scan-macchinario-input');
+  els.advancedWrap = document.getElementById('scan-advanced');
+  els.puntoHint = document.getElementById('scan-punto-hint');
   els.advancedToggle = document.getElementById('scan-advanced-toggle');
   els.advancedPanel = document.getElementById('scan-advanced-panel');
   els.prestitoToggle = document.getElementById('scan-prestito-toggle');
@@ -90,6 +92,7 @@ els.macchinarioValue = document.getElementById('scan-macchinario-value');
 
   // Punto di utilizzo dei cuscinetti: i punti già usati si estendono da soli sotto il campo (appena scelti linea e macchinario);
   // toccando il campo per scrivere la tendina si chiude
+  els.puntoInput.addEventListener('input', refreshPuntoHint);
   els.puntoInput.addEventListener('focus', () => {
     ss.puntiOpen = false;
     paintPunti();

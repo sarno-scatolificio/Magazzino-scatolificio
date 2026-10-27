@@ -28,3 +28,18 @@ export const CATEGORY_BADGE_CLASSES = {
   cinghie: 'bg-emerald-500/15 text-emerald-700',
   pezzi_ricambio: 'bg-amber-500/15 text-amber-300',
 };
+
+/**
+ * Linea del prelievo: quella scelta con i pulsanti; se non è stata scelta, quella ricavata dal macchinario selezionato
+ * (macchina di reparto → 'REP', macchina presente su una sola linea → quella linea). '' se non si può ricavare.
+ */
+export function effectiveLinea() {
+  const scelta = els.lineaInput?.value;
+  if (scelta) return scelta;
+  const nome = (els.macchinarioSelect?.value || '').trim().toLowerCase();
+  if (!nome) return '';
+  const entry = (ss.machinesCache || []).find((m) => (m.nome || '').toLowerCase() === nome);
+  const linee = Array.isArray(entry?.linee) ? entry.linee : [];
+  if (linee.includes('REP')) return 'REP';
+  return linee.length === 1 ? linee[0] : '';
+}
