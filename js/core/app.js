@@ -2,7 +2,7 @@
 // app.js — Entry point: routing viste, ruoli, orchestrazione moduli
 // =============================================================
 
-import { initAuth, isAdmin } from './auth.js';
+import { initAuth, isAdmin, canViewActivityLog } from './auth.js';
 import { initScanner, teardownScanner, activateMode, playScannerIntro } from '../features/movimenti/scanner.js';
 import { initProducts, refresh as refreshProducts, enterProducts, resetProducts, teardownProducts } from '../features/magazzino/products.js';
 import { initDashboard, enterDashboard, resetDashboard, refresh as refreshDashboard } from '../features/report/dashboard.js';
@@ -16,6 +16,7 @@ import { initLowStock } from '../features/magazzino/low-stock.js';
 import { initManuals } from '../features/manuali/manuals.js';
 import { initManualsBrowser, enterManualsBrowser, resetManualsBrowser } from '../features/manuali/manuals-browser.js';
 import { initHistoryAdmin } from '../features/impostazioni/history-admin.js';
+import { initActivityLog } from '../features/impostazioni/activity-log.js';
 import { initInterventi, enterInterventi, resetInterventi, setInterventiFab } from '../features/interventi/interventi.js';
 import { initInterventiRapidi, initOperatori } from '../features/interventi/interventi-rapidi.js';
 import { initUnseenBadge } from '../features/interventi/interventi-unseen.js';
@@ -66,6 +67,10 @@ function onAuthed(profile) {
     if (el.id?.startsWith('view-')) return;
     el.classList.toggle('hidden', !isAdmin());
   });
+  // Registro attività: solo l'account autorizzato (il database lo impone comunque, qui si nasconde solo la voce)
+  document.querySelectorAll('[data-log-viewer]').forEach((el) => {
+    el.classList.toggle('hidden', !canViewActivityLog());
+  });
 
   preloadMachineEntries(); // elenco macchine già pronto: i menu si aprono senza attesa
 
@@ -84,6 +89,7 @@ function onAuthed(profile) {
     initManuals();
     initManualsBrowser();
     initHistoryAdmin();
+    initActivityLog();
     initInterventi();
     initUnseenBadge();
     initInterventiRapidi();

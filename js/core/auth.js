@@ -2,7 +2,7 @@
 // auth.js — Login, logout, sessione e ruolo utente corrente
 // =============================================================
 
-import { supabase, signIn, signOut, getSession, getMyProfile } from '../data/supabase.js';
+import { supabase, signIn, signOut, getSession, getMyProfile, logActivity } from '../data/supabase.js';
 import { toastWarning } from '../shared/toast.js';
 import { isNetworkError } from './offline-queue.js';
 
@@ -223,6 +223,62 @@ export function isAdmin() {
   return authState.profile?.role === 'admin';
 }
 
+// --- REGISTRO ATTIVITÀ ----------------------------------------------
+// Il registro (accessi e azioni di tutti gli utenti) lo può leggere solo questo account. Qui il controllo serve
+// solo a mostrare o nascondere la voce nelle Impostazioni: a bloccare davvero la lettura è il database (RLS).
+const ACTIVITY_LOG_VIEWER_EMAIL = 'nunziodoria96@gmail.com';
+const OPEN_LOGGED_KEY = 'magazzino-open-logged';
+
+export function canViewActivityLog() {
+  return authState.profile?.email?.trim().toLowerCase() === ACTIVITY_LOG_VIEWER_EMAIL;
+}
+
+/** Dispositivo e browser in forma breve, es. "iPhone · Safari · app installata" */
+function describeDevice() {
+  const ua = navigator.userAgent || '';
+  let device = 'Computer';
+  if (/iPhone/i.test(ua)) device = 'iPhone';
+  else if (/iPad/i.test(ua)) device = 'iPad';
+  else if (/Android/i.test(ua)) device = /Mobile/i.test(ua) ? 'Telefono Android' : 'Tablet Android';
+  else if (/Windows/i.test(ua)) device = 'PC Windows';
+  else if (/Macintosh|Mac OS X/i.test(ua)) device = 'Mac';
+  else if (/Linux|CrOS/i.test(ua)) device = 'Linux';
+  let browser = '';
+  if (/Edg\//i.test(ua)) browser = 'Edge';
+  else if (/OPR\/|Opera/i.test(ua)) browser = 'Opera';
+  else if (/Firefox|FxiOS/i.test(ua)) browser = 'Firefox';
+  else if (/Chrome|CriOS/i.test(ua)) browser = 'Chrome';
+  else if (/Safari/i.test(ua)) browser = 'Safari';
+  const installed = window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  return [device, browser, installed ? 'app installata' : ''].filter(Boolean).join(' · ');
+}
+
+function setOpenLogged(on) {
+  try {
+    if (on) sessionStorage.setItem(OPEN_LOGGED_KEY, '1');
+    else sessionStorage.removeItem(OPEN_LOGGED_KEY);
+  } catch (err) {
+    /* storage non disponibile: al peggio la riapertura viene registrata più volte */
+  }
+}
+
+/** Riapertura dell'app con la sessione già attiva: una sola voce per scheda/sessione del browser, non a ogni ricarica */
+function logReopenOnce() {
+  try {
+    if (sessionStorage.getItem(OPEN_LOGGED_KEY)) return;
+  } catch (err) {
+    /* si procede */
+  }
+  setOpenLogged(true);
+  logActivity('accesso', 'App riaperta (già collegato)', describeDevice());
+}
+
+/** Registra l'uscita prima di chiudere la sessione (dopo non si potrebbe più), senza far aspettare più di 1,5 s */
+async function logExit(text) {
+  setOpenLogged(false);
+  await Promise.race([logActivity('uscita', text), new Promise((resolve) => setTimeout(resolve, 1500))]);
+}
+
 /**
  * Inizializza il modulo auth: collega il form di login, controlla se
  * esiste già una sessione valida e resta in ascolto dei cambi di stato.
@@ -261,6 +317,7 @@ export function initAuth(onAuthed, onSignedOut) {
 
   const handleIdleTimeout = async () => {
     try {
+      await logExit('Disconnesso automaticamente per inattività');
       await signOut();
     } catch (err) {
       console.error(err);
@@ -303,6 +360,8 @@ export function initAuth(onAuthed, onSignedOut) {
       resetIdleTimer(handleIdleTimeout);
       showStatus('');
       onAuthed(profile);
+      setOpenLogged(true);
+      logActivity('accesso', 'Accesso con email e password', describeDevice());
     } catch (err) {
       console.error(err);
       showStatus('');
@@ -318,6 +377,7 @@ export function initAuth(onAuthed, onSignedOut) {
 
   document.getElementById('logout-btn')?.addEventListener('click', async () => {
     try {
+      await logExit('Uscita (logout)');
       await signOut();
     } catch (err) {
       console.error(err);
@@ -356,6 +416,7 @@ export function initAuth(onAuthed, onSignedOut) {
         resetIdleTimer(handleIdleTimeout);
         showStatus('');
         onAuthed(known);
+        logReopenOnce();
         try {
           const fresh = await withConnectionRetries(() => getMyProfile(), onAttempt);
           if (!fresh) {
@@ -407,6 +468,7 @@ export function initAuth(onAuthed, onSignedOut) {
       resetIdleTimer(handleIdleTimeout);
       showStatus('');
       onAuthed(profile);
+      logReopenOnce();
     } catch (err) {
       console.error(err);
       // La lettura della sessione è fallita solo per rete o blocco occupato, ma in locale c'è la sessione di questo
