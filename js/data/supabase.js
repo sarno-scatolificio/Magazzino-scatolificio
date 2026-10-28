@@ -15,3 +15,4 @@ export * from './supabase-shelves.js';
 export * from './supabase-shelf-photos.js';
 export * from './supabase-manuals.js';
 export * from './supabase-transactions.js';
+export * from './supabase-activity.js';
