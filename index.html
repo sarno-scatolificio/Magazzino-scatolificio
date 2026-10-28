@@ -977,6 +977,13 @@
             <span class="set-text"><span class="set-title font-display">Operatori</span></span>
             <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500 shrink-0"></i>
           </button>
+          <div data-log-viewer class="hidden">
+            <button id="activity-log-btn" type="button" class="set-row">
+              <span class="set-ico"><i data-lucide="clipboard-list" class="w-[18px] h-[18px]" stroke-width="2"></i></span>
+              <span class="set-text"><span class="set-title font-display">Registro attività</span><span class="set-sub">Accessi e azioni di ogni utente</span></span>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-graphite-500 shrink-0"></i>
+            </button>
+          </div>
         </div>
       </div>
       <div class="set-group">
@@ -1138,6 +1145,47 @@
           </div>
           <div id="users-list" class="hidden space-y-2"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- =================== MODALE REGISTRO ATTIVITÀ (solo account autorizzato) =================== -->
+    <div id="activity-log-modal" class="modal-overlay hidden fixed inset-0 z-[92] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-0 sm:px-4">
+      <div class="modal-panel w-full sm:max-w-lg bg-graphite-900 border border-graphite-700 rounded-t-2xl sm:rounded-2xl max-h-[90vh] flex flex-col">
+        <div data-sheet-drag class="sheet-grabber sm:hidden"><span class="sheet-grabber-pill"></span></div>
+        <div data-sheet-drag class="flex items-center justify-between gap-2 px-5 pb-3 pt-1 sm:pt-3 border-b border-graphite-800 shrink-0">
+          <h3 class="font-display font-bold text-lg uppercase tracking-wide">Registro attività</h3>
+          <div class="flex items-center gap-1">
+            <button id="activity-log-refresh" type="button" aria-label="Aggiorna" title="Aggiorna" class="modal-close modal-close--on-light">
+              <i data-lucide="refresh-cw" class="w-5 h-5" stroke-width="2.25"></i>
+            </button>
+            <button id="activity-log-close" type="button" aria-label="Chiudi" class="modal-close modal-close--on-light">
+              <i data-lucide="x" class="w-6 h-6" stroke-width="2.5"></i>
+            </button>
+          </div>
+        </div>
+        <div class="flex gap-2 px-4 pt-3 shrink-0">
+          <button type="button" data-activity-tab="tutto" class="history-tab history-tab-active flex-1 rounded-lg py-2 px-1 whitespace-nowrap text-xs font-display font-semibold uppercase tracking-wide border border-graphite-700 min-h-[44px]">Tutto</button>
+          <button type="button" data-activity-tab="accessi" class="history-tab flex-1 rounded-lg py-2 px-1 whitespace-nowrap text-xs font-display font-semibold uppercase tracking-wide border border-graphite-700 min-h-[44px]">Accessi</button>
+          <button type="button" data-activity-tab="azioni" class="history-tab flex-1 rounded-lg py-2 px-1 whitespace-nowrap text-xs font-display font-semibold uppercase tracking-wide border border-graphite-700 min-h-[44px]">Azioni</button>
+        </div>
+        <div class="grid grid-cols-2 gap-2 px-4 pt-2 shrink-0">
+          <select id="activity-log-user" aria-label="Utente" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 text-sm px-2.5 py-1.5 focus:border-amber-400 outline-none min-h-[44px]">
+            <option value="">Tutti gli utenti</option>
+          </select>
+          <select id="activity-log-period" aria-label="Periodo" class="w-full rounded-lg bg-graphite-800 border border-graphite-700 text-sm px-2.5 py-1.5 focus:border-amber-400 outline-none min-h-[44px]">
+            <option value="1">Oggi</option>
+            <option value="7" selected>Ultimi 7 giorni</option>
+            <option value="30">Ultimi 30 giorni</option>
+            <option value="all">Tutto</option>
+          </select>
+        </div>
+        <p id="activity-log-count" class="px-5 pt-3 pb-1 text-xs text-graphite-500 shrink-0">&nbsp;</p>
+        <div id="activity-log-skeleton" class="space-y-2 px-4 py-2">
+          <div class="skeleton h-16 w-full"></div>
+          <div class="skeleton h-16 w-full"></div>
+          <div class="skeleton h-16 w-full"></div>
+        </div>
+        <div id="activity-log-list" class="hidden flex-1 overflow-y-auto px-4 pb-4"></div>
       </div>
     </div>
 
