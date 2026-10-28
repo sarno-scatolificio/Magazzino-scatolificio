@@ -3322,7 +3322,7 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
      verso sinistra: il margine destro non scende sotto l'ingombro del «+» (56 dp + 10 dp di respiro), quello sinistro si riduce di altrettanto. */
   .search-dock.dock-fab { --dock-r: max(66px, calc(var(--fab-r) + 56px + 10px)); --dock-l: max(16px, calc(132px - var(--dock-r))); }
   .search-dock.dock-kb { bottom: calc(var(--kb-h, 0px) + 10px); --dock-l: 16px; --dock-r: 16px; }
-  .search-dock.dock-intro { transition: none; } /* ingresso animato (scanner.js): nessuna transizione di bottom/padding sotto la salita */
+  .search-dock.dock-intro { transition: none; z-index: 39; } /* ingresso animato (scanner.js): esce da sotto la navigazione (z-index 40), senza transizioni di bottom/padding */
   .search-dock.dock-hidden { opacity: 0; transform: translateY(20px); visibility: hidden; transition-delay: 0s, 0s, 0s, 0s, var(--dur-base); }
   body.manuals-detail-active .search-dock { display: none; }
   body:has(.hs-layer.hs-open) .search-dock { z-index: 46; }
