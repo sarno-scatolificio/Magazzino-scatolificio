@@ -175,7 +175,7 @@ export function startMovement(product, mode) {
    1. le schede "Articoli sotto scorta", "Prestiti in sospeso" (solo admin) e "Ultimi movimenti" salgono una dopo l'altra
       da dietro la barra in basso;
    2. Deposito e poi Prelievo entrano uno dopo l'altro, in modo semplice (nessun rimbalzo);
-   3. la barra di ricerca in basso sale a velocità costante, subito dopo che i pulsanti hanno iniziato a comparire.
+   3. la barra di ricerca in basso esce da sotto la navigazione e sale a velocità costante, subito dopo l'inizio della comparsa dei pulsanti.
    Web Animations API: solo transform/opacity, nessuno stato lasciato dietro.
    ------------------------------------------------------------------ */
 export function playScannerIntro() {
@@ -225,21 +225,26 @@ export function playScannerIntro() {
         });
       }
 
-      // 3) Barra di ricerca in basso: parte subito dopo l'inizio della comparsa dei pulsanti e sale in modo uniforme
-      //    (easing lineare). Durante l'ingresso la sua transizione CSS è spenta (classe dock-intro): altrimenti
-      //    l'aggiornamento di --nav-h (altezza reale della barra di navigazione) muoveva `bottom` a metà salita.
+      // 3) Barra di ricerca in basso: esce da sotto la barra di navigazione (quella con i 4 pulsanti sezione) e sale in modo
+      //    uniforme (easing lineare, sempre opaca), partendo subito dopo l'inizio della comparsa dei pulsanti.
+      //    Classe dock-intro: la barra sta sotto la navigazione (z-index) e senza transizioni CSS, altrimenti
+      //    l'aggiornamento di --nav-h (altezza reale della navigazione) muoveva `bottom` a metà salita.
       const dock = document.getElementById('search-dock');
-      if (dock && dep && pre && getComputedStyle(dock).display !== 'none') {
+      const nav = document.querySelector('nav.nav-glass');
+      if (dock && nav && dep && pre && getComputedStyle(dock).display !== 'none') {
         dock.classList.add('dock-intro');
+        // distanza che porta il bordo alto della barra a filo con il bordo alto della navigazione (poi +2 px di sicurezza)
+        const hide = Math.max(0, nav.getBoundingClientRect().top - dock.getBoundingClientRect().top) + 2;
         const dockAnim = dock.animate(
           [
-            { transform: 'translateY(44px)', opacity: 0 },
-            { transform: 'translateY(0)', opacity: 1 },
+            { transform: `translateY(${hide}px)` },
+            { transform: 'translateY(0)' },
           ],
-          { duration: 460, delay: base + 70, easing: 'linear', fill: 'backwards' }
+          { duration: 520, delay: base + 70, easing: 'linear', fill: 'backwards' }
         );
         anims.push(dockAnim);
-        dockAnim.finished.then(() => dock.classList.remove('dock-intro')).catch(() => dock.classList.remove('dock-intro'));
+        const done = () => dock.classList.remove('dock-intro');
+        dockAnim.finished.then(done).catch(done);
       }
 
       view.classList.remove('intro-pending'); // le animazioni (fill backwards) tengono già la posizione di partenza
