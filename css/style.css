@@ -621,7 +621,7 @@ input.peer:checked ~ span:first-of-type {
 /* Scorta minima: scheda espandibile nella stessa tab (Movimenti). Header con chevron che
    ruota, corpo a fisarmonica (.acc-track); piastrelle per serie di scaffale e dettaglio
    che si apre nella riga della piastrella toccata. */
-.lowstock-header { background: transparent; }
+.lowstock-header { background: transparent; position: relative; }
 /* Nessuno scale né cambio di colore alla pressione: l'header è dentro la scheda, ridurlo scoprirebbe il fondo dietro */
 button.lowstock-header:not(:disabled):active { transform: none; background: transparent; }
 .lowstock-chevron { transition: transform var(--dur-base) var(--ease-inout); }
@@ -3024,6 +3024,10 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
   0%   { transform: scale(1); opacity: 0.5; }
   70%, 100% { transform: scale(1.55); opacity: 0; }
 }
+/* Pallino «appena andato sotto scorta»: nell'angolo della scheda, della piastrella e davanti all'articolo */
+.lowstock-header > .unseen-hit { left: 0.2rem; top: 0.2rem; width: 1.25rem; height: 1.25rem; }
+.lowstock-tile > .unseen-hit { left: 0.2rem; top: 0.2rem; width: 1.25rem; height: 1.25rem; }
+.lowstock-item > .unseen-hit { left: 0; top: 0; width: 1rem; height: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .unseen-dot::after, .unseen-badge::after { animation: none; opacity: 0; }
   .unseen-dot-out { animation-duration: 160ms; }
