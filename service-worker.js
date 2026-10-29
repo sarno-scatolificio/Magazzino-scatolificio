@@ -18,7 +18,7 @@
 // non succede nulla di grave: semplicemente niente copia offline.
 // =============================================================
 
-const CACHE_NAME = 'magazzino-shell-v275';
+const CACHE_NAME = 'magazzino-shell-v277';
 const APP_SHELL = [
   './',
   './index.html',
@@ -60,9 +60,12 @@ const APP_SHELL = [
   './js/data/supabase-manuals.js',
   './js/data/supabase-transactions.js',
   './js/data/supabase-activity.js',
+  './js/data/supabase-push.js',
+  './js/core/push.js',
   './js/shared/picker.js',
   './js/features/impostazioni/users.js',
   './js/features/impostazioni/activity-log.js',
+  './js/features/impostazioni/push-settings.js',
   './js/features/impostazioni/machines.js',
   './js/features/impostazioni/shelves.js',
   './js/features/movimenti/movements.js',
@@ -248,3 +251,49 @@ function fetchAndCache(request) {
     return response;
   });
 }
+
+// =============================================================
+// NOTIFICHE PUSH (nuovi interventi da effettuare)
+// =============================================================
+// Le invia la edge function «notify-nuovo-intervento». Il testo (chi ha inserito l'intervento + descrizione)
+// arriva già pronto nel messaggio. Toccando la notifica l'app si apre direttamente su quell'intervento.
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (err) {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+  const title = data.title || 'Nuovo intervento da effettuare';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || '',
+      icon: './assets/icons/icon-192.png',
+      badge: './assets/icons/favicon-32.png',
+      tag: data.tag || undefined, // una sola notifica per intervento: un invio ripetuto non la duplica
+      data: { id: data.id || null, url: data.url || './' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const { id, url } = event.notification.data || {};
+  const target = new URL(url || './', self.registration.scope).href;
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      // App già aperta: la si porta davanti e le si dice quale intervento aprire
+      for (const client of windows) {
+        if (new URL(client.url).origin === self.location.origin && 'focus' in client) {
+          await client.focus();
+          if (id) client.postMessage({ type: 'open-intervento', id });
+          return;
+        }
+      }
+      // App chiusa: si apre con l'intervento indicato nell'indirizzo (?intervento=...)
+      await self.clients.openWindow(target);
+    })()
+  );
+});
