@@ -92,6 +92,8 @@ export function getProductsVersion() {
 }
 export function bumpProductsVersion() {
   productsVersion += 1;
+  // Chi ascolta (es. il pallino «articolo andato sotto scorta») può controllare subito se la giacenza è scesa
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('products-version-bumped'));
 }
 
 export function adjustCachedProductQuantity(id, delta, locationId = null) {
