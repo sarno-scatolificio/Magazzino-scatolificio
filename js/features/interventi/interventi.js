@@ -10,7 +10,7 @@
 // interventi-shared / -list / -new / -detail / -photo / -pdf-sheet.
 
 import { $, draft, els, state } from './interventi-shared.js';
-import { LINEE, STATI, dayKey, generaProgrammati, keyToDate, lineaLabel, listEffettuatiDays, listInterventi } from './interventi-data.js';
+import { LINEE, STATI, dayKey, generaProgrammati, keyToDate, lineaLabel, listEffettuatiDays, listInterventi, getIntervento } from './interventi-data.js';
 import { defaultDay, loadDay, paintFilters, paintTabs, renderList, selectDay, stepDay } from './interventi-list.js';
 import feedback from '../../shared/feedback.js';
 import { initDetailSheet, openDetail, resetDetail } from './interventi-detail.js';
@@ -203,6 +203,14 @@ export async function searchInterventi(term) {
 /** Apre il foglio di un intervento (dai risultati della ricerca in testata) */
 export function openInterventoDetail(row) {
   return openDetail(row);
+}
+
+/** Apre un intervento dal suo id (tocco su una notifica). Ritorna false se non esiste più. */
+export async function openInterventoById(id) {
+  const row = await getIntervento(id);
+  if (!row) return false;
+  await openDetail(row);
+  return true;
 }
 
 /** Chiamata dalle Impostazioni quando cambia l'elenco degli operatori */

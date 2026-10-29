@@ -57,6 +57,13 @@ export async function listInterventi() {
   return { tableMissing: false, open: open.data, done: done.data };
 }
 
+/** Un intervento per id (per aprirlo dal tocco su una notifica); null se non esiste più */
+export async function getIntervento(id) {
+  const { data, error } = await supabase.from('manutenzioni_soste').select(COLS).eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 /** Interventi effettuati in un intervallo (giornata) — per il PDF */
 export async function listEffettuatiRange(fromIso, toIso) {
   const { data, error } = await supabase
