@@ -2979,7 +2979,7 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
   position: absolute; left: 0; top: 0;
   width: 1.75rem; height: 2.75rem;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  pointer-events: none; /* solo decorativo: il tocco va alla riga, che apre l'intervento */
 }
 .unseen-dot {
   position: relative; display: block;
