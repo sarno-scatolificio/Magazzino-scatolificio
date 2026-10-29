@@ -505,16 +505,13 @@ function buildRow(r, isNew) {
       <p class="ui-note text-graphite-500 mt-1">${escapeHtml(when)}</p>
     </div>
     <img class="int-thumb hidden" alt="" data-thumb>${unseen ? UNSEEN_DOT_HTML : ''}`;
-  row.addEventListener('click', (e) => {
-    const onDot = !!e.target.closest('[data-unseen-hit]');
+  row.addEventListener('click', () => {
     if (unseen) {
       unseen = false;
       markSeen(r);
-      dismissDot(row); // presa visione: il pallino si ingrandisce e implode
+      dismissDot(row); // aperto l'intervento: preso in visione da solo, il pallino si ingrandisce e implode
       dropNewBadge(row);
-      if (onDot) feedback.tap();
     }
-    if (onDot) return; // il tocco sul pallino segna solo come visto, senza aprire l'intervento
     openDetail(r);
   });
   return row;

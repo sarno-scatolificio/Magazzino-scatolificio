@@ -4,7 +4,7 @@
 // Per ogni utente registrato, sul suo telefono, si ricorda quali interventi ha già
 // preso in visione. Un intervento è «nuovo» se: l'ha annotato un altro utente, è stato
 // inserito dopo la prima volta che questo utente ha usato la funzione, e non è ancora
-// stato aperto (o toccato sul pallino). Gli interventi già presenti alla prima apertura
+// stato aperto: aprendolo il pallino sparisce da solo (il pallino non si tocca più). Gli interventi già presenti alla prima apertura
 // non vengono segnati (altrimenti sarebbero tutti «nuovi»).
 //
 // Il numero dei nuovi (ancora da effettuare) compare anche sul pulsante «Interventi» della barra in basso, così
@@ -50,7 +50,7 @@ export function isUnseen(row) {
   return Number.isFinite(created) && created > st.baseline && !st.seen.includes(row.id);
 }
 
-/** Segna l'intervento come visto (quando lo si apre o si tocca il pallino) */
+/** Segna l'intervento come visto (quando lo si apre) */
 export function markSeen(row) {
   const uid = myId();
   if (!uid || !row?.id) return;
@@ -62,9 +62,9 @@ export function markSeen(row) {
   window.dispatchEvent(new CustomEvent(CHANGED_EVENT));
 }
 
-/** Pallino con alone che pulsa; l'area toccabile è più grande del pallino (sta nel margine sinistro della riga) */
+/** Pallino con alone che pulsa, solo decorativo: il tocco passa alla riga e apre l'intervento */
 export const UNSEEN_DOT_HTML =
-  '<span data-unseen-hit class="unseen-hit" role="button" aria-label="Nuovo intervento: tocca per segnarlo come visto"><span class="unseen-dot"></span></span>';
+  '<span data-unseen-hit class="unseen-hit" aria-hidden="true"><span class="unseen-dot"></span></span>';
 
 /** Presa visione: il pallino si ingrandisce e poi implode. Chiamare subito dopo markSeen. */
 export function dismissDot(row) {
