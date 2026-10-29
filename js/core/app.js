@@ -17,7 +17,8 @@ import { initManuals } from '../features/manuali/manuals.js';
 import { initManualsBrowser, enterManualsBrowser, resetManualsBrowser } from '../features/manuali/manuals-browser.js';
 import { initHistoryAdmin } from '../features/impostazioni/history-admin.js';
 import { initActivityLog } from '../features/impostazioni/activity-log.js';
-import { initInterventi, enterInterventi, resetInterventi, setInterventiFab } from '../features/interventi/interventi.js';
+import { initPushSettings, syncPushToggle } from '../features/impostazioni/push-settings.js';
+import { initInterventi, enterInterventi, resetInterventi, setInterventiFab, openInterventoById } from '../features/interventi/interventi.js';
 import { initInterventiRapidi, initOperatori } from '../features/interventi/interventi-rapidi.js';
 import { initUnseenBadge } from '../features/interventi/interventi-unseen.js';
 import { takeCameraResume } from '../features/interventi/interventi-photo.js';
@@ -44,6 +45,43 @@ let currentView = null;
 let isTransitioning = false;
 let pendingSwitch = null; // ultima sezione richiesta durante una transizione: parte appena finisce
 let swRegistration = null;
+// Intervento da aprire perché si è toccata una notifica (arriva dall'indirizzo ?intervento=... oppure da un messaggio del service worker)
+let pendingInterventoId = new URLSearchParams(window.location.search).get('intervento');
+
+/** Porta l'app sugli Interventi e apre quello indicato dalla notifica */
+async function openInterventoFromNotification(id) {
+  if (!id) return;
+  switchView('interventi', { animate: false });
+  try {
+    const found = await openInterventoById(id);
+    if (!found) toastWarning('Quell\'intervento non esiste più.');
+  } catch (err) {
+    console.error(err);
+    toastError('Impossibile aprire l\'intervento. Aprilo dall\'elenco.');
+  }
+}
+
+/** Apre l'intervento in attesa, se c'è (si usa dopo l'accesso, quando l'app è pronta) */
+function consumePendingIntervento() {
+  if (!pendingInterventoId) return false;
+  const id = pendingInterventoId;
+  pendingInterventoId = null;
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('intervento')) {
+    params.delete('intervento');
+    const query = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : ''));
+  }
+  openInterventoFromNotification(id);
+  return true;
+}
+
+// App già aperta quando si tocca la notifica: il service worker avvisa la pagina
+navigator.serviceWorker?.addEventListener('message', (event) => {
+  if (event.data?.type !== 'open-intervento' || !event.data.id) return;
+  pendingInterventoId = event.data.id;
+  if (modulesInitialized && document.getElementById('app-shell')?.classList.contains('hidden') === false) consumePendingIntervento();
+});
 
 function onAuthed(profile) {
   document.getElementById('auth-view').classList.add('hidden');
@@ -90,6 +128,7 @@ function onAuthed(profile) {
     initManualsBrowser();
     initHistoryAdmin();
     initActivityLog();
+    initPushSettings();
     initInterventi();
     initUnseenBadge();
     initInterventiRapidi();
@@ -141,9 +180,14 @@ function onAuthed(profile) {
   if (shortcutMode === 'deposito' || shortcutMode === 'prelievo') {
     window.history.replaceState({}, '', window.location.pathname);
     requestAnimationFrame(() => activateMode(shortcutMode));
-  } else if (firstEntry) {
+  } else if (firstEntry && !pendingInterventoId) {
     playScannerIntro();
   }
+
+  // Notifiche nuovi interventi: riallinea l'interruttore e riattiva l'abbonamento di questo utente
+  syncPushToggle(profile.id);
+  // Si è toccata una notifica: dritti all'intervento (senza passare dall'animazione d'ingresso dello Scanner)
+  consumePendingIntervento();
 }
 
 function onSignedOut() {

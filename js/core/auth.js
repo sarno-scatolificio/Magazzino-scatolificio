@@ -3,6 +3,7 @@
 // =============================================================
 
 import { supabase, signIn, signOut, getSession, getMyProfile, logActivity } from '../data/supabase.js';
+import { pausePush } from './push.js';
 import { toastWarning } from '../shared/toast.js';
 import { isNetworkError } from './offline-queue.js';
 
@@ -273,10 +274,11 @@ function logReopenOnce() {
   logActivity('accesso', 'App riaperta (già collegato)', describeDevice());
 }
 
-/** Registra l'uscita prima di chiudere la sessione (dopo non si potrebbe più), senza far aspettare più di 1,5 s */
+/** Registra l'uscita (e stacca le notifiche) prima di chiudere la sessione (dopo non si potrebbe più), senza far aspettare più di 1,5 s */
 async function logExit(text) {
   setOpenLogged(false);
-  await Promise.race([logActivity('uscita', text), new Promise((resolve) => setTimeout(resolve, 1500))]);
+  // anche le notifiche si staccano da chi esce (pausePush): le riceverà chi entra dopo, se le ha attive
+  await Promise.race([Promise.all([logActivity('uscita', text), pausePush()]), new Promise((resolve) => setTimeout(resolve, 1500))]);
 }
 
 /**
