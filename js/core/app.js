@@ -21,6 +21,7 @@ import { initPushSettings, syncPushToggle } from '../features/impostazioni/push-
 import { initInterventi, enterInterventi, resetInterventi, setInterventiFab, openInterventoById } from '../features/interventi/interventi.js';
 import { initInterventiRapidi, initOperatori } from '../features/interventi/interventi-rapidi.js';
 import { initUnseenBadge } from '../features/interventi/interventi-unseen.js';
+import { initLowStockUnseen } from '../features/magazzino/low-stock-unseen.js';
 import { takeCameraResume } from '../features/interventi/interventi-photo.js';
 import { initPicker } from '../shared/picker.js';
 import { initGlobalSearch, resetGlobalSearch, syncSearchContext, closePanel as closeGlobalSearch } from '../shared/global-search.js';
@@ -131,6 +132,7 @@ function onAuthed(profile) {
     initPushSettings();
     initInterventi();
     initUnseenBadge();
+    initLowStockUnseen();
     initInterventiRapidi();
     initOperatori();
     initNavHistory();
