@@ -7,12 +7,16 @@
 // Un altro tocco su un'altra piastrella chiude la precedente e apre la nuova;
 // un secondo tocco sulla stessa la richiude. Stesse durate e curve del resto
 // dell'app (.acc-track, --dur-*, --ease-*).
+//
+// Pallino «appena andato sotto scorta» (low-stock-unseen.js): compare sulla scheda, sulla piastrella dello scaffale
+// e sull'articolo; sparisce quando l'articolo viene visto qui, cioè quando si apre la piastrella in cui compare.
 // =============================================================
 
 import { listProducts, getProductLocations, areaOfShelf } from '../../data/supabase.js';
 import { toastError } from '../../shared/toast.js';
 import { staggerIndex, syncSegIndicator, animatePanelHeight } from '../../shared/ui-utils.js';
 import { escapeHtml, CATEGORY_LABELS, binIconHtml } from './products-shared.js';
+import { UNSEEN_DOT_HTML, dismissDot, isUnseen, markSeenMany } from './low-stock-unseen.js';
 
 const COLS = 2; // piastrelle per riga
 
@@ -22,6 +26,9 @@ let openKey = null; // sigla della serie con il dettaglio aperto
 let groups = []; // [{ key, articoli }]
 let allItems = []; // tutti gli articoli in scorta minima, di ogni categoria
 let catFilter = 'tutti'; // 'tutti' | 'cuscinetti' | 'cinghie' | 'pezzi_ricambio'
+let seenTimer = null; // attesa prima di segnare come visti gli articoli della piastrella aperta
+
+const SEEN_AFTER_MS = 700; // la piastrella deve restare aperta il tempo di vedere gli articoli
 
 export function initLowStock() {
   els.card = document.getElementById('scanner-lowstock-card');
@@ -184,6 +191,7 @@ function tileHtml(g, i) {
   return `
     <button type="button" data-tile-key="${escapeHtml(g.key)}" data-tile-row="${Math.floor(i / COLS)}"
       class="list-item-in lowstock-tile relative card-plate rounded-xl p-3 pt-4 text-center" style="--i:${staggerIndex(i)}">
+      ${g.articoli.some(({ p }) => isUnseen(p)) ? UNSEEN_DOT_HTML : ''}
       <span class="lowstock-tile-badge absolute top-1.5 right-1.5 font-mono text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-700">${g.articoli.length}</span>
       <span class="lowstock-tile-ico-box mx-auto w-9 h-9 rounded-lg bg-graphite-700/50 flex items-center justify-center">
         ${g.key !== 'Non assegnato' && areaOfShelf(g.key) === 'Ufficio tecnico'
@@ -213,6 +221,7 @@ function toggleTile(btn) {
     }
   }
 
+  clearTimeout(seenTimer);
   if (wasOpen) {
     openKey = null;
     return;
@@ -227,6 +236,25 @@ function toggleTile(btn) {
   window.lucide?.createIcons();
   void slot.offsetWidth; // reflow: la transizione parte sempre, anche su uno slot appena riempito
   slot.classList.add('acc-open');
+  // Se la piastrella resta aperta abbastanza da vedere gli articoli, quelli nuovi risultano visti
+  seenTimer = setTimeout(() => {
+    if (openKey === key) markGroupSeen(group, slot);
+  }, SEEN_AFTER_MS);
+}
+
+/** Articoli visti: i loro pallini implodono, e così quelli della piastrella e (se non resta altro) della scheda */
+function markGroupSeen(group, slot) {
+  const fresh = group.articoli.map(({ p }) => p).filter(isUnseen);
+  if (fresh.length === 0) return;
+  markSeenMany(fresh);
+  slot.querySelectorAll('.lowstock-item').forEach((row) => {
+    if (row.querySelector('[data-unseen-hit]')) dismissDot(row);
+  });
+  // Piastrelle (di questa o di altre serie di scaffale) senza più articoli nuovi: il pallino si spegne
+  els.body.querySelectorAll('[data-tile-key]').forEach((btn) => {
+    const g = groups.find((x) => x.key === btn.dataset.tileKey);
+    if (g && !g.articoli.some(({ p }) => isUnseen(p)) && btn.querySelector('[data-unseen-hit]')) dismissDot(btn);
+  });
 }
 
 function detailHtml(group) {
@@ -238,7 +266,8 @@ function detailHtml(group) {
       ${group.articoli
         .map(
           ({ p, loc, multiple }, i) => `
-        <div class="lowstock-item flex items-center justify-between gap-3 px-4 py-2.5 border-t border-graphite-700" style="--i:${i}">
+        <div class="lowstock-item relative flex items-center justify-between gap-3 px-4 py-2.5 border-t border-graphite-700" style="--i:${i}" data-product-id="${escapeHtml(p.id)}">
+          ${isUnseen(p) ? UNSEEN_DOT_HTML : ''}
           <div class="min-w-0">
             <p class="text-sm font-display font-bold text-graphite-100 truncate">${escapeHtml(p.codice_articolo)}</p>
             <p class="ui-note text-graphite-500 mt-0.5 truncate">${escapeHtml([p.punto_utilizzo_standard, p.macchina].filter(Boolean).join(' · ') || '—')}</p>
