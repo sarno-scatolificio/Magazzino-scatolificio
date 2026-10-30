@@ -59,6 +59,13 @@ export function initLowStock() {
   });
 }
 
+/** Apre la scheda «Articoli sotto scorta» (tocco su una notifica): se è già aperta resta com'è, altrimenti si apre e si aggiorna */
+export function openLowStockCard() {
+  if (!els.track || els.track.classList.contains('acc-open')) return;
+  setCardOpen(true);
+  refresh();
+}
+
 function setCardOpen(open) {
   flipTiles(() => {
     els.track.classList.toggle('acc-open', open);
