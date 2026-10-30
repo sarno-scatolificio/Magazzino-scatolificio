@@ -1,7 +1,8 @@
 // =============================================================
 // interventi-pdf.js — PDF degli interventi effettuati in una giornata (o periodo)
 // Organizzato per linea e, dentro ogni linea, per macchina (ordine scelto in Impostazioni, come
-// nell'app). Per ogni intervento si legge solo il lavoro effettuato: niente orari, nomi o note,
+// nell'app). Se i lavori sono di più giorni, il PDF è prima diviso per GIORNO (una fascia con la data e il numero
+// di lavori, in ordine cronologico) e dentro ogni giorno resta la stessa organizzazione per linea e macchina. Per ogni intervento si legge solo il lavoro effettuato: niente orari, nomi o note,
 // e niente data/ora di generazione. Le foto ci sono solo per gli interventi per cui chi genera il PDF le sceglie. Sui telefoni che lo supportano si apre il foglio di
 // condivisione (mail, WhatsApp…); altrimenti il file viene scaricato.
 // =============================================================
@@ -136,11 +137,36 @@ export async function exportGiornoPdf(from, to, { rows: given = null, photoIds =
   const idxOf = (m) => (orderIdx.has(m.toLowerCase()) ? orderIdx.get(m.toLowerCase()) : 9999);
   const lineaIdx = (v) => (LINEE.findIndex((l) => l.value === v) + 1 || 99);
 
-  const linee = [...new Set(rows.map((r) => r.linea))].sort((a, b) => lineaIdx(a) - lineaIdx(b));
   const LINE_H = 4.9; // altezza di una riga di testo (10,5 pt)
 
+  // Più giorni: un gruppo per giorno (dal più vecchio al più recente); un solo giorno: un gruppo unico, senza fascia
+  const dayOf = (r) => isoDay(new Date(r.esito_at));
+  const days = [...new Set(rows.map(dayOf))].sort();
+  const groups = days.length > 1 ? days.map((day) => ({ day, rows: rows.filter((r) => dayOf(r) === day) })) : [{ day: null, rows }];
+
+  for (const group of groups) {
+    if (group.day) {
+      const [gy, gm, gd] = group.day.split('-').map(Number);
+      const dayTitle = new Date(gy, gm - 1, gd).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      ensure(46); // la fascia del giorno non resta mai sola in fondo alla pagina
+      doc.setFillColor(226, 232, 244);
+      doc.roundedRect(M, y, CW, 10, 1.2, 1.2, 'F');
+      doc.setFillColor(...ACCENT);
+      doc.rect(M, y, 2.4, 10, 'F');
+      doc.setTextColor(...DEEP);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text(dayTitle.toUpperCase(), M + 6, y + 6.8);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...GREY);
+      doc.text(`${group.rows.length} ${group.rows.length === 1 ? 'intervento' : 'interventi'}`, PW - M - 3.5, y + 6.8, { align: 'right' });
+      y += 15;
+    }
+    const linee = [...new Set(group.rows.map((r) => r.linea))].sort((a, b) => lineaIdx(a) - lineaIdx(b));
+
   for (const linea of linee) {
-    const inLinea = rows.filter((r) => r.linea === linea);
+    const inLinea = group.rows.filter((r) => r.linea === linea);
     const machines = [...new Set(inLinea.map((r) => r.macchina))].sort((a, b) => idxOf(a) - idxOf(b) || a.localeCompare(b, 'it'));
 
     // fascia della linea (con almeno la prima macchina e il suo primo intervento sotto)
@@ -210,6 +236,7 @@ export async function exportGiornoPdf(from, to, { rows: given = null, photoIds =
       y += 3;
     }
     y += 3;
+  }
   }
 
   // ---- Numeri di pagina ----
