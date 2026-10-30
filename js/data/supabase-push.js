@@ -6,14 +6,19 @@
 
 import { supabase } from './supabase-client.js';
 
-/** Registra (o aggiorna) l'abbonamento di questo dispositivo per l'utente collegato */
-export async function savePushSubscription(subscription) {
+/**
+ * Registra (o aggiorna) l'abbonamento di questo dispositivo per l'utente collegato.
+ * prefs: quali notifiche vuole ricevere su questo dispositivo ({ interventi, scorta }).
+ */
+export async function savePushSubscription(subscription, prefs = { interventi: true, scorta: false }) {
   const json = subscription.toJSON();
   const { error } = await supabase.rpc('save_push_subscription', {
     p_endpoint: json.endpoint,
     p_p256dh: json.keys?.p256dh,
     p_auth: json.keys?.auth,
     p_user_agent: navigator.userAgent.slice(0, 200),
+    p_interventi: !!prefs.interventi,
+    p_scorta: !!prefs.scorta,
   });
   if (error) throw error;
 }
