@@ -12,7 +12,7 @@ import { initShelves } from '../features/impostazioni/shelves.js';
 import { initInventory } from '../features/impostazioni/inventory.js';
 import { initMovements } from '../features/movimenti/movements.js';
 import { initPrestiti } from '../features/movimenti/prestiti.js';
-import { initLowStock } from '../features/magazzino/low-stock.js';
+import { initLowStock, openLowStockCard } from '../features/magazzino/low-stock.js';
 import { initManuals } from '../features/manuali/manuals.js';
 import { initManualsBrowser, enterManualsBrowser, resetManualsBrowser } from '../features/manuali/manuals-browser.js';
 import { initHistoryAdmin } from '../features/impostazioni/history-admin.js';
@@ -62,6 +62,23 @@ async function openInterventoFromNotification(id) {
   }
 }
 
+// Si è toccata una notifica «articoli sotto scorta»: apre i Movimenti con la scheda «Articoli sotto scorta» aperta
+let pendingSottoScorta = new URLSearchParams(window.location.search).get('sottoscorta') === '1';
+
+function consumePendingSottoScorta() {
+  if (!pendingSottoScorta) return false;
+  pendingSottoScorta = false;
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('sottoscorta')) {
+    params.delete('sottoscorta');
+    const query = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : ''));
+  }
+  switchView('scanner', { animate: false });
+  openLowStockCard();
+  return true;
+}
+
 /** Apre l'intervento in attesa, se c'è (si usa dopo l'accesso, quando l'app è pronta) */
 function consumePendingIntervento() {
   if (!pendingInterventoId) return false;
@@ -79,9 +96,14 @@ function consumePendingIntervento() {
 
 // App già aperta quando si tocca la notifica: il service worker avvisa la pagina
 navigator.serviceWorker?.addEventListener('message', (event) => {
-  if (event.data?.type !== 'open-intervento' || !event.data.id) return;
-  pendingInterventoId = event.data.id;
-  if (modulesInitialized && document.getElementById('app-shell')?.classList.contains('hidden') === false) consumePendingIntervento();
+  const ready = () => modulesInitialized && document.getElementById('app-shell')?.classList.contains('hidden') === false;
+  if (event.data?.type === 'open-intervento' && event.data.id) {
+    pendingInterventoId = event.data.id;
+    if (ready()) consumePendingIntervento();
+  } else if (event.data?.type === 'open-sottoscorta') {
+    pendingSottoScorta = true;
+    if (ready()) consumePendingSottoScorta();
+  }
 });
 
 function onAuthed(profile) {
@@ -182,7 +204,7 @@ function onAuthed(profile) {
   if (shortcutMode === 'deposito' || shortcutMode === 'prelievo') {
     window.history.replaceState({}, '', window.location.pathname);
     requestAnimationFrame(() => activateMode(shortcutMode));
-  } else if (firstEntry && !pendingInterventoId) {
+  } else if (firstEntry && !pendingInterventoId && !pendingSottoScorta) {
     playScannerIntro();
   }
 
@@ -190,6 +212,7 @@ function onAuthed(profile) {
   syncPushToggle(profile.id);
   // Si è toccata una notifica: dritti all'intervento (senza passare dall'animazione d'ingresso dello Scanner)
   consumePendingIntervento();
+  consumePendingSottoScorta();
 }
 
 function onSignedOut() {

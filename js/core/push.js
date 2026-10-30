@@ -1,19 +1,21 @@
 // =============================================================
-// push.js — Notifiche push del browser (nuovi interventi da effettuare)
+// push.js — Notifiche push del browser (nuovi interventi, articoli sotto scorta)
 // =============================================================
 // Questo dispositivo si "abbona" alle notifiche tramite il service worker; l'abbonamento viene salvato sul
-// database dell'app (supabase-push.js). A inviare le notifiche è la edge function «notify-nuovo-intervento»,
-// che le manda a tutti tranne chi ha inserito l'intervento. Dalle 22 alle 7 le notifiche non partono: restano
-// in coda sul server e vengono inviate dopo le 7.
+// database dell'app (supabase-push.js) insieme alle due preferenze: «interventi» e «scorta». A inviare le
+// notifiche sono le edge function «notify-nuovo-intervento» e «notify-sotto-scorta». Dalle 22 alle 7 non parte
+// nulla: restano in coda sul server e vengono inviate dopo le 7.
 //
-// Chi è l'utente "acceso" su questo dispositivo lo ricorda localStorage (FLAG_KEY): così, se un collega
-// entra con il suo account sullo stesso telefono, non eredita le notifiche di chi c'era prima.
+// Chi è l'utente "acceso" su questo dispositivo e quali notifiche ha scelto lo ricorda localStorage (PREFS_KEY):
+// così, se un collega entra con il suo account sullo stesso telefono, non eredita le notifiche di chi c'era prima.
+// L'abbonamento del browser è uno solo: si cancella (dal server e dal browser) solo quando entrambe sono spente.
 
 import { savePushSubscription, deletePushSubscription } from '../data/supabase.js';
 
 // Chiave PUBBLICA (VAPID): non è un segreto. Quella privata sta solo sul server.
 const VAPID_PUBLIC_KEY = 'BCgqoDAvA-tzQJH6DB3joYyTQWWApbo_154_-fXGddatyjb5AfB_je76Ni9aByXEQiokX0g8FPFxEsnxD3VwTiQ';
-const FLAG_KEY = 'magazzino-push-user';
+const PREFS_KEY = 'magazzino-push-prefs'; // { uid, interventi, scorta }
+const LEGACY_KEY = 'magazzino-push-user'; // versione precedente: solo l'id utente (allora c'erano solo gli interventi)
 
 export class PushError extends Error {
   constructor(code) {
@@ -36,20 +38,28 @@ function urlBase64ToUint8Array(base64) {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 }
 
-function savedUser() {
+const none = () => ({ interventi: false, scorta: false });
+const anyOn = (prefs) => prefs.interventi || prefs.scorta;
+
+/** Preferenze ricordate su questo dispositivo per questo utente */
+function savedPrefs(uid) {
   try {
-    return localStorage.getItem(FLAG_KEY);
+    const raw = JSON.parse(localStorage.getItem(PREFS_KEY) || 'null');
+    if (raw && raw.uid === uid) return { interventi: !!raw.interventi, scorta: !!raw.scorta };
+    if (localStorage.getItem(LEGACY_KEY) === uid) return { interventi: true, scorta: false };
   } catch (err) {
-    return null;
+    /* memoria locale non leggibile: come se non ci fossero preferenze */
   }
+  return none();
 }
 
-function setSavedUser(uid) {
+function storePrefs(uid, prefs) {
   try {
-    if (uid) localStorage.setItem(FLAG_KEY, uid);
-    else localStorage.removeItem(FLAG_KEY);
+    localStorage.removeItem(LEGACY_KEY);
+    if (anyOn(prefs)) localStorage.setItem(PREFS_KEY, JSON.stringify({ uid, ...prefs }));
+    else localStorage.removeItem(PREFS_KEY);
   } catch (err) {
-    /* senza storage l'interruttore si riallinea ma non ricorda l'utente */
+    /* senza storage l'interruttore si riallinea ma non ricorda le scelte */
   }
 }
 
@@ -68,21 +78,13 @@ async function currentSubscription() {
   return reg.pushManager.getSubscription();
 }
 
-/** L'interruttore è acceso per questo utente su questo dispositivo? */
-export async function isPushOn(uid) {
-  if (!pushSupported() || Notification.permission !== 'granted' || savedUser() !== uid) return false;
-  try {
-    return !!(await currentSubscription());
-  } catch (err) {
-    return false;
-  }
-}
-
-/** Attiva: chiede il permesso (serve un tocco dell'utente), si abbona e salva l'abbonamento */
-export async function enablePush(uid) {
+/** Chiede il permesso (serve un tocco dell'utente) e si abbona, se non lo è già */
+async function ensureSubscription() {
   if (!pushSupported()) throw new PushError('unsupported');
-  const permission = await Notification.requestPermission();
-  if (permission !== 'granted') throw new PushError('denied');
+  if (Notification.permission !== 'granted') {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') throw new PushError('denied');
+  }
   const reg = await getRegistration();
   let subscription = await reg.pushManager.getSubscription();
   if (!subscription) {
@@ -91,13 +93,33 @@ export async function enablePush(uid) {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
   }
-  await savePushSubscription(subscription);
-  setSavedUser(uid);
+  return subscription;
 }
 
-/** Disattiva: cancella l'abbonamento dal server e dal browser */
+/**
+ * Accende o spegne un tipo di notifica ('interventi' | 'scorta') su questo dispositivo.
+ * Ritorna le preferenze aggiornate. Se si spegne l'ultima, l'abbonamento viene cancellato.
+ */
+export async function setPushPref(uid, kind, on) {
+  const next = { ...savedPrefs(uid), [kind]: !!on };
+  if (!anyOn(next)) {
+    await disablePush();
+    return next;
+  }
+  const subscription = await ensureSubscription();
+  await savePushSubscription(subscription, next);
+  storePrefs(uid, next);
+  return next;
+}
+
+/** Spegne tutto: cancella l'abbonamento dal server e dal browser */
 export async function disablePush() {
-  setSavedUser(null);
+  try {
+    localStorage.removeItem(PREFS_KEY);
+    localStorage.removeItem(LEGACY_KEY);
+  } catch (err) {
+    /* niente da pulire */
+  }
   try {
     const subscription = await currentSubscription();
     if (!subscription) return;
@@ -108,15 +130,17 @@ export async function disablePush() {
   }
 }
 
-/** All'accesso: se per questo utente le notifiche erano accese, si riattivano (l'abbonamento si riaggancia a lui) */
+/** All'accesso: riattiva (con le stesse preferenze) l'abbonamento di questo utente. Ritorna le preferenze in vigore. */
 export async function resumePush(uid) {
-  if (!(await isPushOn(uid))) return false;
+  const prefs = savedPrefs(uid);
+  if (!pushSupported() || Notification.permission !== 'granted' || !anyOn(prefs)) return none();
   try {
     const subscription = await currentSubscription();
-    if (subscription) await savePushSubscription(subscription);
-    return true;
+    if (!subscription) return none();
+    await savePushSubscription(subscription, prefs);
+    return prefs;
   } catch (err) {
-    return false;
+    return none();
   }
 }
 
