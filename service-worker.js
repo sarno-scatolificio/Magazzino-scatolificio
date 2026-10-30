@@ -18,7 +18,7 @@
 // non succede nulla di grave: semplicemente niente copia offline.
 // =============================================================
 
-const CACHE_NAME = 'magazzino-shell-v279';
+const CACHE_NAME = 'magazzino-shell-v280';
 const APP_SHELL = [
   './',
   './index.html',
@@ -256,8 +256,9 @@ function fetchAndCache(request) {
 // =============================================================
 // NOTIFICHE PUSH (nuovi interventi da effettuare)
 // =============================================================
-// Le invia la edge function «notify-nuovo-intervento». Il testo (chi ha inserito l'intervento + descrizione)
-// arriva già pronto nel messaggio. Toccando la notifica l'app si apre direttamente su quell'intervento.
+// Le inviano le edge function «notify-nuovo-intervento» e «notify-sotto-scorta». Il testo arriva già pronto nel
+// messaggio. Toccando una notifica di intervento l'app si apre su quell'intervento; toccando una di articoli sotto
+// scorta si apre sui Movimenti con la scheda «Articoli sotto scorta» aperta.
 
 self.addEventListener('push', (event) => {
   let data = {};
@@ -273,14 +274,14 @@ self.addEventListener('push', (event) => {
       icon: './assets/icons/icon-192.png',
       badge: './assets/icons/favicon-32.png',
       tag: data.tag || undefined, // una sola notifica per intervento: un invio ripetuto non la duplica
-      data: { id: data.id || null, url: data.url || './' },
+      data: { kind: data.kind || 'intervento', id: data.id || null, url: data.url || './' },
     })
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const { id, url } = event.notification.data || {};
+  const { kind, id, url } = event.notification.data || {};
   const target = new URL(url || './', self.registration.scope).href;
   event.waitUntil(
     (async () => {
@@ -289,7 +290,8 @@ self.addEventListener('notificationclick', (event) => {
       for (const client of windows) {
         if (new URL(client.url).origin === self.location.origin && 'focus' in client) {
           await client.focus();
-          if (id) client.postMessage({ type: 'open-intervento', id });
+          if (kind === 'sotto-scorta') client.postMessage({ type: 'open-sottoscorta' });
+          else if (id) client.postMessage({ type: 'open-intervento', id });
           return;
         }
       }
