@@ -342,7 +342,6 @@ button:disabled:not(.no-dim) { opacity: 0.55; }
   animation: btn-spin 700ms linear infinite;
 }
 /* Sui pulsanti a sfondo chiaro (Impostazioni, Magazzino) lo spinner ha bisogno di un colore scuro */
-.btn-spinner--dark { border-color: rgba(13, 17, 23, 0.18); border-top-color: var(--accent); }
 @keyframes btn-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
   .btn-spinner { animation: none; border-top-color: rgba(255, 255, 255, 0.35); }
@@ -708,12 +707,6 @@ button.lowstock-header:not(:disabled):active { transform: none; background: tran
 @media (prefers-reduced-motion: reduce) {
   .lowstock-chevron, .lowstock-tile::before { transition-duration: 1ms; }
   .lowstock-slot .lowstock-item { animation-duration: 1ms !important; animation-delay: 0ms !important; }
-}
-
-/* Divisore tra "serie" di scaffali (SD001-004 vicine, poi SE001... staccata): lo spazio
-   in più prima dell'etichetta è quel che separa visivamente i due gruppi. */
-.shelf-series-divider {
-  margin-top: 0.875rem !important; /* più del normale space-y-2.5 (0.625rem) tra le card */
 }
 
 /* Empty state illustrati: entrano con un piccolo respiro invece di
@@ -1267,6 +1260,17 @@ button.shelf-item:not(:disabled):active {
   .group-body-track, .shelf-group-header::before { transition-duration: 1ms; }
 }
 
+/* ---- Testi che si rimpiccioliscono da soli (shared/fit-text.js) -------
+   Le parole non si spezzano mai: se non ci stanno, si riduce il carattere. */
+.fit-text {
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
 /* ---- Scheda articolo (sola lettura) ---------------------------------
    Righe "etichetta a sinistra, valore a destra" dentro un'unica scheda,
    separate da un filo. Il pulsante tondo di modifica (.fab-round) usa la
@@ -1281,7 +1285,6 @@ button.shelf-item:not(:disabled):active {
   min-height: 52px;
 }
 .detail-row + .detail-row { border-top: 1px solid #e3e5e9; }
-.detail-row--center { align-items: center; }
 .detail-row-label {
   flex: none;
   max-width: 45%;
@@ -1303,6 +1306,13 @@ button.shelf-item:not(:disabled):active {
   overflow-wrap: anywhere;
 }
 .detail-row-value--empty { color: #6b6f77; font-weight: 400; }
+.detail-barcode-svg {
+  display: block;
+  width: 100%;
+  max-width: 22rem;
+  height: auto;
+  margin: 0 auto;
+}
 .fab-round {
   box-shadow:
     0 8px 18px -6px rgba(var(--accent-rgb), 0.55),
@@ -1327,8 +1337,7 @@ button.shelf-item:not(:disabled):active {
 #scanner-reader,
 #qs-reader,
 #inv-cam-reader,
-#product-barcode-scanner-reader,
-#product-search-scanner-reader {
+#product-barcode-scanner-reader {
   cursor: crosshair;
   position: relative;
   aspect-ratio: 8 / 5; /* stessa proporzione dello scanConfig (1.6): niente più allungamenti a dismisura */
@@ -1351,9 +1360,7 @@ button.shelf-item:not(:disabled):active {
 #inv-cam-reader video,
 #inv-cam-reader canvas,
 #product-barcode-scanner-reader video,
-#product-barcode-scanner-reader canvas,
-#product-search-scanner-reader video,
-#product-search-scanner-reader canvas {
+#product-barcode-scanner-reader canvas {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
@@ -1528,8 +1535,7 @@ button.modal-close:not(:disabled):active { transform: scale(0.92); }
 
 /* Area di tocco minima di 44px senza cambiare l'aspetto: il pulsante resta
    grande com'è, ma la zona sensibile si estende attorno a lui. */
-.hit-area, .hit-area-sm, .hit-area-xs { position: relative; }
-.hit-area::after { content: ''; position: absolute; inset: -6px; }    /* 32px -> 44px */
+.hit-area-sm, .hit-area-xs { position: relative; }
 .hit-area-sm::after { content: ''; position: absolute; inset: -4px; } /* 36px -> 44px */
 .hit-area-xs::after { content: ''; position: absolute; inset: -14px; } /* icona da 16px -> 44px */
 
@@ -1647,28 +1653,6 @@ html { touch-action: manipulation; } /* niente ritardo/zoom col doppio tocco; pi
   min-height: 0;
 }
 
-/* ---- Barra consumi (dashboard) ----------------------------------- */
-.bar-grow {
-  /* larghezza finale fissa, animata con transform (compositor) e non con width (layout) */
-  width: var(--target-width);
-  transform: scaleX(0);
-  transform-origin: left center;
-  animation: bar-grow 600ms var(--ease-out) forwards;
-  animation-delay: calc(var(--i, 0) * 40ms);
-}
-/* Aggiornamento silenzioso del Report: le barre del consumo compaiono già alla larghezza finale */
-.list-static .bar-grow { animation: none; transform: none; }
-@keyframes bar-grow {
-  to { transform: scaleX(1); }
-}
-
-/* ---- Pulsazione pulsante scan attivo ------------------------------- */
-@keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.30); }
-  100% { box-shadow: 0 0 0 14px rgba(var(--accent-rgb), 0); }
-}
-.scan-pulse { animation: pulse-ring 1.8s ease-out infinite; }
-
 /* ---- Pulsazione "pezzo registrato": lampo breve sul valore di giacenza
    aggiornato nella card risultato scanner, in coincidenza col contatore
    animato — rende tangibile il momento in cui il pezzo viene registrato. */
@@ -1763,9 +1747,6 @@ button.custom-select-option:not(:disabled):active {
 .custom-select-option-active {
   color: var(--accent-dark);
   font-weight: 700;
-}
-.custom-select-search-wrap {
-  box-shadow: 0 1px 0 0 #dde1e7; /* graphite-700 */
 }
 
 /* ---- Micro-animazione di comparsa della card risultato scanner -------- */
@@ -1892,45 +1873,6 @@ button.custom-select-option:not(:disabled):active {
 .manual-page canvas {
   position: relative;
   z-index: 0;
-}
-
-
-/* ---- Carosello schermata di accesso ---- */
-.login-carousel {
-  align-self: stretch;
-  margin: 0 -1.5rem 1.5rem;       /* esce dal padding laterale: tutta larghezza schermo */
-  overflow: hidden;
-  touch-action: pan-y;            /* il trascinamento orizzontale è del carosello, quello verticale resta alla pagina */
-  cursor: grab;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
-  mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
-}
-.login-carousel.is-dragging { cursor: grabbing; }
-.login-carousel-track {
-  display: flex;
-  width: max-content;
-  will-change: transform;          /* il movimento è pilotato da login-carousel.js */
-}
-.login-carousel-tile {
-  flex: 0 0 auto;
-  width: 240px;
-  height: 160px;
-  margin-right: 12px;
-  border-radius: 18px;
-  overflow: hidden;
-  background: #fff;
-  border: 1px solid #e3e6ea;
-  box-shadow: 0 1px 3px rgba(20, 30, 50, 0.08), 0 8px 18px -10px rgba(20, 30, 50, 0.25);
-}
-.login-carousel-tile img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  pointer-events: none;
-  -webkit-user-drag: none;
 }
 
 
@@ -2353,26 +2295,6 @@ input:disabled + .input-clear { display: none; }
   .mate-spark.s1 { animation-delay: 4.17s; }
   .mate-spark.s2 { animation-delay: 4.52s; }
       }
-
-/* ---- Carosello: cornice in acciaio scuro ---- */
-#auth-view .login-carousel { padding: 0.35rem 0 0.8rem; margin-bottom: 0.3rem; }
-#auth-view .login-carousel-tile {
-  position: relative;
-  width: 220px;
-  height: 150px;
-  margin-right: 14px;
-  border-radius: 22px;
-  border: 5px solid transparent;
-  background:
-    linear-gradient(#fff, #fff) padding-box,
-    linear-gradient(145deg, #8f949a 0%, #3b3e43 28%, #6a6e74 52%, #2f3237 78%, #5b5f65 100%) border-box;
-  box-shadow:
-    0 10px 16px -8px rgba(13, 17, 23, 0.55),
-    0 3px 6px -2px rgba(13, 17, 23, 0.3);
-}
-#auth-view .login-carousel-tile img { border-radius: 16px; }
-/* Fermo e non trascinabile finché non parte da solo (login-carousel.js) */
-.login-carousel.is-locked { cursor: default; }
 
 /* ---- Video di presentazione: sfondo della scheda del logo (.mate-brand), dietro al logo ----
    .mate-brand ha overflow:hidden + isolation:isolate + angoli arrotondati: il video non esce mai.
@@ -3134,7 +3056,7 @@ button[aria-checked="true"] > .int-check { background: var(--accent); border-col
   text-transform: uppercase; color: #6b7280;
 }
 .set-group-title--danger { color: #be123c; }
-.set-card > * + *, .set-group .card-plate > * + * { border-top: 1px solid rgba(13, 17, 23, 0.07); }
+.set-group .card-plate > * + * { border-top: 1px solid rgba(13, 17, 23, 0.07); }
 .set-row {
   display: flex; align-items: center; gap: 0.75rem; width: 100%; min-height: 52px;
   padding: 0.6rem 0.875rem; text-align: left; background: transparent;
