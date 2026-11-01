@@ -133,6 +133,11 @@ function msSinceLastActivity() {
   }
 }
 
+/** Il tempo reale trascorso dall'ultima attività ha già superato il limite di inattività */
+function isIdleExpired() {
+  return msSinceLastActivity() >= IDLE_TIMEOUT_MS;
+}
+
 /**
  * Avvia (o riavvia) il conto alla rovescia di inattività, calcolandolo sul tempo
  * REALE trascorso dall'ultima attività registrata: se il dispositivo è stato
@@ -298,7 +303,10 @@ export function initAuth(onAuthed, onSignedOut) {
 
   // Riapertura dell'app con una sessione già salvata (anche dopo che il telefono l'ha chiusa mentre era aperta la
   // fotocamera): il login non deve nemmeno comparire mentre si verifica la sessione. Se serve, onSignedOut lo mostra.
-  if (readStoredSession()) document.getElementById('auth-view')?.classList.add('hidden');
+  // Se però sono già trascorsi i 60 minuti di inattività, la sessione è scaduta: il login resta visibile
+  // e la sessione viene chiusa in sottofondo, senza mai far comparire l'app.
+  const startedExpired = !!readStoredSession() && isIdleExpired();
+  if (readStoredSession() && !startedExpired) document.getElementById('auth-view')?.classList.add('hidden');
 
   const showStatus = (text) => {
     if (!statusBox) return;
@@ -318,6 +326,11 @@ export function initAuth(onAuthed, onSignedOut) {
   };
 
   const handleIdleTimeout = async () => {
+    // Prima si mostra subito il login (nessun istante in cui l'app sembra ancora aperta),
+    // poi si registra l'uscita e si chiude la sessione in sottofondo.
+    stopIdleTimer();
+    onSignedOut();
+    toastWarning('Sessione terminata automaticamente per inattività.');
     try {
       await logExit('Disconnesso automaticamente per inattività');
       await signOut();
@@ -326,9 +339,6 @@ export function initAuth(onAuthed, onSignedOut) {
     }
     authState.session = null;
     authState.profile = null;
-    stopIdleTimer();
-    onSignedOut();
-    toastWarning('Sessione terminata automaticamente per inattività.');
   };
   attachActivityListeners(() => !!authState.session, handleIdleTimeout);
 
@@ -404,6 +414,18 @@ export function initAuth(onAuthed, onSignedOut) {
   };
 
   (async () => {
+    if (startedExpired) {
+      stopIdleTimer();
+      onSignedOut();
+      toastWarning('Sessione terminata automaticamente per inattività.');
+      try {
+        await logExit('Disconnesso automaticamente per inattività (app riaperta)');
+        await signOut();
+      } catch (err) {
+        console.error(err);
+      }
+      return;
+    }
     setFormBusy(true); // durante la verifica automatica il form non serve
     try {
       const session = await withConnectionRetries(() => getSession(), onAttempt);
