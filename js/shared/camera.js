@@ -135,10 +135,6 @@ export async function stopCamera() {
   torchOn = false;
 }
 
-export function cameraIsRunning() {
-  return isCameraRunning;
-}
-
 /** Recupera l'elenco fotocamere una sola volta (cache condivisa) e sceglie l'obiettivo principale */
 async function ensureCameraList() {
   if (availableCameras.length) return;

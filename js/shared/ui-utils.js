@@ -235,35 +235,6 @@ export function animateNumber(el, to, { from = null, duration = 650, formatter }
 }
 
 /**
- * Anima lo stroke-dashoffset di un anello SVG di progresso verso una
- * percentuale target (0-100). circleEl deve avere già impostato
- * stroke-dasharray = circonferenza.
- */
-export function animateRing(circleEl, percent, { duration = 700 } = {}) {
-  if (!circleEl) return;
-  if (circleEl.closest('.list-static')) duration = 0; // aggiornamento silenzioso: nessuna animazione dell'anello
-  const circumference = parseFloat(circleEl.getAttribute('stroke-dasharray')) || 0;
-  const clamped = Math.max(0, Math.min(100, percent || 0));
-  const targetOffset = circumference * (1 - clamped / 100);
-  const startOffset = parseFloat(circleEl.style.strokeDashoffset || circleEl.getAttribute('stroke-dashoffset')) || circumference;
-
-  if (duration === 0 || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-    circleEl.style.strokeDashoffset = String(targetOffset);
-    return;
-  }
-
-  const t0 = performance.now();
-  function frame(now) {
-    const progress = Math.min((now - t0) / duration, 1);
-    const value = startOffset + (targetOffset - startOffset) * easeOutCubic(progress);
-    circleEl.style.strokeDashoffset = String(value);
-    if (progress < 1) requestAnimationFrame(frame);
-    else circleEl.style.strokeDashoffset = String(targetOffset);
-  }
-  requestAnimationFrame(frame);
-}
-
-/**
  * Forza un "replay" di un'animazione CSS su un elemento: rimuove la
  * classe, forza il reflow, la riaggiunge. Utile per far ripartire la
  * micro-animazione di comparsa ogni volta (es. card risultato scanner).

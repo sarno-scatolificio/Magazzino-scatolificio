@@ -12,6 +12,7 @@ import { isAdmin } from '../core/auth.js';
 import { toastSuccess, toastError } from './toast.js';
 import { closeOverlay, enableSheetDrag, modalCloseMs, openOverlay, setButtonBusy } from './ui-utils.js';
 import feedback from './feedback.js';
+import { fitTextIn } from './fit-text.js';
 
 const RED = '#ef4444';
 
@@ -66,9 +67,10 @@ const PILL_UNSET = 'bg-amber-400/10 border-amber-400 text-graphite-100'; // foto
 
 function paintPill(btn, hasPos) {
   btn.className = `${PILL_BASE} ${hasPos ? PILL_SET : PILL_UNSET}`;
-  btn.innerHTML = `<i data-lucide="${hasPos ? 'map-pin' : 'image'}" class="w-4 h-4 shrink-0" stroke-width="2.4"></i><span class="min-w-0 break-words"></span><i data-lucide="chevron-right" class="w-3.5 h-3.5 shrink-0 opacity-70" stroke-width="2.6"></i>`;
+  btn.innerHTML = `<i data-lucide="${hasPos ? 'map-pin' : 'image'}" class="w-4 h-4 shrink-0" stroke-width="2.4"></i><span class="fit-text" data-fit-text></span><i data-lucide="chevron-right" class="w-3.5 h-3.5 shrink-0 opacity-70" stroke-width="2.6"></i>`;
   btn.querySelector('span').textContent = btn.dataset.shelf; // testo, mai HTML
   window.lucide?.createIcons();
+  if (btn.parentElement) fitTextIn(btn.parentElement); // dopo un cambio di stato il testo va ricalcolato
 }
 
 /**
@@ -392,4 +394,5 @@ export async function enhanceShelfNames(container, product) {
   });
   if (any) container.querySelectorAll('.shelf-sep').forEach((el) => el.remove()); // con i pulsanti non servono le virgole
   window.lucide?.createIcons();
+  fitTextIn(container); // il nome si rimpicciolisce da solo finché ogni parola sta su una riga
 }
