@@ -124,20 +124,6 @@ export async function listPrelieviForLifespan() {
   return rows;
 }
 
-/**
- * Elimina permanentemente TUTTI i movimenti (depositi/prelievi) di TUTTI
- * gli articoli, senza eccezioni. Non tocca la giacenza attuale sui
- * products: rimuove solo il log storico. Azione riservata a Impostazioni
- * (solo admin) — irreversibile, va confermata esplicitamente dal chiamante.
- */
-export async function deleteAllTransactions() {
-  // "not is null" sull'id (chiave primaria, mai nulla) equivale a "tutte le
-  // righe": il client Supabase richiede comunque un filtro esplicito, non
-  // accetta un .delete() completamente senza condizioni.
-  const { error } = await supabase.from('transactions').delete().not('id', 'is', null);
-  if (error) throw error;
-}
-
 /** Elimina uno o più movimenti specifici dallo storico (per la Gestione cronologia in Impostazioni). Non tocca la giacenza. */
 export async function deleteTransactions(ids) {
   if (!ids?.length) return;
@@ -156,22 +142,4 @@ export async function updateTransaction(id, patch) {
   if (!data?.length) {
     throw new Error('Modifica non consentita dal database: serve eseguire la migrazione 2026-10-26-modifica-movimenti-admin.sql.');
   }
-}
-
-/** Aggregazione consumi (prelievi) per articolo, lato client su dataset filtrato */
-export async function getConsumptionStats({ from, to } = {}) {
-  const rows = await listTransactions({ from, to, limit: 2000 });
-  const prelievi = rows.filter((r) => r.tipo === 'prelievo');
-  const byProduct = new Map();
-  for (const r of prelievi) {
-    const key = r.product_id;
-    const cur = byProduct.get(key) || {
-      product_id: key,
-      codice_articolo: r.products?.codice_articolo || '—',
-      totale: 0,
-    };
-    cur.totale += r.quantita;
-    byProduct.set(key, cur);
-  }
-  return Array.from(byProduct.values()).sort((a, b) => b.totale - a.totale);
 }
