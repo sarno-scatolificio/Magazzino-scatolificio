@@ -11,6 +11,7 @@ import { hideFindMethods } from './scanner-camera.js';
 import { replayAnimation } from '../../shared/ui-utils.js';
 import { createHoldRepeater } from '../../shared/hold-repeat.js';
 import { enhanceShelfNames } from '../../shared/shelf-photo-viewer.js';
+import { fitTextIn } from '../../shared/fit-text.js';
 import { escapeHtml } from '../../shared/html-utils.js';
 import { toastError, toastWarning } from '../../shared/toast.js';
 
@@ -175,9 +176,10 @@ function renderResult(product) {
   const locNames = getProductLocations(product).map((l) => l.locazione).filter(Boolean);
   // Un elemento per scaffale (data-shelf): quelli con una foto diventano pulsanti toccabili (vedi enhanceShelfNames)
   els.productLoc.innerHTML = locNames.length
-    ? locNames.map((n) => `<span data-shelf="${escapeHtml(n)}">${escapeHtml(n)}</span>`).join('<span class="shelf-sep">, </span>')
+    ? locNames.map((n) => `<span class="fit-text" data-fit-text data-shelf="${escapeHtml(n)}">${escapeHtml(n)}</span>`).join('<span class="shelf-sep">, </span>')
     : '—';
   enhanceShelfNames(els.productLoc, product);
+  fitTextIn(els.productLoc);
   renderShelfChoices(product);
   els.puntoInput.value = product.punto_utilizzo_standard || '';
   setupPrelievoFields(product);

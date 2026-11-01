@@ -5,12 +5,10 @@
 
 import { els, ss, effectiveLinea } from './scanner-shared.js';
 import feedback from '../../shared/feedback.js';
-import { flagMissing } from './scanner-transaction.js';
 import { listMachineEntries } from '../../data/supabase.js';
 import { listPuntiSuggeriti } from '../magazzino/punti-utilizzo.js';
 import { machineNamesForLinea } from './scanner-result.js';
 import { openPicker } from '../../shared/picker.js';
-import { toastError } from '../../shared/toast.js';
 
 // ---------------------------------------------------------------
 // Punto di utilizzo: suggerimenti (solo cuscinetti, Prelievo)
