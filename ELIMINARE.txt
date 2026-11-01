@@ -1,0 +1,19 @@
+FILE E CARTELLE DA ELIMINARE DALLA REPO (dopo aver sostituito i file dello zip)
+
+js/features/login/login-carousel.js
+js/features/movimenti/low-stock.js
+js/features/movimenti/products-data.js
+js/features/movimenti/products-list.js
+js/features/report/low-stock.js
+js/features/report/products-data.js
+js/features/report/products-list.js
+assets/carousel/            (intera cartella, 5 immagini)
+assets/icons/favicon.jpg
+assets/login/T.txt
+database/migrazioni/T.txt
+supabase/functions/notify-nuovo-intervento/notify-nuovo-intervento/   (cartella annidata)
+supabase/functions/notify-nuovo-intervento/notify-sotto-scorta/       (cartella annidata)
+
+Le due Edge Function sono ora in:
+supabase/functions/notify-nuovo-intervento/index.ts
+supabase/functions/notify-sotto-scorta/index.ts

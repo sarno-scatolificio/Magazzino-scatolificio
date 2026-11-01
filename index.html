@@ -589,14 +589,6 @@
            products-data.js legge come prima (codice, locazione, macchina, punto di utilizzo). -->
       <input id="product-search-input" type="text" class="hidden" tabindex="-1" aria-hidden="true" autocomplete="off">
 
-      <!-- Mini-lettore per la ricerca da barcode: nascosto finché non richiesto -->
-      <div id="product-search-scanner-wrap" class="hidden mb-3 card-plate rounded-xl p-3">
-        <div id="product-search-scanner-reader" class="w-full relative rounded-lg overflow-hidden"></div>
-        <button id="product-search-scanner-close" type="button" class="w-full mt-2 text-xs text-graphite-500 hover:text-graphite-300 py-1.5 transition-colors min-h-[44px]">
-          Annulla ricerca
-        </button>
-      </div>
-
       <!-- Filtri Linea/Macchina e "solo sotto scorta" su un'unica riga. La casella vera (peer sr-only)
            resta nel DOM, quindi products-data.js la legge come prima; il numero è degli articoli sotto scorta. -->
       <div class="prod-filters flex items-center gap-2 mb-4">
@@ -1383,13 +1375,13 @@
       </div>
 
       <!-- Locazione e quantità: i due dati che servono di più, in grande -->
-      <div class="grid grid-cols-[3fr_2fr] gap-3">
+      <div class="grid grid-cols-[minmax(0,1fr)_7.5rem] items-start gap-3">
         <div class="card-plate rounded-xl p-4 min-w-0">
           <p id="product-detail-locazione-label" class="ui-label font-display font-semibold uppercase tracking-wide text-graphite-400">Locazione</p>
           <!-- Una riga per scaffale (con la quantità di ciascuno se l'articolo sta su più scaffali) -->
           <div id="product-detail-locazione" class="font-display font-bold text-xl leading-tight break-words mt-1.5 space-y-1.5"></div>
         </div>
-        <div class="card-plate rounded-xl p-4 min-w-0">
+        <div class="card-plate rounded-xl p-4 min-w-0 self-start">
           <p id="product-detail-quantita-label" class="ui-label font-display font-semibold uppercase tracking-wide text-graphite-400">Quantità disponibile</p>
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
             <span id="product-detail-quantita" class="inline-block px-3 py-0.5 rounded-full font-mono font-bold text-xl"></span>
@@ -1400,6 +1392,9 @@
 
       <!-- Altri dati: una riga per campo, etichetta a sinistra e valore a destra -->
       <dl id="product-detail-rows" class="card-plate rounded-xl"></dl>
+
+      <!-- Codici a barre: una scheda per codice, con anteprima disegnata e codice numerico sotto -->
+      <div id="product-detail-barcodes" class="space-y-3"></div>
     </div>
 
     <!-- Solo Admin: pulsante tondo di modifica, sola icona -->
