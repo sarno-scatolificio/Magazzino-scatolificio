@@ -18,6 +18,7 @@ import feedback from '../../shared/feedback.js';
 import { openOverlay, closeOverlay, enableSheetDrag, replayAnimation, setButtonBusy, loadLib } from '../../shared/ui-utils.js';
 import { els, state, CATEGORY_LABELS, LINEA_OPTIONS, escapeHtml } from './products-shared.js';
 import { enhanceShelfNames } from '../../shared/shelf-photo-viewer.js';
+import { fitTextIn } from '../../shared/fit-text.js';
 import { refresh, pushHistory } from './products-data.js';
 
 let editingId = null;
@@ -38,6 +39,7 @@ export function initProductsDetail() {
   els.detailQuantitaLabel = document.getElementById('product-detail-quantita-label');
   els.detailLowStock = document.getElementById('product-detail-lowstock');
   els.detailRows = document.getElementById('product-detail-rows');
+  els.detailBarcodes = document.getElementById('product-detail-barcodes');
   els.detailManualBtn = document.getElementById('product-detail-manual-btn');
   els.detailDescrizioneWrap = document.getElementById('product-detail-descrizione-wrap');
   els.detailDescrizione = document.getElementById('product-detail-descrizione');
@@ -53,7 +55,7 @@ export function initProductsDetail() {
     if (!detailProduct?.macchina) return;
     openManualForMachineName(detailProduct.macchina, detailProduct.linea || '', detailProduct.codice_articolo);
   });
-  els.detailRows.addEventListener('click', (e) => {
+  els.detailBarcodes.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action="print"]');
     if (btn) printLabelFor(btn.dataset.code || detailProduct?.codice_barre);
   });
@@ -594,17 +596,18 @@ function renderDetail(p) {
       .map(
         (l) => `
         <div class="flex items-center justify-between gap-2">
-          <span class="min-w-0 break-words${l.locazione ? '' : ' text-graphite-400'}">${l.locazione ? `<span data-shelf="${escapeHtml(l.locazione)}">${escapeHtml(l.locazione)}</span>` : 'Senza scaffale'}${l.locazione ? detailAreaChip(l.locazione) : ''}</span>
+          <span class="min-w-0${l.locazione ? '' : ' text-graphite-400'}">${l.locazione ? `<span class="fit-text" data-fit-text data-shelf="${escapeHtml(l.locazione)}">${escapeHtml(l.locazione)}</span>` : 'Senza scaffale'}${l.locazione ? detailAreaChip(l.locazione) : ''}</span>
           <span class="shrink-0 inline-block px-2 py-0.5 rounded-full bg-graphite-700 text-graphite-200 font-mono text-sm font-bold">${l.quantita}</span>
         </div>`
       )
       .join('');
   } else {
     const locazione = (locs[0]?.locazione || '').trim();
-    els.detailLocazione.innerHTML = `<p class="${locazione ? '' : 'text-graphite-400'}">${locazione ? `<span data-shelf="${escapeHtml(locazione)}">${escapeHtml(locazione)}</span>` : '—'}${locazione ? detailAreaChip(locazione) : ''}</p>`;
+    els.detailLocazione.innerHTML = `<p class="${locazione ? '' : 'text-graphite-400'}">${locazione ? `<span class="fit-text" data-fit-text data-shelf="${escapeHtml(locazione)}">${escapeHtml(locazione)}</span>` : '—'}${locazione ? detailAreaChip(locazione) : ''}</p>`;
   }
   els.detailLocazioneLabel.textContent = multiple ? 'Locazioni' : 'Locazione';
   enhanceShelfNames(els.detailLocazione, p); // gli scaffali con foto diventano pulsanti toccabili
+  fitTextIn(els.detailLocazione); // il testo degli scaffali si rimpicciolisce da solo, senza spezzare le parole
   els.detailQuantitaLabel.textContent = multiple ? 'Quantità totale' : 'Quantità disponibile';
 
   const qty = p.quantita_disponibile ?? 0;
@@ -635,40 +638,97 @@ function renderDetail(p) {
     rows.push({ label: 'Punto utilizzo standard', value: p.punto_utilizzo_standard });
   }
   const codes = getProductBarcodes(p);
-  if (codes.length) {
-    codes.forEach((b, i) =>
-      rows.push({ label: i === 0 ? 'Codice a barre' : 'Altro codice', value: b.codice_barre, maker: b.produttore, mono: true, print: true, code: b.codice_barre })
-    );
-  } else {
-    rows.push({ label: 'Codice a barre', value: '', mono: true });
-  }
 
+  els.detailRows.classList.toggle('hidden', rows.length === 0);
   els.detailRows.innerHTML = rows
     .map(
       (r) => `
-      <div class="detail-row${r.print ? ' detail-row--center' : ''}">
+      <div class="detail-row">
         <dt class="detail-row-label">${escapeHtml(r.label)}</dt>
-        <dd class="m-0 min-w-0 flex items-center justify-end gap-2">
-          ${
-            r.maker
-              ? `<div class="min-w-0 text-right">${detailValueHtml(r.value, { mono: r.mono })}<span class="ui-note text-graphite-500 block truncate">${escapeHtml(r.maker)}</span></div>`
-              : detailValueHtml(r.value, { mono: r.mono })
-          }
-          ${
-            r.print
-              ? `<button type="button" data-action="print" data-code="${escapeHtml(r.code || '')}" aria-label="Stampa etichetta PDF" title="Stampa etichetta PDF"
-                  class="shrink-0 w-11 h-11 rounded-lg bg-graphite-800 border border-graphite-700 hover:border-amber-400 text-graphite-300 hover:text-amber-400 flex items-center justify-center transition-colors">
-                  <i data-lucide="printer" class="w-5 h-5" stroke-width="1.6"></i>
-                </button>`
-              : ''
-          }
-        </dd>
+        <dd class="m-0 min-w-0 flex items-center justify-end gap-2">${detailValueHtml(r.value)}</dd>
       </div>`
     )
     .join('');
 
+  renderDetailBarcodes(codes);
+
   updateDetailManualButton();
   window.lucide?.createIcons();
+}
+
+/**
+ * Codici a barre dell'articolo: una scheda per codice, con l'anteprima disegnata (barre) e sotto il codice
+ * numerico, più il pulsante di stampa etichetta. Il disegno è uno SVG che si adatta alla larghezza.
+ */
+function renderDetailBarcodes(codes) {
+  const host = els.detailBarcodes;
+  host.innerHTML = '';
+  const list = codes.length ? codes : [{ codice_barre: '', produttore: '' }];
+  list.forEach((b, i) => {
+    const code = (b.codice_barre || '').trim();
+    const card = document.createElement('div');
+    card.className = 'card-plate rounded-xl p-4';
+    card.innerHTML = `
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="ui-label font-display font-semibold uppercase tracking-wide text-graphite-400">${i === 0 ? 'Codice a barre' : 'Altro codice'}</p>
+          ${b.produttore ? `<p class="ui-note text-graphite-500 truncate mt-0.5">${escapeHtml(b.produttore)}</p>` : ''}
+        </div>
+        ${
+          code
+            ? `<button type="button" data-action="print" data-code="${escapeHtml(code)}" aria-label="Stampa etichetta PDF" title="Stampa etichetta PDF"
+                class="shrink-0 w-11 h-11 -mt-1 -mr-1 rounded-lg bg-graphite-800 border border-graphite-700 hover:border-amber-400 text-graphite-300 hover:text-amber-400 flex items-center justify-center transition-colors">
+                <i data-lucide="printer" class="w-5 h-5" stroke-width="1.6"></i>
+              </button>`
+            : ''
+        }
+      </div>
+      <div data-role="barcode-draw" class="mt-2"></div>`;
+    const draw = card.querySelector('[data-role="barcode-draw"]');
+    if (!code || !drawBarcodeSvg(draw, code)) {
+      draw.innerHTML = code
+        ? `<p class="font-mono font-bold text-lg text-center break-all">${escapeHtml(code)}</p>`
+        : '<p class="detail-row-value detail-row-value--empty text-center">—</p>';
+    }
+    host.appendChild(card);
+  });
+}
+
+/** Disegna le barre di `code` in `host` (SVG fluido) con il codice numerico sotto. false se non si può disegnare. */
+function drawBarcodeSvg(host, code) {
+  // eslint-disable-next-line no-undef
+  if (typeof JsBarcode !== 'function') return false;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  try {
+    // eslint-disable-next-line no-undef
+    JsBarcode(svg, code, {
+      format: 'CODE128',
+      width: 2,
+      height: 64,
+      displayValue: true,
+      fontOptions: 'bold',
+      fontSize: 18,
+      textMargin: 4,
+      margin: 8,
+      background: 'transparent',
+      lineColor: '#14161a',
+    });
+  } catch (err) {
+    return false;
+  }
+  // JsBarcode fissa larghezza e altezza in pixel: si passa a una viewBox per farlo adattare alla scheda
+  const w = parseFloat(svg.getAttribute('width'));
+  const h = parseFloat(svg.getAttribute('height'));
+  if (!w || !h) return false;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.removeAttribute('width');
+  svg.removeAttribute('height');
+  svg.removeAttribute('style');
+  svg.setAttribute('class', 'detail-barcode-svg');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', `Codice a barre ${code}`);
+  host.appendChild(svg);
+  return true;
 }
 
 /** Pulsante manuale (solo icona): solo per Ricambi tecnici, con una macchina che ha già un manuale PDF caricato. */
