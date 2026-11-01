@@ -11,7 +11,6 @@ import { getOperatorManualsForMachine, getSectionsForOperatorManual } from './ma
 import feedback from '../../shared/feedback.js';
 
 const MQ = window.matchMedia('(min-width: 1024px)');
-export const isDesktopManuals = () => MQ.matches;
 
 let input = null;
 let wired = false;
