@@ -886,20 +886,6 @@ function setCameraVisible(on) {
   if (!on) stopCamera().catch(() => {});
 }
 
-async function toggleCamera() {
-  feedback.tap();
-  if (!els.cam.classList.contains('hidden')) {
-    setCameraVisible(false);
-    return;
-  }
-  els.cam.classList.remove('hidden');
-  const ok = await startCamera('inv-reader', onScan, {});
-  if (ok === false) {
-    setCameraVisible(false);
-    toastError('Fotocamera non disponibile. Controlla i permessi del browser.');
-  }
-}
-
 async function onScan(code) {
   const c = String(code || '').trim();
   if (!c || scanBusy || !st.session) return;
