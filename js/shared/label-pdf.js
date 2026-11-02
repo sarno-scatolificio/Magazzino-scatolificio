@@ -2,8 +2,8 @@
 // label-pdf.js — Etichette con codice a barre in PDF, formato A5 verticale
 // =============================================================
 // Più etichette sulla stessa pagina (a griglia, il numero di colonne e righe dipende dalla misura del codice a barre).
-// Ogni etichetta contiene: barre + numero del codice sotto, poi il codice articolo in grassetto e, se presente,
-// la descrizione tra parentesi. Le misure si possono cambiare (vedi LABEL_DEFAULTS) e vengono ricordate sul telefono.
+// Ogni etichetta contiene: le sole barre (senza il numero del codice sotto), poi il codice articolo in grassetto e,
+// se presente, la descrizione tra parentesi. Le misure si possono cambiare (vedi LABEL_DEFAULTS) e vengono ricordate sul telefono.
 
 import { loadLib } from './ui-utils.js';
 
@@ -13,7 +13,7 @@ export const PAGE_H = 210;
 /** Valori iniziali (richiesta di prova: codice a barre alto 2 cm e largo 5 cm) */
 export const LABEL_DEFAULTS = {
   barW: 50, // larghezza del codice a barre, mm
-  barH: 20, // altezza del codice a barre comprese le cifre sotto, mm
+  barH: 20, // altezza del codice a barre, mm
   copies: 1, // copie di ogni etichetta
   showDesc: true, // descrizione tra parentesi sotto il codice articolo
   cutBorder: true, // cornice tratteggiata per ritagliare
@@ -68,7 +68,7 @@ export function labelDescription(product) {
   return String(d || '').trim();
 }
 
-/** Barre del codice come immagine (senza cifre: le scrive il PDF come testo). Larghezza modulo alta = bordi nitidi. */
+/** Barre del codice come immagine (senza cifre). Larghezza modulo alta = bordi nitidi. */
 function barsImage(code) {
   const canvas = document.createElement('canvas');
   // eslint-disable-next-line no-undef
@@ -118,8 +118,7 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
   const usableH = PAGE_H - MARGIN * 2;
   const cellW = Math.min(usableW, s.barW + PAD * 2);
   const barW = cellW - PAD * 2;
-  const numH = clamp(s.barH * 0.22, [3, 5]); // altezza riservata alle cifre sotto le barre
-  const barsH = Math.max(4, s.barH - numH);
+  const barsH = s.barH; // niente cifre sotto le barre: tutta l'altezza è del codice
   const descLinesMax = s.showDesc ? 2 : 0;
   const cellH = PAD + s.barH + 1.2 + 4.4 + descLinesMax * 3.4 + PAD;
 
@@ -156,12 +155,7 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
     const barcode = String(it.barcode).trim();
     if (!imgCache.has(barcode)) imgCache.set(barcode, barsImage(barcode));
     doc.addImage(imgCache.get(barcode), 'PNG', x + PAD, y + PAD, barW, barsH);
-
-    // Numero del codice, sotto le barre
     doc.setTextColor(0);
-    doc.setFont('courier', 'bold');
-    const numText = fitLine(doc, barcode, barW, clamp(numH / 0.3528 * 0.85, [6, 11]), 5);
-    doc.text(numText, x + cellW / 2, y + PAD + barsH + numH * 0.85, { align: 'center' });
 
     // Codice articolo (grassetto) e descrizione tra parentesi
     let ty = y + PAD + s.barH + 1.2 + 3.2;
