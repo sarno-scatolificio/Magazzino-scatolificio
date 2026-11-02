@@ -10,6 +10,7 @@ import { initUsers, refreshUsers } from '../features/impostazioni/users.js';
 import { initMachines } from '../features/impostazioni/machines.js';
 import { initShelves } from '../features/impostazioni/shelves.js';
 import { initInventory } from '../features/impostazioni/inventory.js';
+import { initLabelPrint } from '../features/impostazioni/label-print.js';
 import { initMovements } from '../features/movimenti/movements.js';
 import { initPrestiti } from '../features/movimenti/prestiti.js';
 import { initLowStock, openLowStockCard } from '../features/magazzino/low-stock.js';
@@ -144,6 +145,7 @@ function onAuthed(profile) {
     initMachines();
     initShelves();
     initInventory();
+    initLabelPrint(); // dopo l'Inventario: la voce si aggancia a quella
     initMovements();
     initPrestiti();
     initLowStock();
