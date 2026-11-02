@@ -27,7 +27,7 @@ const acorn = await (async () => {
 // Nomi che il browser o le librerie caricate da index.html mettono a disposizione
 const GLOBALS = new Set(`Boolean Date Error Image Map Math Number Object Promise Set String URL URLSearchParams console createImageBitmap
 document requestAnimationFrame cancelAnimationFrame setTimeout clearTimeout setInterval clearInterval window Array File Infinity fetch
-localStorage sessionStorage undefined Event parseInt parseFloat crypto navigator Intl JSON RegExp Symbol WeakMap WeakSet Uint8Array
+localStorage sessionStorage undefined Event parseInt parseFloat crypto navigator Intl JSON RegExp Symbol WeakMap WeakSet Uint8Array Uint32Array
 Uint8ClampedArray Float32Array ArrayBuffer Blob FileReader FormData AbortController Notification MutationObserver ResizeObserver
 IntersectionObserver CustomEvent HTMLElement HTMLInputElement HTMLButtonElement Audio AudioContext webkitAudioContext performance
 location history screen alert confirm prompt getComputedStyle matchMedia atob btoa encodeURIComponent decodeURIComponent encodeURI
