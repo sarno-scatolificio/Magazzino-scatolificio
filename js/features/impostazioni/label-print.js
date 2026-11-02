@@ -130,7 +130,7 @@ function paintSettings() {
   const [w0, w1] = LABEL_LIMITS.barW;
   const [h0, h1] = LABEL_LIMITS.barH;
   st.overlay.querySelector('[data-role="hint"]').textContent =
-    `Larghezza da ${cm(w0)} a ${cm(w1)} cm, altezza da ${cm(h0)} a ${cm(h1)} cm (comprese le cifre sotto le barre). Pagina A5 verticale.`;
+    `Larghezza da ${cm(w0)} a ${cm(w1)} cm, altezza da ${cm(h0)} a ${cm(h1)} cm. Pagina A5 verticale.`;
 }
 
 function readSettings() {
