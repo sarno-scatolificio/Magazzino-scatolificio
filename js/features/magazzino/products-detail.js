@@ -5,7 +5,7 @@
 // in un file più piccolo.
 // =============================================================
 
-import { createProduct, updateProduct, deleteProduct, listDistinctMacchine, createMachine, listDistinctLocazioni, createShelf, areaOfShelf, SHELF_AREAS, DEFAULT_SHELF_AREA, getProductBarcodes, getProductLocations } from '../../data/supabase.js';
+import { createProduct, updateProduct, deleteProduct, getProductByBarcode, listDistinctMacchine, createMachine, listDistinctLocazioni, createShelf, areaOfShelf, SHELF_AREAS, DEFAULT_SHELF_AREA, getProductBarcodes, getProductLocations } from '../../data/supabase.js';
 import { getManualForMachineName, openManualForMachineName, refreshManualsCache } from '../manuali/manuals.js';
 import { toastSuccess, toastError } from '../../shared/toast.js';
 import { isAdmin } from '../../core/auth.js';
@@ -15,10 +15,11 @@ import { loadIdlePanel } from '../movimenti/scanner.js';
 import { confirmDialog } from '../../shared/ui-modal.js';
 import { enhanceSelect } from '../../shared/ui-select.js';
 import feedback from '../../shared/feedback.js';
-import { openOverlay, closeOverlay, enableSheetDrag, replayAnimation, setButtonBusy, loadLib } from '../../shared/ui-utils.js';
+import { openOverlay, closeOverlay, enableSheetDrag, replayAnimation, setButtonBusy } from '../../shared/ui-utils.js';
 import { els, state, CATEGORY_LABELS, LINEA_OPTIONS, escapeHtml } from './products-shared.js';
 import { enhanceShelfNames } from '../../shared/shelf-photo-viewer.js';
 import { fitTextIn } from '../../shared/fit-text.js';
+import { generateLabelsPdf, labelDescription } from '../../shared/label-pdf.js';
 import { refresh, pushHistory } from './products-data.js';
 
 let editingId = null;
@@ -797,25 +798,59 @@ export function stopBarcodeScan() {
   els.scanTorchBtn?.classList.add('hidden');
 }
 
+/** Numero casuale di 10 cifre (la prima mai 0, così sono sempre 10), con generatore crittografico */
+function randomBarcode10() {
+  const buf = new Uint32Array(2);
+  crypto.getRandomValues(buf);
+  const first = 1 + (buf[0] % 9);
+  const rest = String(buf[1] % 1e9).padStart(9, '0');
+  return `${first}${rest}`;
+}
+
 /**
- * Genera un codice a barre deterministico per articoli senza un barcode fisico
- * (cinghie e ricambi tecnici): stesso prefisso di categoria + codice articolo, quindi è stabile
- * "per sempre" — rigenerarlo per lo stesso articolo produce sempre lo stesso valore.
+ * Genera un codice a barre casuale di 10 cifre per articoli senza un barcode fisico (cinghie e ricambi tecnici).
+ * Il codice è unico: si controlla che non esista già su un altro articolo né tra i codici di questo modulo.
+ * Se il campo ha già un codice (magari già stampato) chiede conferma prima di sostituirlo.
  */
-function generateBarcodeForCurrentArticle() {
-  const codice = document.getElementById('product-codice-articolo').value.trim();
-  if (!codice) {
-    feedback.errorAction();
-    toastError('Inserisci prima il codice articolo.');
-    return;
+async function generateBarcodeForCurrentArticle() {
+  const field = document.getElementById('product-codice-barre');
+  if (field.value.trim()) {
+    const ok = await confirmDialog({
+      title: 'Sostituire il codice a barre?',
+      message: 'Questo articolo ha già un codice a barre. Se lo sostituisci, le etichette già stampate non varranno più.',
+      confirmLabel: 'Sostituisci',
+    });
+    if (!ok) return;
   }
-  const categoria = els.categoriaSelect.value;
-  const prefix = { cuscinetti: 'CUS', cinghie: 'CIN', pezzi_ricambio: 'PZR' }[categoria] || 'ART';
-  const generated = `${prefix}-${codice}`.toUpperCase().replace(/\s+/g, '');
-  document.getElementById('product-codice-barre').value = generated;
-  updateBarcodePreview();
-  feedback.confirmAction();
-  toastSuccess('Codice a barre generato.');
+  const inForm = new Set(
+    [...els.barcodesExtraRows.querySelectorAll('[data-role="code"]')].map((i) => i.value.trim())
+  );
+  setButtonBusy(els.generateBarcodeBtn, true);
+  try {
+    let code = null;
+    for (let i = 0; i < 10 && !code; i += 1) {
+      const candidate = randomBarcode10();
+      if (inForm.has(candidate)) continue;
+      let taken = false;
+      try {
+        taken = !!(await getProductByBarcode(candidate));
+      } catch (err) {
+        console.warn('Controllo unicità non riuscito (rete?): si usa il codice generato.', err);
+      }
+      if (!taken) code = candidate;
+    }
+    if (!code) throw new Error('nessun codice libero');
+    field.value = code;
+    updateBarcodePreview();
+    feedback.confirmAction();
+    toastSuccess('Codice a barre generato.');
+  } catch (err) {
+    console.error(err);
+    feedback.errorAction();
+    toastError('Impossibile generare il codice a barre. Riprova.');
+  } finally {
+    setButtonBusy(els.generateBarcodeBtn, false);
+  }
 }
 
 async function handleSubmit(e) {
@@ -903,68 +938,36 @@ async function handleDelete() {
   }
 }
 
-/** Genera un PDF stampabile con SOLO il barcode e il suo numero sotto (nessun testo aggiuntivo) */
+/** PDF (A5) con l'etichetta del codice a barre del modulo di modifica: stesso formato della stampa multipla */
 function printCurrentLabel() {
-  printLabelFor(document.getElementById('product-codice-barre').value.trim());
+  const categoria = els.categoriaSelect.value;
+  const description = (categoria === 'cuscinetti'
+    ? document.getElementById('product-descrizione').value
+    : document.getElementById('product-punto-standard').value
+  ).trim();
+  printLabelFor(document.getElementById('product-codice-barre').value.trim(), {
+    code: document.getElementById('product-codice-articolo').value.trim(),
+    description,
+  });
 }
 
-/** Stessa etichetta, per un barcode qualsiasi (usata sia dal modale di modifica sia dalla scheda articolo) */
-async function printLabelFor(barcode) {
+/** Stessa etichetta, per un barcode qualsiasi (usata sia dal modulo di modifica sia dalla scheda articolo) */
+async function printLabelFor(barcode, info = null) {
   barcode = (barcode || '').trim();
   if (!barcode) {
     feedback.errorAction();
     toastError('Inserisci o genera un codice a barre prima di stampare.');
     return;
   }
-
+  const code = info?.code ?? detailProduct?.codice_articolo ?? '';
+  const description = info ? info.description : labelDescription(detailProduct);
   try {
-    await loadLib('jspdf'); // libreria PDF: caricata solo alla prima stampa
+    await generateLabelsPdf([{ barcode, code, description }], null, `barcode_${barcode}.pdf`);
+    feedback.confirmAction();
+    toastSuccess('Etichetta PDF generata.');
   } catch (err) {
+    console.error(err);
     feedback.errorAction();
-    toastError(err.message || 'Impossibile caricare la libreria PDF.');
-    return;
+    toastError(err.message || 'Impossibile generare il PDF.');
   }
-
-  const canvas = document.createElement('canvas');
-  // eslint-disable-next-line no-undef
-  JsBarcode(canvas, barcode, {
-    format: 'CODE128',
-    width: 2.6,
-    height: 80,
-    displayValue: true,
-    fontSize: 18,
-    margin: 8,
-    background: '#ffffff',
-    lineColor: '#000000',
-  });
-  const imgData = canvas.toDataURL('image/png');
-
-  // eslint-disable-next-line no-undef
-  const { jsPDF } = window.jspdf;
-  const LABEL_W = 70;
-  const LABEL_H = 35;
-  // Orientamento esplicito: senza specificarlo, jsPDF può interpretare un
-  // formato [largo, alto] come portrait e invertire le dimensioni, tagliando
-  // il barcode fuori dalla pagina — bug risolto forzando 'landscape'.
-  const doc = new jsPDF({ unit: 'mm', orientation: 'landscape', format: [LABEL_W, LABEL_H] });
-
-  // Adatta l'immagine mantenendo le proporzioni reali del barcode generato,
-  // centrata nella pagina, così non viene mai tagliata né distorta.
-  const marginMM = 4;
-  const maxW = LABEL_W - marginMM * 2;
-  const maxH = LABEL_H - marginMM * 2;
-  const aspect = canvas.width / canvas.height;
-  let drawW = maxW;
-  let drawH = drawW / aspect;
-  if (drawH > maxH) {
-    drawH = maxH;
-    drawW = drawH * aspect;
-  }
-  const x = (LABEL_W - drawW) / 2;
-  const y = (LABEL_H - drawH) / 2;
-  doc.addImage(imgData, 'PNG', x, y, drawW, drawH);
-
-  doc.save(`barcode_${barcode}.pdf`);
-  feedback.confirmAction();
-  toastSuccess('Etichetta PDF generata.');
 }
