@@ -50,7 +50,7 @@ import {
 } from '../../data/supabase-inventory.js';
 
 const DRAFT_PREFIX = 'inventario-bozza:';
-const CATEGORIE = { cuscinetti: 'Cuscinetto', cinghie: 'Cinghia', ricambi: 'Ricambio' };
+const CATEGORIE = { cuscinetti: 'Cuscinetto', cinghie: 'Cinghia', ricambi: 'Ricambio tecnico', pezzi_ricambio: 'Ricambio tecnico' };
 const TIPO_LABEL = { confermato: 'Confermato', corretto: 'Corretto', aggiunto: 'Aggiunto', non_trovato: 'Non trovato' };
 
 const BTN_STEP =
