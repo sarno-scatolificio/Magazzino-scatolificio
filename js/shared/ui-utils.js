@@ -366,7 +366,8 @@ export function animatePanelHeight(panel, update, animClass = 'panel-h-anim') {
 // uso è rapido e funziona anche offline.
 const LIBS = {
   jspdf: { url: 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js', ready: () => window.jspdf },
-  xlsx: { url: 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', ready: () => window.XLSX },
+  // SheetJS con gli stili delle celle (colori, grassetto, allineamento): stessa API di SheetJS 0.18, quindi vale anche per la lettura dei file
+  xlsx: { url: 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js', ready: () => window.XLSX },
   qr: { url: 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js', ready: () => window.Html5Qrcode },
 };
 const libPromises = {};
