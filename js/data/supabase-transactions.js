@@ -57,7 +57,7 @@ export async function listTransactionsRange({ tipo, from, to } = {}) {
   for (let offset = 0; ; offset += pageSize) {
     let query = supabase
       .from('transactions')
-      .select('id, tipo, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, locazione, note, product_id, user_id, products(codice_articolo, categoria, punto_utilizzo_standard), profiles(full_name)')
+      .select('id, tipo, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, locazione, note, product_id, user_id, products(codice_articolo, categoria, descrizione, punto_utilizzo_standard), profiles(full_name)')
       .order('data_ora', { ascending: false })
       .range(offset, offset + pageSize - 1);
     if (tipo) query = query.eq('tipo', tipo);
