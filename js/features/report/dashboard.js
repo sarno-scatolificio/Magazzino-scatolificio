@@ -14,6 +14,7 @@
 import { listTransactionsRange, getProductsVersion } from '../../data/supabase.js';
 import { toastError, toastSuccess, toastWarning } from '../../shared/toast.js';
 import { enhanceSelect } from '../../shared/ui-select.js';
+import { styledSheetFromRows } from '../../shared/excel-style.js';
 import { loadLib, emptyStateHtml, staggerIndex, syncSegIndicator } from '../../shared/ui-utils.js';
 import { animateFluidSwap } from '../../core/app.js';
 import { pickDateRange } from '../../shared/date-range-modal.js';
@@ -404,9 +405,9 @@ async function exportReport() {
         Note: h.note || '',
       }));
     // eslint-disable-next-line no-undef
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(toRows(data.deposito)), 'Depositi');
+    XLSX.utils.book_append_sheet(wb, styledSheetFromRows(XLSX, toRows(data.deposito)), 'Depositi');
     // eslint-disable-next-line no-undef
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(toRows(data.prelievo)), 'Prelievi');
+    XLSX.utils.book_append_sheet(wb, styledSheetFromRows(XLSX, toRows(data.prelievo)), 'Prelievi');
 
     const periodLabels = { '7d': '7gg', '30d': '30gg', '3m': '3mesi', '6m': '6mesi', '12m': '12mesi', all: 'storico' };
     const label =
