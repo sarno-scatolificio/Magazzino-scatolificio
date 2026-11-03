@@ -16,6 +16,7 @@
 // Le correzioni sono registrate come rettifiche di inventario (tabelle inventari / inventario_righe):
 // non sono depositi né prelievi e non alterano il Report né la vita utile dei ricambi.
 
+import { styledSheetFromRows } from '../../shared/excel-style.js';
 import feedback from '../../shared/feedback.js';
 import { confirmDialog } from '../../shared/ui-modal.js';
 import { closeOverlay, enableSheetDrag, loadLib, modalCloseMs, openOverlay, setButtonBusy } from '../../shared/ui-utils.js';
@@ -509,8 +510,8 @@ async function exportExcel(btn) {
         })
       )
     );
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(riepilogo), 'Inventari');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(righe), 'Righe');
+    XLSX.utils.book_append_sheet(wb, styledSheetFromRows(XLSX, riepilogo), 'Inventari');
+    XLSX.utils.book_append_sheet(wb, styledSheetFromRows(XLSX, righe), 'Righe');
     XLSX.writeFile(wb, `inventari_${new Date().toISOString().slice(0, 10)}.xlsx`);
     feedback.confirmAction();
   } catch (err) {
