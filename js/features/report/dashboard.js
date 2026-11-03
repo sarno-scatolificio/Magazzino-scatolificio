@@ -15,6 +15,7 @@ import { listTransactionsRange, getProductsVersion } from '../../data/supabase.j
 import { toastError, toastSuccess, toastWarning } from '../../shared/toast.js';
 import { enhanceSelect } from '../../shared/ui-select.js';
 import { styledSheetFromRows } from '../../shared/excel-style.js';
+import { labelDescription } from '../../shared/label-pdf.js';
 import { loadLib, emptyStateHtml, staggerIndex, syncSegIndicator } from '../../shared/ui-utils.js';
 import { animateFluidSwap } from '../../core/app.js';
 import { pickDateRange } from '../../shared/date-range-modal.js';
@@ -382,7 +383,7 @@ function detailCard(r) {
 
 // --- Esportazione ---------------------------------------------------
 
-/** Esporta in Excel i movimenti del periodo corrente: un foglio per i depositi e uno per i prelievi. */
+/** Esporta in Excel i movimenti del periodo corrente: un foglio con tutti, uno per i depositi e uno per i prelievi. */
 async function exportReport() {
   if (!data.deposito.length && !data.prelievo.length) {
     toastError('Nessun dato da esportare per il periodo selezionato.');
@@ -392,10 +393,15 @@ async function exportReport() {
     await loadLib('xlsx');
     // eslint-disable-next-line no-undef
     const wb = XLSX.utils.book_new();
+    const CATEGORIA_EXPORT = { cuscinetti: 'Cuscinetto', cinghie: 'Cinghia', pezzi_ricambio: 'Ricambio tecnico' };
+    const TIPO_EXPORT = { deposito: 'Deposito', prelievo: 'Prelievo' };
     const toRows = (list) =>
       list.map((h) => ({
         Data: new Date(h.data_ora).toLocaleString('it-IT'),
+        Tipo: TIPO_EXPORT[h.tipo] || h.tipo || '',
+        Categoria: CATEGORIA_EXPORT[h.products?.categoria] || '',
         Articolo: h.products?.codice_articolo || '—',
+        Descrizione: labelDescription(h.products),
         Quantità: h.quantita,
         Scaffale: h.locazione || '',
         Linea: h.linea || '',
@@ -404,6 +410,10 @@ async function exportReport() {
         Operatore: h.profiles?.full_name || '',
         Note: h.note || '',
       }));
+    // Foglio "Movimenti": depositi e prelievi insieme, dal più recente
+    const tutti = [...data.deposito, ...data.prelievo].sort((a, b) => new Date(b.data_ora) - new Date(a.data_ora));
+    // eslint-disable-next-line no-undef
+    XLSX.utils.book_append_sheet(wb, styledSheetFromRows(XLSX, toRows(tutti)), 'Movimenti');
     // eslint-disable-next-line no-undef
     XLSX.utils.book_append_sheet(wb, styledSheetFromRows(XLSX, toRows(data.deposito)), 'Depositi');
     // eslint-disable-next-line no-undef
