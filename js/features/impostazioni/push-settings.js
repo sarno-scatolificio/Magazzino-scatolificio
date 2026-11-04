@@ -70,6 +70,18 @@ export function initPushSettings() {
         if (err instanceof PushError && err.code === 'denied') {
           setNote(t, 'Le notifiche sono bloccate: abilitale per questa app dalle impostazioni del telefono o del browser, poi riprova.');
           toastError('Notifiche bloccate: abilitale dalle impostazioni del telefono o del browser.');
+        } else if (err instanceof PushError && err.code === 'subscribe') {
+          console.error(err);
+          setNote(t, `Il telefono non riesce a registrarsi al servizio notifiche di Google. Prova con i dati mobili invece del Wi-Fi aziendale, controlla che Google Play Services sia aggiornato e che il risparmio energetico non limiti Chrome.${err.detail ? ` (${err.detail})` : ''}`);
+          toastError('Il telefono non riesce a registrarsi alle notifiche: vedi il dettaglio sotto l\'interruttore.');
+        } else if (err instanceof PushError && err.code === 'unsupported') {
+          console.error(err);
+          setNote(t, 'L\'app non è ancora pronta per le notifiche su questo telefono: chiudila del tutto, riaprila e riprova.');
+          toastError('App non pronta per le notifiche: riaprila e riprova.');
+        } else if (err instanceof PushError && err.code === 'server') {
+          console.error(err);
+          setNote(t, `Il telefono è pronto, ma il server non ha salvato l'attivazione. Esci, rientra e riprova.${err.detail ? ` (${err.detail})` : ''}`);
+          toastError('Attivazione non salvata sul server. Esci, rientra e riprova.');
         } else {
           console.error(err);
           toastError('Impossibile cambiare le notifiche. Controlla la connessione e riprova.');
