@@ -1,7 +1,7 @@
 // =============================================================
 // label-print.js — Impostazioni › Stampa etichette
 // =============================================================
-// Si scelgono uno o più articoli e si crea un PDF A5 con i loro codici a barre (più etichette per pagina).
+// Si scelgono uno o più articoli e si crea un PDF A5 con i loro codici a barre (più etichette per pagina, attaccate l'una all'altra).
 // Le misure del codice a barre (larghezza, altezza in cm), le copie e le opzioni si possono cambiare e restano
 // salvate sul telefono. Per ogni articolo si stampa il codice a barre principale.
 
@@ -64,8 +64,8 @@ function build() {
               <label class="block"><span class="ui-label uppercase tracking-wide text-graphite-500">Copie</span>
                 <input data-set="copies" inputmode="numeric" type="text" class="mt-1 w-full rounded-lg bg-graphite-900 border border-graphite-700 px-2.5 py-2 font-mono text-sm focus:border-amber-400 outline-none"></label>
             </div>
-            <label class="flex items-center gap-2 text-sm"><input data-set="showDesc" type="checkbox" class="w-4 h-4 accent-[var(--accent)]"> Descrizione tra parentesi</label>
-            <label class="flex items-center gap-2 text-sm"><input data-set="cutBorder" type="checkbox" class="w-4 h-4 accent-[var(--accent)]"> Cornice tratteggiata per ritagliare</label>
+            <label class="flex items-center gap-2 text-sm"><input data-set="showDesc" type="checkbox" class="w-4 h-4 accent-[var(--accent)]"> Descrizione sopra il codice a barre</label>
+            <label class="flex items-center gap-2 text-sm"><input data-set="cutBorder" type="checkbox" class="w-4 h-4 accent-[var(--accent)]"> Linee tratteggiate per ritagliare (condivise tra etichette)</label>
             <p data-role="hint" class="text-xs text-graphite-400"></p>
           </div>
         </details>
@@ -130,7 +130,7 @@ function paintSettings() {
   const [w0, w1] = LABEL_LIMITS.barW;
   const [h0, h1] = LABEL_LIMITS.barH;
   st.overlay.querySelector('[data-role="hint"]').textContent =
-    `Larghezza da ${cm(w0)} a ${cm(w1)} cm, altezza da ${cm(h0)} a ${cm(h1)} cm. Pagina A5 verticale.`;
+    `Larghezza da ${cm(w0)} a ${cm(w1)} cm, altezza da ${cm(h0)} a ${cm(h1)} cm. Pagina A5 verticale: le colonne riempiono la larghezza, più il codice a barre è stretto più etichette entrano.`;
 }
 
 function readSettings() {
