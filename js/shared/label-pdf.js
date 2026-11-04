@@ -1,31 +1,40 @@
 // =============================================================
 // label-pdf.js — Etichette con codice a barre in PDF, formato A5 verticale
 // =============================================================
-// Più etichette sulla stessa pagina (a griglia, il numero di colonne e righe dipende dalla misura del codice a barre).
-// Ogni etichetta contiene: le sole barre (senza il numero del codice sotto), poi il codice articolo in grassetto e,
-// se presente, la descrizione tra parentesi. Le misure si possono cambiare (vedi LABEL_DEFAULTS) e vengono ricordate sul telefono.
+// Più etichette sulla stessa pagina, a griglia compatta: le etichette sono attaccate l'una all'altra e condividono
+// la stessa linea tratteggiata di taglio (nessuno spazio sprecato). Le colonne riempiono tutta la larghezza utile.
+// Ogni etichetta contiene, dall'alto: la descrizione dell'articolo (grassetto, il carattere più grande possibile
+// entro 2 righe), le barre del codice e, in basso, il codice articolo in grassetto.
+// Le misure si possono cambiare (vedi LABEL_DEFAULTS) e vengono ricordate sul telefono.
 
 import { loadLib } from './ui-utils.js';
 
 export const PAGE_W = 148; // A5 verticale, mm
 export const PAGE_H = 210;
 
-/** Valori iniziali (richiesta di prova: codice a barre alto 2 cm e largo 5 cm) */
+/** Valori iniziali: barre 5,5 × 1,4 cm → 2 colonne e 6 righe = 12 etichette per foglio A5 */
 export const LABEL_DEFAULTS = {
-  barW: 50, // larghezza del codice a barre, mm
-  barH: 20, // altezza del codice a barre, mm
+  barW: 55, // larghezza del codice a barre, mm
+  barH: 14, // altezza del codice a barre, mm
   copies: 1, // copie di ogni etichetta
-  showDesc: true, // descrizione tra parentesi sotto il codice articolo
-  cutBorder: true, // cornice tratteggiata per ritagliare
+  showDesc: true, // descrizione dell'articolo sopra le barre
+  cutBorder: true, // linee tratteggiate di taglio (condivise tra etichette vicine)
 };
 
 /** Limiti accettati per le misure (mm) */
 export const LABEL_LIMITS = { barW: [20, 120], barH: [8, 60], copies: [1, 20] };
 
-const STORAGE_KEY = 'label_print_settings_v1';
-const MARGIN = 8; // margine della pagina, mm
-const GAP = 3; // spazio tra le etichette, mm
-const PAD = 2.5; // spazio interno all'etichetta, mm
+const STORAGE_KEY = 'label_print_settings_v2'; // v2: nuovo layout compatto, ripartono i valori iniziali
+const MARGIN = 5; // margine della pagina, mm (le stampanti d'ufficio non stampano oltre ~4 mm dal bordo)
+const PAD_X = 2; // spazio interno laterale all'etichetta, mm
+const PAD_Y = 1.4; // spazio interno sopra e sotto, mm
+const PT = 0.3528; // 1 punto tipografico in mm
+const DESC_PT_MAX = 12; // descrizione: carattere massimo (si riduce solo se non sta in 2 righe)
+const DESC_PT_MIN = 8.5;
+const DESC_LINES_MAX = 2;
+const CODE_PT_MAX = 14; // codice articolo: carattere massimo
+const CODE_PT_MIN = 8;
+const CODE_H = 4.8; // altezza riservata alla riga del codice articolo, mm
 
 const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
 
@@ -94,8 +103,30 @@ function fitLine(doc, text, maxW, startPt, minPt) {
   }
   let out = text;
   while (doc.getTextWidth(out) > maxW && out.length > 1) out = out.slice(0, -1);
-  return out === text ? text : `${out.trimEnd()}…`;
+  return { text: out === text ? text : `${out.trimEnd()}…`, pt };
 }
+
+/** Descrizione: il carattere più grande (tra DESC_PT_MAX e DESC_PT_MIN) con cui sta in al massimo 2 righe; oltre, "…" */
+function fitDescription(doc, text, maxW) {
+  doc.setFont('helvetica', 'bold');
+  let pt = DESC_PT_MAX;
+  let lines = [];
+  for (; pt >= DESC_PT_MIN; pt -= 0.5) {
+    doc.setFontSize(pt);
+    lines = doc.splitTextToSize(text, maxW);
+    if (lines.length <= DESC_LINES_MAX) return { lines, pt };
+  }
+  pt = DESC_PT_MIN;
+  doc.setFontSize(pt);
+  lines = doc.splitTextToSize(text, maxW).slice(0, DESC_LINES_MAX);
+  let last = lines[DESC_LINES_MAX - 1];
+  while (last.length > 1 && doc.getTextWidth(`${last}…`) > maxW) last = last.slice(0, -1);
+  lines[DESC_LINES_MAX - 1] = `${last.trimEnd()}…`;
+  return { lines, pt };
+}
+
+/** Passo tra due righe di descrizione (mm) per un dato corpo in punti */
+const pitchOf = (pt) => pt * PT * 1.12;
 
 /**
  * Crea e scarica il PDF.
@@ -116,67 +147,89 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
 
   const usableW = PAGE_W - MARGIN * 2;
   const usableH = PAGE_H - MARGIN * 2;
-  const cellW = Math.min(usableW, s.barW + PAD * 2);
-  const barW = cellW - PAD * 2;
-  const barsH = s.barH; // niente cifre sotto le barre: tutta l'altezza è del codice
-  const descLinesMax = s.showDesc ? 2 : 0;
-  const cellH = PAD + s.barH + 1.2 + 4.4 + descLinesMax * 3.4 + PAD;
 
-  const cols = Math.max(1, Math.floor((usableW + GAP) / (cellW + GAP)));
-  const rowsPerPage = Math.max(1, Math.floor((usableH + GAP) / (cellH + GAP)));
-  const gridW = cols * cellW + (cols - 1) * GAP;
-  const x0 = (PAGE_W - gridW) / 2;
+  // Colonne: quante ne stanno con la larghezza del codice a barre; poi si allargano per riempire tutta la riga
+  // (più spazio per il testo, nessun vuoto laterale). Le etichette sono attaccate: niente distanza tra l'una e l'altra.
+  const cols = Math.max(1, Math.floor(usableW / (s.barW + PAD_X * 2)));
+  const cellW = usableW / cols;
+  const barW = Math.min(s.barW, cellW - PAD_X * 2);
+  const textW = cellW - PAD_X * 2;
+
+  // Misura la descrizione di ogni etichetta: tutte le celle hanno la stessa altezza (1 o 2 righe a seconda delle descrizioni)
+  const prepared = list.map((it) => {
+    const desc = s.showDesc ? String(it.description || '').trim() : '';
+    return { it, desc: desc ? fitDescription(doc, desc, textW) : null };
+  });
+  const descH = s.showDesc ? Math.max(0, ...prepared.map((p) => (p.desc ? p.desc.lines.length * pitchOf(p.desc.pt) : 0))) : 0;
+
+  const cellH = PAD_Y + (descH ? descH + 0.8 : 0) + s.barH + 0.8 + CODE_H + PAD_Y;
+  const rowsPerPage = Math.max(1, Math.floor(usableH / cellH));
+  const perPage = cols * rowsPerPage;
+  const x0 = MARGIN;
 
   const all = [];
-  for (const it of list) for (let c = 0; c < s.copies; c += 1) all.push(it);
+  for (const p of prepared) for (let c = 0; c < s.copies; c += 1) all.push(p);
 
   const imgCache = new Map();
-  let pages = 1;
-  all.forEach((it, idx) => {
-    const perPage = cols * rowsPerPage;
-    if (idx > 0 && idx % perPage === 0) {
-      doc.addPage('a5', 'portrait');
-      pages += 1;
-    }
-    const slot = idx % perPage;
-    const col = slot % cols;
-    const row = Math.floor(slot / cols);
-    const x = x0 + col * (cellW + GAP);
-    const y = MARGIN + row * (cellH + GAP);
+  let pages = 0;
+  for (let start = 0; start < all.length; start += perPage) {
+    const chunk = all.slice(start, start + perPage);
+    if (pages > 0) doc.addPage('a5', 'portrait');
+    pages += 1;
 
+    // Linee tratteggiate: una sola volta per ogni lato, condivise dalle etichette vicine
     if (s.cutBorder) {
-      doc.setDrawColor(150);
-      doc.setLineWidth(0.15);
-      doc.setLineDashPattern([1, 1], 0);
-      doc.rect(x, y, cellW, cellH);
+      const rowsUsed = Math.ceil(chunk.length / cols);
+      const lastCount = chunk.length - (rowsUsed - 1) * cols;
+      doc.setDrawColor(120);
+      doc.setLineWidth(0.2);
+      doc.setLineDashPattern([1.2, 1.2], 0);
+      for (let r = 0; r <= rowsUsed; r += 1) {
+        const w = (r === rowsUsed ? lastCount : cols) * cellW;
+        doc.line(x0, MARGIN + r * cellH, x0 + w, MARGIN + r * cellH);
+      }
+      for (let c = 0; c <= cols; c += 1) {
+        const rows = c > lastCount ? rowsUsed - 1 : rowsUsed;
+        if (rows > 0) doc.line(x0 + c * cellW, MARGIN, x0 + c * cellW, MARGIN + rows * cellH);
+      }
       doc.setLineDashPattern([], 0);
     }
 
-    const barcode = String(it.barcode).trim();
-    if (!imgCache.has(barcode)) imgCache.set(barcode, barsImage(barcode));
-    doc.addImage(imgCache.get(barcode), 'PNG', x + PAD, y + PAD, barW, barsH);
-    doc.setTextColor(0);
+    chunk.forEach(({ it, desc }, slot) => {
+      const x = x0 + (slot % cols) * cellW;
+      const y = MARGIN + Math.floor(slot / cols) * cellH;
+      const cx = x + cellW / 2;
+      doc.setTextColor(0);
+      let top = y + PAD_Y;
 
-    // Codice articolo (grassetto) e descrizione tra parentesi
-    let ty = y + PAD + s.barH + 1.2 + 3.2;
-    const code = String(it.code || '').trim();
-    if (code) {
-      doc.setFont('helvetica', 'bold');
-      doc.text(fitLine(doc, code, cellW - 2, 10, 6), x + cellW / 2, ty, { align: 'center' });
-    }
-    const desc = s.showDesc ? String(it.description || '').trim() : '';
-    if (desc) {
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      let lines = doc.splitTextToSize(`(${desc})`, cellW - 2);
-      if (lines.length > descLinesMax) {
-        lines = lines.slice(0, descLinesMax);
-        const last = lines[descLinesMax - 1].replace(/\)?$/, '');
-        lines[descLinesMax - 1] = `${last.slice(0, Math.max(1, last.length - 2)).trimEnd()}…)`;
+      // 1) Descrizione in alto (grassetto), centrata nello spazio riservato
+      if (descH) {
+        if (desc) {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(desc.pt);
+          const pitch = pitchOf(desc.pt);
+          const off = (descH - desc.lines.length * pitch) / 2;
+          desc.lines.forEach((ln, i) => doc.text(ln, cx, top + off + i * pitch + desc.pt * PT * 0.8, { align: 'center' }));
+        }
+        top += descH + 0.8;
       }
-      lines.forEach((ln, i) => doc.text(ln, x + cellW / 2, ty + 3.6 + i * 3.4, { align: 'center' }));
-    }
-  });
+
+      // 2) Barre del codice
+      const barcode = String(it.barcode).trim();
+      if (!imgCache.has(barcode)) imgCache.set(barcode, barsImage(barcode));
+      doc.addImage(imgCache.get(barcode), 'PNG', cx - barW / 2, top, barW, s.barH);
+      top += s.barH + 0.8;
+
+      // 3) Codice articolo in basso (grassetto)
+      const code = String(it.code || '').trim();
+      if (code) {
+        doc.setFont('helvetica', 'bold');
+        const fit = fitLine(doc, code, textW, CODE_PT_MAX, CODE_PT_MIN);
+        doc.setFontSize(fit.pt);
+        doc.text(fit.text, cx, top + (CODE_H - fit.pt * PT) / 2 + fit.pt * PT * 0.8, { align: 'center' });
+      }
+    });
+  }
 
   const stamp = new Date().toISOString().slice(0, 10);
   doc.save(fileName || `etichette_${stamp}.pdf`);
