@@ -18,9 +18,12 @@ const PREFS_KEY = 'magazzino-push-prefs'; // { uid, interventi, scorta }
 const LEGACY_KEY = 'magazzino-push-user'; // versione precedente: solo l'id utente (allora c'erano solo gli interventi)
 
 export class PushError extends Error {
-  constructor(code) {
+  constructor(code, cause = null) {
     super(code);
-    this.code = code; // 'unsupported' | 'denied'
+    // 'unsupported' (service worker non pronto) | 'denied' (permesso negato) |
+    // 'subscribe' (il telefono non riesce a registrarsi al servizio notifiche) | 'server' (salvataggio sul database fallito)
+    this.code = code;
+    this.detail = cause ? `${cause.name || 'Errore'}${cause.message ? `: ${String(cause.message).slice(0, 120)}` : ''}` : '';
   }
 }
 
@@ -88,10 +91,15 @@ async function ensureSubscription() {
   const reg = await getRegistration();
   let subscription = await reg.pushManager.getSubscription();
   if (!subscription) {
-    subscription = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-    });
+    try {
+      subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    } catch (err) {
+      // Tipico: il telefono non raggiunge il servizio notifiche di Google (rete aziendale, Servizi Google Play assenti o non aggiornati)
+      throw new PushError('subscribe', err);
+    }
   }
   return subscription;
 }
@@ -107,7 +115,11 @@ export async function setPushPref(uid, kind, on) {
     return next;
   }
   const subscription = await ensureSubscription();
-  await savePushSubscription(subscription, next);
+  try {
+    await savePushSubscription(subscription, next);
+  } catch (err) {
+    throw new PushError('server', err);
+  }
   storePrefs(uid, next);
   return next;
 }
