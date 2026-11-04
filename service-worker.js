@@ -18,7 +18,7 @@
 // non succede nulla di grave: semplicemente niente copia offline.
 // =============================================================
 
-const CACHE_NAME = 'magazzino-shell-v287';
+const CACHE_NAME = 'magazzino-shell-v288';
 const APP_SHELL = [
   './',
   './index.html',
@@ -137,6 +137,8 @@ const APP_SHELL = [
   './assets/icons/logo-gear.png',
   './assets/icons/logo-text.png',
   './assets/icons/logo-sub.png',
+  './assets/icons/badge-scorta.png',
+  './assets/icons/badge-intervento.png',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   './assets/icons/icon-192-maskable.png',
@@ -272,11 +274,14 @@ self.addEventListener('push', (event) => {
     data = { body: event.data ? event.data.text() : '' };
   }
   const title = data.title || 'Nuovo intervento da effettuare';
+  // Icona piccola della notifica (barra di stato e tendina): Android usa solo la forma, in bianco su trasparente.
+  // Scatola con il meno per gli articoli sotto scorta, taccuino (lo stesso del pulsante Interventi) per gli interventi.
+  const badge = data.kind === 'sotto-scorta' ? './assets/icons/badge-scorta.png' : './assets/icons/badge-intervento.png';
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || '',
       icon: './assets/icons/icon-192.png',
-      badge: './assets/icons/favicon-32.png',
+      badge,
       tag: data.tag || undefined, // una sola notifica per intervento: un invio ripetuto non la duplica
       data: { kind: data.kind || 'intervento', id: data.id || null, url: data.url || './' },
     })
