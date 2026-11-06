@@ -5,7 +5,7 @@
 // scanner-shared / -camera / -search / -result / -punti / -transaction / -idle.
 
 import { bindHoldRepeat, handleDetectedCode, onProductMatched, refreshPuntoHint, setAdvancedOpen, setLinea, setPrestito } from './scanner-result.js';
-import { bindScanModalBack, closeScanModal, collapseCamera, expandCamera, selectMode, toggleScanCameraSection, updateOfflineBadge } from './scanner-camera.js';
+import { bindHoldToScan, bindScanModalBack, closeScanModal, collapseCamera, expandCamera, holdScanJustFired, selectMode, toggleScanCameraSection, updateOfflineBadge } from './scanner-camera.js';
 import { confirmTransaction, resetAll, resetResult } from './scanner-transaction.js';
 import { els, ss } from './scanner-shared.js';
 import { enableSheetDrag } from '../../shared/ui-utils.js';
@@ -109,8 +109,15 @@ els.macchinarioValue = document.getElementById('scan-macchinario-value');
     });
   });
 
-  els.modeDeposito.addEventListener('click', () => selectMode('deposito'));
-  els.modePrelievo.addEventListener('click', () => selectMode('prelievo'));
+  // Tocco breve: apre il cassetto. Pressione lunga (touch): apre il cassetto e avvia subito la fotocamera (vedi bindHoldToScan)
+  els.modeDeposito.addEventListener('click', () => {
+    if (!holdScanJustFired()) selectMode('deposito');
+  });
+  els.modePrelievo.addEventListener('click', () => {
+    if (!holdScanJustFired()) selectMode('prelievo');
+  });
+  bindHoldToScan(els.modeDeposito, 'deposito');
+  bindHoldToScan(els.modePrelievo, 'prelievo');
   els.closeModalBtn.addEventListener('click', () => {
     feedback.cancelAction();
     closeScanModal();

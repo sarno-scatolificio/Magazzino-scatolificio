@@ -121,3 +121,124 @@ export function collapseCamera() {
   els.torchBtn?.classList.add('hidden');
   els.focusHint?.classList.add('hidden');
 }
+
+/* ------------------------------------------------------------------
+   Tieni premuto Deposito/Prelievo (solo touch/penna): dopo un attimo, dal punto toccato, un cerchio si allarga
+   un po' alla volta sul pulsante con sopra l'icona di scansione; a riempimento completo si apre il cassetto e
+   parte direttamente la fotocamera (un solo gesto, al posto di tocco + tocco su "Effettua scansione codice").
+   Rilasciando prima, o muovendo il dito (scorrimento della pagina), il cerchio si richiude e non succede nulla.
+   Un tocco breve resta quello di sempre (apre il cassetto, vedi scanner.js).
+   ------------------------------------------------------------------ */
+const HOLD_DELAY_MS = 180; // sotto questa soglia è un tocco normale: nessun effetto
+const HOLD_GROW_MS = 600; // tempo di riempimento del pulsante
+const HOLD_MOVE_TOLERANCE = 12; // px di spostamento oltre i quali è uno scorrimento, non una pressione
+const HOLD_ICON_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/>' +
+  '<path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M8 7v10"/><path d="M12 7v10"/><path d="M17 7v10"/></svg>';
+let holdClickBlockUntil = 0;
+
+/** Vero subito dopo una pressione lunga completata: il click che segue il rilascio va ignorato. */
+export function holdScanJustFired() {
+  return performance.now() < holdClickBlockUntil;
+}
+
+export function bindHoldToScan(btn, mode) {
+  if (!btn) return;
+  const fx = document.createElement('span');
+  fx.className = 'hold-scan-fx';
+  fx.setAttribute('aria-hidden', 'true');
+  const icon = document.createElement('span');
+  icon.className = 'hold-scan-icon';
+  icon.innerHTML = HOLD_ICON_SVG;
+  fx.appendChild(icon);
+  btn.appendChild(fx);
+  btn.classList.add('hold-scan-btn');
+
+  let delayTimer = null;
+  let anims = [];
+  let startX = 0;
+  let startY = 0;
+  let pressing = false; // dito giù e gesto ancora valido
+  let released = false; // il cerchio si sta richiudendo
+  let fired = false; // riempimento completato: scansione avviata
+
+  const cleanup = () => {
+    anims.forEach((a) => a.cancel());
+    anims = [];
+    fx.classList.remove('is-on');
+  };
+
+  const complete = () => {
+    fired = true;
+    pressing = false;
+    holdClickBlockUntil = performance.now() + 800;
+    selectMode(mode); // apre il cassetto (e dà già il feedback di selezione)
+    expandCamera(); // e avvia subito la fotocamera
+    setTimeout(cleanup, 350); // il cassetto ora copre il pulsante: si ripristina l'aspetto normale
+  };
+
+  const startFill = () => {
+    delayTimer = null;
+    const rect = btn.getBoundingClientRect();
+    const cx = startX - rect.left;
+    const cy = startY - rect.top;
+    // raggio che arriva fino all'angolo più lontano dal punto toccato
+    const radius = Math.ceil(Math.hypot(Math.max(cx, rect.width - cx), Math.max(cy, rect.height - cy))) + 2;
+    const grow = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : HOLD_GROW_MS;
+    fx.classList.add('is-on');
+    const opts = { duration: grow, easing: 'cubic-bezier(0.4, 0, 0.6, 1)', fill: 'both' };
+    const fill = fx.animate(
+      [{ clipPath: `circle(0px at ${cx}px ${cy}px)` }, { clipPath: `circle(${radius}px at ${cx}px ${cy}px)` }],
+      opts
+    );
+    const ico = icon.animate(
+      [
+        { opacity: 0, transform: 'scale(0.55)' },
+        { opacity: 0, transform: 'scale(0.55)', offset: 0.35 },
+        { opacity: 1, transform: 'scale(1)' },
+      ],
+      opts
+    );
+    anims = [fill, ico];
+    fill.onfinish = () => {
+      if (!released && pressing) complete();
+    };
+  };
+
+  const cancel = () => {
+    if (fired) return; // a gesto completato il resto lo gestisce complete()
+    pressing = false;
+    if (delayTimer) {
+      clearTimeout(delayTimer);
+      delayTimer = null;
+    }
+    if (!anims.length) return;
+    released = true; // si richiude più in fretta di come si è aperto
+    const [fill] = anims;
+    anims.forEach((a) => (a.playbackRate = -2.5));
+    fill.onfinish = cleanup;
+  };
+
+  btn.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' || !e.isPrimary) return; // solo dito/penna: col mouse non c'è la fotocamera
+    cleanup();
+    pressing = true;
+    released = false;
+    fired = false;
+    startX = e.clientX;
+    startY = e.clientY;
+    delayTimer = setTimeout(startFill, HOLD_DELAY_MS);
+  });
+  btn.addEventListener('pointermove', (e) => {
+    if (!pressing) return;
+    if (Math.hypot(e.clientX - startX, e.clientY - startY) > HOLD_MOVE_TOLERANCE) cancel();
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => btn.addEventListener(ev, cancel));
+  window.addEventListener('blur', cancel);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) cancel();
+  });
+  // Tenere premuto su touch apre il menu contestuale/selezione del telefono: va evitato
+  btn.addEventListener('contextmenu', (e) => e.preventDefault());
+}
