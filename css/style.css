@@ -2666,6 +2666,32 @@ body:has(#view-scanner.intro-pending) .search-dock { visibility: hidden; } /* la
   #mode-deposito, #mode-prelievo { transition-duration: 1ms; }
 }
 
+/* Pressione lunga su Deposito/Prelievo (touch): cerchio che si allarga dal punto toccato con l'icona di scansione
+   (logica in scanner-camera.js, bindHoldToScan). Il clip-path lo anima lo script. */
+.hold-scan-btn {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#mode-deposito { --hold-bg: color-mix(in srgb, var(--deposito) 55%, #000); }
+#mode-prelievo { --hold-bg: color-mix(in srgb, var(--prelievo) 55%, #000); }
+.hold-scan-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  background: var(--hold-bg);
+  color: #ffffff;
+  pointer-events: none;
+}
+.hold-scan-fx.is-on { display: flex; }
+.hold-scan-icon { display: flex; align-items: center; justify-content: center; }
+.hold-scan-fx svg { width: 56px !important; height: 56px !important; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3)); }
+
 /* Icona cassetto a becco (scaffali Ufficio tecnico): frontale azzurro pastello, interno più scuro per dare profondità */
 .bin-ico .bin-inner { fill: #7fa3d1; }
 .bin-ico .bin-front { fill: #c3daf3; }
