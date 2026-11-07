@@ -19,6 +19,7 @@ import { initManualsBrowser, enterManualsBrowser, resetManualsBrowser } from '..
 import { initHistoryAdmin } from '../features/impostazioni/history-admin.js';
 import { initActivityLog } from '../features/impostazioni/activity-log.js';
 import { initPushSettings, syncPushToggle } from '../features/impostazioni/push-settings.js';
+import { initPasskeySettings, syncPasskeyToggle } from '../features/impostazioni/passkey-settings.js';
 import { initInterventi, enterInterventi, resetInterventi, setInterventiFab, openInterventoById } from '../features/interventi/interventi.js';
 import { initInterventiRapidi, initOperatori } from '../features/interventi/interventi-rapidi.js';
 import { initUnseenBadge } from '../features/interventi/interventi-unseen.js';
@@ -154,6 +155,7 @@ function onAuthed(profile) {
     initHistoryAdmin();
     initActivityLog();
     initPushSettings();
+    initPasskeySettings();
     initInterventi();
     initUnseenBadge();
     initLowStockUnseen();
@@ -212,6 +214,7 @@ function onAuthed(profile) {
 
   // Notifiche nuovi interventi: riallinea l'interruttore e riattiva l'abbonamento di questo utente
   syncPushToggle(profile.id);
+  syncPasskeyToggle(profile);
   // Si è toccata una notifica: dritti all'intervento (senza passare dall'animazione d'ingresso dello Scanner)
   consumePendingIntervento();
   consumePendingSottoScorta();

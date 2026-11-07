@@ -3,6 +3,7 @@
 // =============================================================
 
 import { supabase, signIn, signOut, getSession, getMyProfile, logActivity } from '../data/supabase.js';
+import { lastPasskeyHint, loginWithPasskey, passkeyPlatformReady } from './passkey.js';
 import { pausePush } from './push.js';
 import { toastWarning } from '../shared/toast.js';
 import { isNetworkError } from './offline-queue.js';
@@ -300,6 +301,9 @@ export function initAuth(onAuthed, onSignedOut) {
   const errorBox = document.getElementById('login-error');
   const statusBox = document.getElementById('login-status');
   const submitLabel = submitBtn.querySelector('.btn-label');
+  const passkeyBtn = document.getElementById('login-passkey-btn');
+  const passkeyWho = document.getElementById('login-passkey-who');
+  let passkeyBusy = false;
 
   // Riapertura dell'app con una sessione già salvata (anche dopo che il telefono l'ha chiusa mentre era aperta la
   // fotocamera): il login non deve nemmeno comparire mentre si verifica la sessione. Se serve, onSignedOut lo mostra.
@@ -342,6 +346,75 @@ export function initAuth(onAuthed, onSignedOut) {
   };
   attachActivityListeners(() => !!authState.session, handleIdleTimeout);
 
+  // Parte comune a ogni accesso riuscito (password o impronta)
+  const finishLogin = (session, profile, logText) => {
+    authState.session = session;
+    authState.profile = profile;
+    cacheProfile(profile);
+    resetIdleTimer(handleIdleTimeout);
+    showStatus('');
+    onAuthed(profile);
+    setOpenLogged(true);
+    logActivity('accesso', logText, describeDevice());
+  };
+
+  // Accesso con impronta: il pulsante compare solo se su questo telefono è stata attivata (Impostazioni → Preferenze)
+  const refreshPasskeyBtn = async () => {
+    if (!passkeyBtn) return false;
+    const hint = lastPasskeyHint();
+    const ready = !!hint && (await passkeyPlatformReady());
+    passkeyBtn.classList.toggle('hidden', !ready);
+    passkeyWho?.classList.toggle('hidden', !ready);
+    if (ready && passkeyWho) passkeyWho.textContent = hint.name || hint.email || '';
+    return ready;
+  };
+  const passkeyLogin = async () => {
+    if (passkeyBusy || !(await refreshPasskeyBtn())) return;
+    passkeyBusy = true;
+    errorBox.classList.add('hidden');
+    showStatus('');
+    setFormBusy(true);
+    passkeyBtn.disabled = true;
+    try {
+      try {
+        await loginWithPasskey(); // schermata dell'impronta + verifica sul server + sessione aperta
+      } catch (err) {
+        if (err?.code === 'cancelled') return; // annullato o scaduto: nessun errore, restano email e password
+        throw err;
+      }
+      const { session, profile } = await withConnectionRetries(
+        async () => {
+          const session = await getSession();
+          const profile = await getMyProfile();
+          return { session, profile };
+        },
+        (attempt, max) => showStatus(`Connessione assente: nuovo tentativo ${attempt} di ${max}…`)
+      );
+      if (!profile) throw new Error('Profilo non trovato');
+      finishLogin(session, profile, 'Accesso con impronta');
+    } catch (err) {
+      console.error(err);
+      showStatus('');
+      if (err?.code === 'unknown_credential') await refreshPasskeyBtn();
+      showLoginError(mapPasskeyError(err));
+      form.classList.remove('shake-error');
+      void form.offsetWidth;
+      form.classList.add('shake-error');
+    } finally {
+      passkeyBusy = false;
+      passkeyBtn.disabled = false;
+      setFormBusy(false);
+    }
+  };
+  passkeyBtn?.addEventListener('click', passkeyLogin);
+  refreshPasskeyBtn();
+  // All'apertura dell'app senza sessione (o scaduta) l'impronta si chiede da sola; dopo un logout voluto no
+  // (si potrebbe voler cambiare utente) e resta il pulsante. Se il telefono la rifiuta senza un tocco, c'è sempre il pulsante.
+  const autoPasskey = () => {
+    if (document.visibilityState !== 'visible') return;
+    setTimeout(passkeyLogin, 350);
+  };
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorBox.classList.add('hidden');
@@ -366,14 +439,7 @@ export function initAuth(onAuthed, onSignedOut) {
         }
       );
       if (!profile) throw new Error('Profilo non trovato');
-      authState.session = session;
-      authState.profile = profile;
-      cacheProfile(profile);
-      resetIdleTimer(handleIdleTimeout);
-      showStatus('');
-      onAuthed(profile);
-      setOpenLogged(true);
-      logActivity('accesso', 'Accesso con email e password', describeDevice());
+      finishLogin(session, profile, 'Accesso con email e password');
     } catch (err) {
       console.error(err);
       showStatus('');
@@ -424,12 +490,17 @@ export function initAuth(onAuthed, onSignedOut) {
       } catch (err) {
         console.error(err);
       }
+      autoPasskey();
       return;
     }
     setFormBusy(true); // durante la verifica automatica il form non serve
     try {
       const session = await withConnectionRetries(() => getSession(), onAttempt);
-      if (!session) return onSignedOut(); // nessuna sessione: qui sí che è un vero logout
+      if (!session) {
+        onSignedOut(); // nessuna sessione: qui sí che è un vero logout
+        autoPasskey();
+        return;
+      }
 
       // Profilo già salvato per questa sessione: si entra subito e lo si ricontrolla in sottofondo, così una rete
       // lenta alla riapertura non fa vedere il login. Solo un rifiuto vero del server porta davvero fuori.
@@ -521,6 +592,14 @@ export function initAuth(onAuthed, onSignedOut) {
       onSignedOut();
     }
   });
+}
+
+function mapPasskeyError(err) {
+  if (err instanceof ConnectionError || err?.code === 'network') return 'Connessione assente: riprova o accedi con la password.';
+  if (err?.code === 'unknown_credential') return 'Questa impronta non è più attiva: accedi con la password e riattivala da Impostazioni.';
+  if (err?.code === 'unsupported') return 'Questo telefono non supporta l\'accesso con impronta: usa la password.';
+  if (err?.code === 'config') return 'Accesso con impronta non ancora configurato sul server: usa la password.';
+  return 'Accesso con impronta non riuscito. Riprova o usa la password.';
 }
 
 function mapAuthError(err) {
