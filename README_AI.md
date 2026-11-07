@@ -34,6 +34,7 @@ MATE è una PWA web statica: HTML + CSS + JavaScript ES modules nel browser. Bac
 |---|---|---|
 | Avvio app, cambio sezione, routing, back Android, permessi UI | `js/core/app.js` | `js/core/nav-history.js`, `js/core/auth.js`, `index.html` |
 | Login, sessione, ruoli, timeout inattività | `js/core/auth.js` | `js/data/supabase-auth.js`, `database/04-sicurezza-rls.sql` |
+| Accesso con impronta (passkey/WebAuthn) | `js/core/passkey.js` | `js/data/supabase-passkey.js`, `js/features/impostazioni/passkey-settings.js`, `js/core/auth.js`, `supabase/functions/passkey/` (verifica server), `database/migrazioni/2026-11-07-passkey.sql` |
 | Client/config Supabase | `js/data/supabase-client.js` | `js/data/supabase.js`, `_headers` |
 | Movimenti, deposito/prelievo, scanner/camera | `js/features/movimenti/scanner.js` | `scanner-*.js`, `js/data/supabase-transactions.js`, `js/core/offline-queue.js` |
 | Coda offline/sincronizzazione | `js/core/offline-queue.js` | `js/features/movimenti/scanner-transaction.js`, `js/data/supabase-transactions.js`, `service-worker.js` |

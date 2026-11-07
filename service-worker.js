@@ -18,7 +18,7 @@
 // non succede nulla di grave: semplicemente niente copia offline.
 // =============================================================
 
-const CACHE_NAME = 'magazzino-shell-v291';
+const CACHE_NAME = 'magazzino-shell-v292';
 const APP_SHELL = [
   './',
   './index.html',
@@ -61,11 +61,14 @@ const APP_SHELL = [
   './js/data/supabase-transactions.js',
   './js/data/supabase-activity.js',
   './js/data/supabase-push.js',
+  './js/data/supabase-passkey.js',
   './js/core/push.js',
+  './js/core/passkey.js',
   './js/shared/picker.js',
   './js/features/impostazioni/users.js',
   './js/features/impostazioni/activity-log.js',
   './js/features/impostazioni/push-settings.js',
+  './js/features/impostazioni/passkey-settings.js',
   './js/features/impostazioni/machines.js',
   './js/features/impostazioni/shelves.js',
   './js/features/movimenti/movements.js',
