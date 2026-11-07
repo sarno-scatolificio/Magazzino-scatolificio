@@ -17,3 +17,4 @@ export * from './supabase-manuals.js';
 export * from './supabase-transactions.js';
 export * from './supabase-activity.js';
 export * from './supabase-push.js';
+export * from './supabase-passkey.js';
