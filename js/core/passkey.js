@@ -143,17 +143,36 @@ export async function registerPasskey({ accessToken, email, name }) {
 }
 
 // --- Accesso -------------------------------------------------------------
+// Sfida richiesta in anticipo (all'avvio dell'app): quando serve l'impronta non resta da aspettare il server.
+// Vale 2 minuti lato server: se più vecchia di 90 secondi o fallita se ne chiede una nuova.
+let warmed = null;
+
+export function warmPasskey() {
+  if (!passkeySupported() || getPasskeyHints().length === 0) return;
+  const promise = passkeyRequest('login-options');
+  promise.catch(() => {}); // l'eventuale errore si gestisce al momento dell'uso
+  warmed = { promise, at: Date.now() };
+}
+
+function loginOptions() {
+  const w = warmed;
+  warmed = null; // una sfida vale una sola volta
+  if (w && Date.now() - w.at < 90000) return w.promise.catch(() => passkeyRequest('login-options'));
+  return passkeyRequest('login-options');
+}
+
 /**
  * Mostra la schermata dell'impronta per le passkey ricordate su questo dispositivo e, se la verifica del server va
- * a buon fine, apre la sessione. Lancia PasskeyError (code 'cancelled' se l'utente annulla).
+ * a buon fine, apre la sessione. `beforeSession` (opzionale) è atteso prima di aprirla. Lancia PasskeyError
+ * (code 'cancelled' se l'utente annulla).
  */
-export async function loginWithPasskey() {
+export async function loginWithPasskey({ beforeSession } = {}) {
   if (!passkeySupported()) throw new PasskeyError('unsupported');
   const hints = getPasskeyHints();
   if (hints.length === 0) throw new PasskeyError('unknown_credential');
   let assertion = null;
   try {
-    const opts = await passkeyRequest('login-options');
+    const opts = await loginOptions();
     assertion = await navigator.credentials.get({
       publicKey: {
         challenge: toBytes(opts.challenge),
@@ -171,6 +190,7 @@ export async function loginWithPasskey() {
       authenticatorData: toB64u(r.authenticatorData),
       signature: toB64u(r.signature),
     });
+    if (beforeSession) await beforeSession(); // es. attende la fine di un'uscita in sottofondo
     await applyPasskeySession(tokens);
     const hint = hints.find((h) => h.credentialId === assertion.id);
     if (hint) rememberPasskey(hint); // l'ultimo che ha acceduto passa in testa

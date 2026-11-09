@@ -3,7 +3,7 @@
 // =============================================================
 
 import { supabase, signIn, signOut, getSession, getMyProfile, logActivity } from '../data/supabase.js';
-import { lastPasskeyHint, loginWithPasskey, passkeyPlatformReady } from './passkey.js';
+import { lastPasskeyHint, loginWithPasskey, passkeyPlatformReady, warmPasskey } from './passkey.js';
 import { pausePush } from './push.js';
 import { toastWarning } from '../shared/toast.js';
 import { isNetworkError } from './offline-queue.js';
@@ -304,6 +304,7 @@ export function initAuth(onAuthed, onSignedOut) {
   const passkeyBtn = document.getElementById('login-passkey-btn');
   const passkeyWho = document.getElementById('login-passkey-who');
   let passkeyBusy = false;
+  let exitInFlight = Promise.resolve(); // uscita per inattività in corso in sottofondo (registrazione + signOut)
 
   // Riapertura dell'app con una sessione già salvata (anche dopo che il telefono l'ha chiusa mentre era aperta la
   // fotocamera): il login non deve nemmeno comparire mentre si verifica la sessione. Se serve, onSignedOut lo mostra.
@@ -377,7 +378,8 @@ export function initAuth(onAuthed, onSignedOut) {
     passkeyBtn.disabled = true;
     try {
       try {
-        await loginWithPasskey(); // schermata dell'impronta + verifica sul server + sessione aperta
+        // schermata dell'impronta + verifica sul server + sessione aperta (che attende la fine dell'uscita in sottofondo: il signOut non deve chiudere la nuova sessione)
+        await loginWithPasskey({ beforeSession: () => exitInFlight });
       } catch (err) {
         if (err?.code === 'cancelled') return; // annullato o scaduto: nessun errore, restano email e password
         throw err;
@@ -408,11 +410,13 @@ export function initAuth(onAuthed, onSignedOut) {
   };
   passkeyBtn?.addEventListener('click', passkeyLogin);
   refreshPasskeyBtn();
+  // Se servirà l'impronta (nessuna sessione, o scaduta) la sfida del server si chiede subito, anche per scaldare la funzione a freddo: compare senza attese
+  if (!readStoredSession() || startedExpired) warmPasskey();
   // All'apertura dell'app senza sessione (o scaduta) l'impronta si chiede da sola; dopo un logout voluto no
   // (si potrebbe voler cambiare utente) e resta il pulsante. Se il telefono la rifiuta senza un tocco, c'è sempre il pulsante.
   const autoPasskey = () => {
     if (document.visibilityState !== 'visible') return;
-    setTimeout(passkeyLogin, 350);
+    passkeyLogin();
   };
 
   form.addEventListener('submit', async (e) => {
@@ -422,6 +426,7 @@ export function initAuth(onAuthed, onSignedOut) {
     setFormBusy(true);
 
     try {
+      await exitInFlight; // se l'app è stata appena riaperta dopo un timeout, l'uscita in sottofondo deve finire prima
       const { session, profile } = await withConnectionRetries(
         async () => {
           await signIn(emailInput.value.trim(), passInput.value);
@@ -483,13 +488,15 @@ export function initAuth(onAuthed, onSignedOut) {
     if (startedExpired) {
       stopIdleTimer();
       onSignedOut();
-      toastWarning('Sessione terminata automaticamente per inattività.');
-      try {
-        await logExit('Disconnesso automaticamente per inattività (app riaperta)');
-        await signOut();
-      } catch (err) {
-        console.error(err);
-      }
+      // Nessun avviso e nessuna attesa: l'impronta si apre subito, l'uscita si registra e la sessione si chiude in sottofondo
+      exitInFlight = (async () => {
+        try {
+          await logExit('Disconnesso automaticamente per inattività (app riaperta)');
+          await signOut();
+        } catch (err) {
+          console.error(err);
+        }
+      })();
       autoPasskey();
       return;
     }
