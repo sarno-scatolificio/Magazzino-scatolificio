@@ -2,20 +2,24 @@
 // lifespan.js — Vita utile dei ricambi (sezione del Report)
 //
 // Regole:
-// - Ogni prelievo = una sostituzione (qualunque sia la quantità).
+// - Ogni prelievo = una sostituzione (qualunque sia la quantità; per le piattelle una per testa).
 // - Si confronta lo stesso ricambio nello stesso posto:
 //     cuscinetti      -> articolo + linea + macchinario + punto di utilizzo
 //     cinghie/ricambi -> articolo + linea
+//     piattelle       -> articolo + linea + macchinario + testa (ogni testa ha la sua piattella;
+//                        un prelievo di N piattelle conta una sostituzione per ciascuna delle N teste)
 // - Durata = giorni tra una sostituzione e la successiva. La "vita media"
 //   è la media delle durate PRECEDENTI a quella considerata.
 // - Se una sostituzione arriva prima della vita media (con un margine di
 //   tolleranza), viene segnalata come "anticipata".
 // - Servono almeno 3 prelievi dello stesso ricambio nello stesso posto.
-// - I prelievi senza linea (registrati prima di questa funzione) non contano.
+// - I prelievi senza linea (registrati prima di questa funzione) non contano; per le piattelle non contano
+//   nemmeno quelli senza testa.
 // =============================================================
 
 import { listPrelieviForLifespan } from '../../data/supabase.js';
 import { normPunto } from '../magazzino/punti-utilizzo.js';
+import { isPiattella } from '../magazzino/testa-macchine.js';
 import { escapeHtml } from '../../shared/html-utils.js';
 
 const TOLERANCE = 0.1; // anticipata = dura almeno il 10% in meno della media (cambia qui la soglia)
@@ -36,32 +40,58 @@ export function computeLifespan(rows) {
   const groups = new Map();
   let skipped = 0;
 
+  // Aggiunge una sostituzione al gruppo (lo crea se serve); due registrazioni ravvicinate dello stesso posto sono una sola
+  const addEvent = (key, base, t) => {
+    let g = groups.get(key);
+    if (!g) {
+      g = { key, macchinario: '', punto: '', testa: null, events: [], ...base };
+      groups.set(key, g);
+    }
+    const last = g.events[g.events.length - 1];
+    if (last !== undefined && t - last < MERGE_HOURS * 3600000) return g; // stessa sostituzione registrata due volte
+    g.events.push(t);
+    return g;
+  };
+
   rows.forEach((r) => {
     if (!r.linea) {
       skipped += 1;
       return;
     }
     const bearing = r.products?.categoria === 'cuscinetti';
+    const piattella = !bearing && isPiattella(r.products?.codice_articolo);
     const macch = norm(r.macchinario);
     const punto = norm(r.punto_utilizzo_specifico);
-    if (bearing && (!macch || !punto)) {
-      skipped += 1;
-      return;
-    }
-    const key = bearing ? `${r.product_id}|${r.linea}|${macch}|${punto}` : `${r.product_id}|${r.linea}`;
-    let g = groups.get(key);
-    if (!g) {
-      g = { key, codice: r.products?.codice_articolo || '—', bearing, linea: r.linea, macchinario: '', punto: '', events: [] };
-      groups.set(key, g);
-    }
+    const codice = r.products?.codice_articolo || '—';
+    const t = new Date(r.data_ora).getTime();
+
     if (bearing) {
+      if (!macch || !punto) {
+        skipped += 1;
+        return;
+      }
+      const g = addEvent(`${r.product_id}|${r.linea}|${macch}|${punto}`, { codice, bearing, linea: r.linea }, t);
       g.macchinario = r.macchinario; // vince l'ultima grafia usata
       g.punto = r.punto_utilizzo_specifico;
+      return;
     }
-    const t = new Date(r.data_ora).getTime();
-    const last = g.events[g.events.length - 1];
-    if (last !== undefined && t - last < MERGE_HOURS * 3600000) return; // stessa sostituzione registrata due volte
-    g.events.push(t);
+
+    if (piattella) {
+      // Una piattella per testa: un prelievo di N piattelle è una sostituzione per ognuna delle N teste, e ogni testa si
+      // confronta solo con se stessa (stessa macchina). Senza teste (prelievi precedenti) non si sa con chi confrontare.
+      const teste = Array.isArray(r.teste) ? r.teste : [];
+      if (!macch || !teste.length) {
+        skipped += 1;
+        return;
+      }
+      teste.forEach((testa) => {
+        const g = addEvent(`${r.product_id}|${r.linea}|${macch}|testa${testa}`, { codice, bearing: false, piattella: true, linea: r.linea, testa }, t);
+        g.macchinario = r.macchinario;
+      });
+      return;
+    }
+
+    addEvent(`${r.product_id}|${r.linea}`, { codice, bearing: false, linea: r.linea }, t);
   });
 
   const alerts = [];
@@ -104,6 +134,7 @@ const fmtDate = (t) => new Date(t).toLocaleDateString('it-IT', { day: '2-digit',
 function placeLabel(g) {
   const parts = [g.linea === 'REP' ? 'Reparto' : g.linea];
   if (g.bearing) parts.push(g.macchinario, g.punto);
+  else if (g.piattella) parts.push(g.macchinario, `Testa ${g.testa}`);
   return parts.filter(Boolean).map(escapeHtml).join(' · ');
 }
 
@@ -138,7 +169,7 @@ function render(fromIso, toIso) {
 
   let html = '';
   if (!summaries.length) {
-    html += `<p class="text-sm text-graphite-400">Non ci sono ancora dati sufficienti. Servono almeno 3 prelievi dello stesso ricambio nello stesso posto (stessa linea e, per i cuscinetti, stesso macchinario e punto di utilizzo).</p>`;
+    html += `<p class="text-sm text-graphite-400">Non ci sono ancora dati sufficienti. Servono almeno 3 prelievi dello stesso ricambio nello stesso posto (stessa linea e, per i cuscinetti, stesso macchinario e punto di utilizzo; per le piattelle, stessa testa).</p>`;
   } else if (!inPeriod.length) {
     html += `<div class="flex items-center gap-2 text-sm text-emerald-700 font-medium"><i data-lucide="check-circle-2" class="w-4 h-4"></i>Nessuna sostituzione anticipata nel periodo.</div>`;
   } else {
@@ -156,7 +187,7 @@ function render(fromIso, toIso) {
       </details>`;
   }
   if (skipped > 0) {
-    html += `<p class="text-xs text-graphite-500 mt-3">${skipped} ${skipped === 1 ? 'prelievo' : 'prelievi'} senza linea o senza macchinario/punto (registrati prima di questa funzione) non ${skipped === 1 ? 'è considerato' : 'sono considerati'}.</p>`;
+    html += `<p class="text-xs text-graphite-500 mt-3">${skipped} ${skipped === 1 ? 'prelievo' : 'prelievi'} senza linea, senza macchinario/punto o, per le piattelle, senza testa (registrati prima di questa funzione) non ${skipped === 1 ? 'è considerato' : 'sono considerati'}.</p>`;
   }
   el.innerHTML = html;
   window.lucide?.createIcons();
