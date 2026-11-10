@@ -12,7 +12,7 @@ import { supabase } from './supabase-client.js';
  * process_transaction (SECURITY DEFINER): aggiorna la giacenza e
  * registra il log in una singola transazione DB.
  */
-export async function processTransaction({ productId, tipo, quantita, puntoUtilizzo, note, linea, macchinario, locationId }) {
+export async function processTransaction({ productId, tipo, quantita, puntoUtilizzo, note, linea, macchinario, locationId, teste }) {
   const params = {
     p_product_id: productId,
     p_tipo: tipo,
@@ -25,6 +25,8 @@ export async function processTransaction({ productId, tipo, quantita, puntoUtili
   if (macchinario) params.p_macchinario = macchinario;
   // Scaffale del movimento: obbligatorio per gli articoli su più scaffali, ininfluente se ne hanno uno solo
   if (locationId) params.p_location_id = locationId;
+  // Teste su cui si montano le piattelle (solo prelievi di piattelle, tante quanto la quantità): senza teste la chiamata resta identica a prima
+  if (teste?.length) params.p_teste = teste;
   const { data, error } = await supabase.rpc('process_transaction', params);
   if (error) throw error;
   return data?.[0] ?? null;
@@ -110,13 +112,16 @@ export async function listPrelieviForLifespan() {
   } catch (err) {
     console.warn('Elenco prestiti non disponibile: si escludono dalla nota.', err);
   }
+  // Colonna `teste` (piattelle): se il database non l'ha ancora (migrazione 2026-11-10 non eseguita) si legge senza
+  let cols = 'id, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, teste, note, product_id, products(codice_articolo, categoria)';
+  const fetchPage = (from) =>
+    supabase.from('transactions').select(cols).eq('tipo', 'prelievo').order('data_ora', { ascending: true }).range(from, from + pageSize - 1);
   for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('id, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, note, product_id, products(codice_articolo, categoria)')
-      .eq('tipo', 'prelievo')
-      .order('data_ora', { ascending: true })
-      .range(from, from + pageSize - 1);
+    let { data, error } = await fetchPage(from);
+    if (error && cols.includes(' teste,') && /teste/i.test(error.message || '')) {
+      cols = cols.replace(' teste,', '');
+      ({ data, error } = await fetchPage(from));
+    }
     if (error) throw error;
     rows.push(...data.filter((r) => !loanIds.has(r.id) && !String(r.note || '').startsWith('Prestito a ')));
     if (data.length < pageSize) break;
