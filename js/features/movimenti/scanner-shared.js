@@ -10,6 +10,7 @@ export const ss = {
   currentProduct: null,
   prestito: false, // prelievo registrato come prestito (da reintegrare)
   currentLocationId: null, // scaffale scelto per il movimento (obbligatorio se l'articolo sta su più scaffali)
+  testa: null, // piattelle in Prelievo: { macchinario, total, value: [teste scelte] }
   machinesCache: null, // macchine (con linee) per il campo Macchinario del prelievo cuscinetti
   codeSearchDebounce: null,
   codeSearchSeq: 0, // scarta risposte arrivate in ordine sbagliato (rete lenta + digitazione veloce)

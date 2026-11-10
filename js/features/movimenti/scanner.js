@@ -15,6 +15,7 @@ import { initCodeSearch } from './scanner-search.js';
 import { initScannerDesktop } from './scanner-desktop.js';
 import { loadIdlePanel } from './scanner-idle.js';
 import { paintPunti, pickMacchinario, refreshPuntiSuggeriti, syncMacchinarioBtn } from './scanner-punti.js';
+import { pickTesta } from './scanner-testa.js';
 import { stopCamera, switchCamera as switchCameraShared, toggleTorch } from '../../shared/camera.js';
 export { loadIdlePanel } from './scanner-idle.js';
 
@@ -53,6 +54,10 @@ els.puntoList = document.getElementById('scan-punto-list');
 els.puntoHome = els.puntoWrap.parentElement; // posizione di partenza (Deposito); nel Prelievo dei cuscinetti il campo va dopo il macchinario
 els.macchinarioBtn = document.getElementById('scan-macchinario-btn');
 els.macchinarioValue = document.getElementById('scan-macchinario-value');
+  els.testaWrap = document.getElementById('scan-testa-wrap');
+  els.testaBtn = document.getElementById('scan-testa-btn');
+  els.testaValue = document.getElementById('scan-testa-value');
+  els.testaMachine = document.getElementById('scan-testa-machine');
   els.prelievoFields = document.getElementById('scan-prelievo-fields');
   els.lineaGroup = document.getElementById('scan-linea-group');
   els.lineaInput = document.getElementById('scan-linea-input');
@@ -102,6 +107,7 @@ els.macchinarioValue = document.getElementById('scan-macchinario-value');
     refreshPuntiSuggeriti({ autoOpen: true });
   });
   els.macchinarioBtn.addEventListener('click', pickMacchinario);
+  els.testaBtn?.addEventListener('click', pickTesta);
   els.lineaGroup?.querySelectorAll('[data-linea]').forEach((btn) => {
     btn.addEventListener('click', () => {
       feedback.focusTap();

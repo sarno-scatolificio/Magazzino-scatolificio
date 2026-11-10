@@ -6,6 +6,7 @@
 import { els, ss } from './scanner-shared.js';
 import feedback from '../../shared/feedback.js';
 import { fillMacchinari, refreshPuntiSuggeriti, renderMacchinariOptions } from './scanner-punti.js';
+import { ensureMachinesForTesta, syncTestaField } from './scanner-testa.js';
 import { getCachedProductByBarcode, getProductByBarcode, getProductLocations, machineOnLinea, REPARTO } from '../../data/supabase.js';
 import { hideFindMethods } from './scanner-camera.js';
 import { replayAnimation } from '../../shared/ui-utils.js';
@@ -83,7 +84,7 @@ function hideResultSkeleton() {
 /** Aggiorna sia il valore nascosto (quello letto da confirmTransaction) sia
  *  quello mostrato all'operatore, con un minimo di 1. Niente tastiera:
  *  la quantità si cambia solo con i due pulsanti +/-. */
-function setQty(value) {
+export function setQty(value) {
   const qty = Math.max(1, Math.round(value) || 1);
   els.qtyInput.value = qty;
   els.qtyValue.textContent = qty;
@@ -276,6 +277,7 @@ export function setLinea(value) {
     btn.setAttribute('aria-pressed', String(on));
   });
   refreshPuntiSuggeriti();
+  syncTestaField(); // la testa delle piattelle segue la linea (macchinario con teste di quella linea)
   // Il Macchinario segue la linea: su Linea 1 non compaiono le macchine che stanno solo su Linea 2 (e viceversa)
   if (ss.machinesCache && ss.currentMode === 'prelievo' && !els.macchinarioWrap.classList.contains('hidden')) {
     const names = machineNamesForLinea(value);
@@ -320,4 +322,6 @@ function setupPrelievoFields(product) {
   if (isPrelievo && isBearing) fillMacchinari(product.macchina);
   ss.puntiOpen = false;
   refreshPuntiSuggeriti();
+  syncTestaField();
+  ensureMachinesForTesta(); // piattelle: serve l'elenco macchine per ricavare il macchinario dalla linea
 }
