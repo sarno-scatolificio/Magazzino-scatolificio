@@ -18,7 +18,7 @@
 // non succede nulla di grave: semplicemente niente copia offline.
 // =============================================================
 
-const CACHE_NAME = 'magazzino-shell-v293';
+const CACHE_NAME = 'magazzino-shell-v295';
 const APP_SHELL = [
   './',
   './index.html',
@@ -38,6 +38,7 @@ const APP_SHELL = [
   './js/features/movimenti/scanner-search.js',
   './js/features/movimenti/scanner-result.js',
   './js/features/movimenti/scanner-punti.js',
+  './js/features/movimenti/scanner-testa.js',
   './js/features/movimenti/scanner-transaction.js',
   './js/features/movimenti/scanner-idle.js',
   './js/features/magazzino/products.js',
@@ -65,6 +66,7 @@ const APP_SHELL = [
   './js/core/push.js',
   './js/core/passkey.js',
   './js/shared/picker.js',
+  './js/shared/testa-picker.js',
   './js/features/impostazioni/users.js',
   './js/features/impostazioni/activity-log.js',
   './js/features/impostazioni/push-settings.js',
@@ -114,6 +116,7 @@ const APP_SHELL = [
   './js/features/interventi/interventi-pdf.js',
   './js/features/interventi/interventi-rapidi.js',
   './js/features/magazzino/punti-utilizzo.js',
+  './js/features/magazzino/testa-macchine.js',
   './js/shared/time-picker.js',
   './js/features/manuali/manuals.js',
   './js/features/manuali/manuals-browser.js',

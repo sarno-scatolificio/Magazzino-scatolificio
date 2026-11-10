@@ -496,6 +496,15 @@
                 </button>
                 <select id="scan-macchinario-input" class="hidden" tabindex="-1" aria-hidden="true"></select>
               </div>
+              <!-- Solo piattelle (macchinario con teste, ricavato dalla linea): si sceglie con il semicerchio -->
+              <div id="scan-testa-wrap" class="hidden">
+                <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Testa <span id="scan-testa-machine" class="normal-case font-normal text-graphite-500"></span></label>
+                <button type="button" id="scan-testa-btn"
+                  class="w-full flex items-center justify-between gap-2 min-h-[44px] rounded-lg bg-graphite-900 border border-graphite-700 px-3 py-2.5 text-sm text-left hover:border-amber-400 transition-colors">
+                  <span id="scan-testa-value" class="truncate text-graphite-400">Seleziona testa…</span>
+                  <i data-lucide="chevron-down" class="w-4 h-4 text-graphite-500 shrink-0"></i>
+                </button>
+              </div>
             </div>
 
             <div id="scan-after" class="scan-after mt-3 rounded-lg px-3 py-2 flex items-center justify-between gap-3 text-sm" aria-live="polite">
@@ -1935,6 +1944,51 @@
     <button id="field-picker-clear" type="button" class="shrink-0 text-xs text-graphite-500 hover:text-rose-700 py-3 border-t border-graphite-800 transition-colors min-h-[44px]">
       Svuota selezione
     </button>
+  </div>
+</div>
+
+<!-- =================== MODALE TESTA (semicerchio numerato, piattelle) =================== -->
+<div id="testa-picker-modal" class="modal-overlay hidden fixed inset-0 z-[96] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-0 sm:px-4">
+  <div class="modal-panel w-full sm:max-w-sm bg-graphite-900 border border-graphite-700 rounded-t-2xl sm:rounded-2xl flex flex-col max-h-[94vh] overflow-y-auto" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px))">
+    <div data-sheet-drag class="sheet-grabber sm:hidden"><span class="sheet-grabber-pill"></span></div>
+    <div data-sheet-drag class="flex items-center justify-between px-5 pb-3 pt-1 sm:pt-3 border-b border-graphite-800 shrink-0">
+      <div class="min-w-0">
+        <h3 id="testa-picker-title" class="font-display font-bold text-lg uppercase tracking-wide">Testa montata</h3>
+        <p id="testa-picker-sub" class="text-xs text-graphite-500 truncate"></p>
+      </div>
+      <button id="testa-picker-close" aria-label="Chiudi" class="modal-close modal-close--on-light">
+        <i data-lucide="x" class="w-6 h-6" stroke-width="2.5"></i>
+      </button>
+    </div>
+    <div class="px-3 pt-2 shrink-0">
+      <svg id="testa-picker-svg" viewBox="0 0 380 240" class="w-full block" tabindex="0" role="slider" aria-label="Testa montata"
+        style="touch-action:none;user-select:none;-webkit-user-select:none;outline:none">
+        <path d="M 40 215 A 150 150 0 0 1 340 215" fill="none" stroke="var(--line, #dde1e7)" stroke-width="1" stroke-dasharray="2 5"/>
+        <polygon points="181,22 199,22 190,36" fill="var(--accent)"/>
+        <text x="190" y="116" text-anchor="middle" font-size="13" fill="#6b7280">Testa</text>
+        <text id="testa-picker-num" x="190" y="164" text-anchor="middle" font-size="46" font-weight="600" fill="var(--ink, #0d1117)">1</text>
+        <text id="testa-picker-of" x="190" y="190" text-anchor="middle" font-size="13" fill="#6b7280"></text>
+        <g id="testa-picker-heads"></g>
+      </svg>
+    </div>
+    <p id="testa-picker-chosen" class="hidden text-sm text-graphite-300 text-center px-4 -mt-1 shrink-0"></p>
+    <div id="testa-picker-note" class="hidden mx-4 mt-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-700 shrink-0" role="alert">
+      <p id="testa-picker-note-text"></p>
+      <div id="testa-picker-note-actions" class="flex gap-2 mt-2"></div>
+    </div>
+    <div class="flex items-center gap-2 px-4 pt-2 shrink-0">
+      <button id="testa-picker-prev" type="button" aria-label="Testa precedente" class="press-spring w-12 min-h-[44px] rounded-lg border border-graphite-700 bg-graphite-900 text-graphite-200 flex items-center justify-center shrink-0">
+        <i data-lucide="chevron-left" class="w-5 h-5" stroke-width="2.5"></i>
+      </button>
+      <button id="testa-picker-add" type="button" class="press-spring flex-1 min-h-[44px] rounded-lg border border-amber-400 bg-graphite-900 text-amber-400 font-display font-semibold uppercase tracking-wide text-sm">Aggiungi testa 1</button>
+      <button id="testa-picker-next" type="button" aria-label="Testa successiva" class="press-spring w-12 min-h-[44px] rounded-lg border border-graphite-700 bg-graphite-900 text-graphite-200 flex items-center justify-center shrink-0">
+        <i data-lucide="chevron-right" class="w-5 h-5" stroke-width="2.5"></i>
+      </button>
+    </div>
+    <div class="px-4 pt-2 shrink-0">
+      <button id="testa-picker-ok" type="button" class="press-spring w-full min-h-[48px] rounded-lg font-display font-semibold uppercase tracking-wide bg-amber-400 text-white shadow-edge">Conferma testa 1</button>
+    </div>
+    <p class="text-xs text-graphite-500 text-center mt-2 px-4 shrink-0">Trascina l'arco per ruotarlo, tocca un numero per portarlo al centro</p>
   </div>
 </div>
 
