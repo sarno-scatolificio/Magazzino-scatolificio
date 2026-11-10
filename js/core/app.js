@@ -26,6 +26,7 @@ import { initUnseenBadge } from '../features/interventi/interventi-unseen.js';
 import { initLowStockUnseen } from '../features/magazzino/low-stock-unseen.js';
 import { takeCameraResume } from '../features/interventi/interventi-photo.js';
 import { initPicker } from '../shared/picker.js';
+import { initTestaPicker } from '../shared/testa-picker.js';
 import { initGlobalSearch, resetGlobalSearch, syncSearchContext, closePanel as closeGlobalSearch } from '../shared/global-search.js';
 import { initSearchDock, syncSearchDock } from '../shared/search-dock.js';
 import feedback, { initFeedbackSettings } from '../shared/feedback.js';
@@ -139,6 +140,7 @@ function onAuthed(profile) {
 
   if (!modulesInitialized) {
     initPicker();
+    initTestaPicker();
     initScanner();
     initProducts();
     initDashboard();
