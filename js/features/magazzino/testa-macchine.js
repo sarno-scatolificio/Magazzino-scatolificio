@@ -25,6 +25,17 @@ export const isPiattella = (codiceArticolo) => /piattell/i.test(codiceArticolo |
 export const richiedeTesta = (product) => isPiattella(product?.codice_articolo);
 
 /**
+ * Teste di un movimento per la visualizzazione (elenchi dei movimenti, Report): null se non ce ne sono.
+ * Vale per qualsiasi articolo registrato per testa, non solo per le piattelle.
+ * @returns {{label: string, value: string}|null} es. { label: 'Testa', value: '17' } o { label: 'Teste', value: '5, 17, 18, 23' }
+ */
+export function formatTeste(teste) {
+  if (!Array.isArray(teste) || teste.length === 0) return null;
+  const list = [...teste].sort((a, b) => a - b);
+  return { label: list.length === 1 ? 'Testa' : 'Teste', value: list.join(', ') };
+}
+
+/**
  * Macchinario con teste presente sulla linea (la piattella non chiede il macchinario: si ricava dalla linea).
  * Restituisce null se non ce n'è uno solo (nessuno, oppure ambiguo): in quel caso la testa non si chiede.
  */
