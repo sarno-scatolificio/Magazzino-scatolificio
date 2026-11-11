@@ -10,6 +10,7 @@ import { listTransactions } from '../../data/supabase.js';
 import { toastError } from '../../shared/toast.js';
 import { staggerIndex, emptyStateHtml, openOverlay, closeOverlay, enableSheetDrag, animatePanelHeight, syncSegIndicator } from '../../shared/ui-utils.js';
 import { escapeHtml } from '../../shared/html-utils.js';
+import { formatTeste } from '../magazzino/testa-macchine.js';
 
 const els = {};
 
@@ -136,6 +137,7 @@ export function movementRow(r, i, container = els.list, { compact = false } = {}
   // Il nome di un ricambio è il «punto di utilizzo» (come nell'elenco articoli); la colonna «descrizione» c'è solo se compilata
   const desc = cat === 'pezzi_ricambio' ? (r.products?.punto_utilizzo_standard || r.products?.descrizione || '').trim() : '';
   const code = r.products?.codice_articolo || '';
+  const teste = formatTeste(r.teste); // teste su cui sono montati i pezzi (piattelle e simili), se registrate
 
   const head = document.createElement('button');
   head.type = 'button';
@@ -150,6 +152,7 @@ export function movementRow(r, i, container = els.list, { compact = false } = {}
     hour: '2-digit',
     minute: '2-digit',
   })}</p>
+      ${teste ? `<p class="ui-note text-graphite-300 font-medium mt-0.5 truncate">${escapeHtml(r.macchinario ? `${r.macchinario} · ` : '')}${escapeHtml(teste.label)} ${escapeHtml(teste.value)}</p>` : ''}
     </div>
     <span class="shrink-0 font-mono text-sm font-semibold px-2.5 py-1 rounded-full ${
       r.tipo === 'deposito' ? 'bg-emerald-500/15 text-emerald-700' : 'bg-amber-500/15 text-amber-300'
@@ -166,6 +169,7 @@ export function movementRow(r, i, container = els.list, { compact = false } = {}
     ['Punto di utilizzo', r.punto_utilizzo_specifico],
     ['Linea', r.linea === 'REP' ? 'Reparto' : r.linea],
     ['Macchina', r.macchinario],
+    [teste?.label || 'Testa', teste?.value],
     ['Note', r.note],
   ].filter(([, v]) => v);
   if (desc && code) detailRows.unshift(['Codice', code]);
