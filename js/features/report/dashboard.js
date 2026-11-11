@@ -20,6 +20,7 @@ import { loadLib, emptyStateHtml, staggerIndex, syncSegIndicator } from '../../s
 import { animateFluidSwap } from '../../core/app.js';
 import { pickDateRange } from '../../shared/date-range-modal.js';
 import { CATEGORY_LABELS } from '../magazzino/products-shared.js';
+import { formatTeste } from '../magazzino/testa-macchine.js';
 import feedback from '../../shared/feedback.js';
 import { refreshLifespan, resetLifespan } from './lifespan.js';
 import { escapeHtml } from '../../shared/html-utils.js';
@@ -367,6 +368,7 @@ function detailCard(r) {
     ['Scaffale', r.locazione],
     ['Linea', LINEA_LABELS[r.linea] || r.linea],
     ['Macchinario', r.macchinario],
+    [formatTeste(r.teste)?.label || 'Testa', formatTeste(r.teste)?.value],
     ['Punto di utilizzo', r.punto_utilizzo_specifico],
     ['Note', r.note],
   ].filter(([, v]) => v);
@@ -406,6 +408,7 @@ async function exportReport() {
         Scaffale: h.locazione || '',
         Linea: h.linea || '',
         Macchinario: h.macchinario || '',
+        Teste: formatTeste(h.teste)?.value || '',
         'Punto utilizzo': h.punto_utilizzo_specifico || '',
         Operatore: h.profiles?.full_name || '',
         Note: h.note || '',
