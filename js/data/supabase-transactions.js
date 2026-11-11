@@ -32,18 +32,29 @@ export async function processTransaction({ productId, tipo, quantita, puntoUtili
   return data?.[0] ?? null;
 }
 
+// Colonne lette per gli elenchi dei movimenti. `teste` (teste su cui si montano le piattelle) c'è solo dopo la migrazione
+// 2026-11-10-testa-piattelle.sql: se il database non ce l'ha ancora si legge senza e gli elenchi funzionano come prima.
+const TX_COLS =
+  'id, tipo, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, teste, locazione, note, product_id, user_id, products(codice_articolo, categoria, descrizione, punto_utilizzo_standard), profiles(full_name)';
+let hasTesteColumn = true;
+
+async function runTxQuery(build) {
+  let res = await build(hasTesteColumn ? TX_COLS : TX_COLS.replace(' teste,', ''));
+  if (res.error && hasTesteColumn && /teste/i.test(res.error.message || '')) {
+    hasTesteColumn = false;
+    res = await build(TX_COLS.replace(' teste,', ''));
+  }
+  return res;
+}
+
 export async function listTransactions({ from, to, productId, limit = 200 } = {}) {
-  let query = supabase
-    .from('transactions')
-    .select('id, tipo, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, locazione, note, product_id, user_id, products(codice_articolo, categoria, descrizione, punto_utilizzo_standard), profiles(full_name)')
-    .order('data_ora', { ascending: false })
-    .limit(limit);
-
-  if (from) query = query.gte('data_ora', from);
-  if (to) query = query.lte('data_ora', to);
-  if (productId) query = query.eq('product_id', productId);
-
-  const { data, error } = await query;
+  const { data, error } = await runTxQuery((cols) => {
+    let query = supabase.from('transactions').select(cols).order('data_ora', { ascending: false }).limit(limit);
+    if (from) query = query.gte('data_ora', from);
+    if (to) query = query.lte('data_ora', to);
+    if (productId) query = query.eq('product_id', productId);
+    return query;
+  });
   if (error) throw error;
   return withAdminNames(data);
 }
@@ -57,15 +68,13 @@ export async function listTransactionsRange({ tipo, from, to } = {}) {
   const pageSize = 1000;
   const rows = [];
   for (let offset = 0; ; offset += pageSize) {
-    let query = supabase
-      .from('transactions')
-      .select('id, tipo, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, locazione, note, product_id, user_id, products(codice_articolo, categoria, descrizione, punto_utilizzo_standard), profiles(full_name)')
-      .order('data_ora', { ascending: false })
-      .range(offset, offset + pageSize - 1);
-    if (tipo) query = query.eq('tipo', tipo);
-    if (from) query = query.gte('data_ora', from);
-    if (to) query = query.lte('data_ora', to);
-    const { data, error } = await query;
+    const { data, error } = await runTxQuery((cols) => {
+      let query = supabase.from('transactions').select(cols).order('data_ora', { ascending: false }).range(offset, offset + pageSize - 1);
+      if (tipo) query = query.eq('tipo', tipo);
+      if (from) query = query.gte('data_ora', from);
+      if (to) query = query.lte('data_ora', to);
+      return query;
+    });
     if (error) throw error;
     rows.push(...data);
     if (data.length < pageSize) break;
