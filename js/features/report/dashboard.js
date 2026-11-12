@@ -368,7 +368,7 @@ function detailCard(r) {
     ['Scaffale', r.locazione],
     ['Linea', LINEA_LABELS[r.linea] || r.linea],
     ['Macchinario', r.macchinario],
-    [formatTeste(r.teste)?.label || 'Testa', formatTeste(r.teste)?.value],
+    [formatTeste(r.teste, r.punti_testa)?.label || 'Testa', formatTeste(r.teste, r.punti_testa)?.value],
     ['Punto di utilizzo', r.punto_utilizzo_specifico],
     ['Note', r.note],
   ].filter(([, v]) => v);
@@ -408,7 +408,7 @@ async function exportReport() {
         Scaffale: h.locazione || '',
         Linea: h.linea || '',
         Macchinario: h.macchinario || '',
-        Teste: formatTeste(h.teste)?.value || '',
+        Teste: formatTeste(h.teste, h.punti_testa)?.value || '',
         'Punto utilizzo': h.punto_utilizzo_specifico || '',
         Operatore: h.profiles?.full_name || '',
         Note: h.note || '',

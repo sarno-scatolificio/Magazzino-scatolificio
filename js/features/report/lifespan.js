@@ -19,7 +19,7 @@
 
 import { listPrelieviForLifespan } from '../../data/supabase.js';
 import { normPunto } from '../magazzino/punti-utilizzo.js';
-import { isPiattella } from '../magazzino/testa-macchine.js';
+import { isPiattella, puntiDiMovimento, chiavePunto, labelTesta } from '../magazzino/testa-macchine.js';
 import { escapeHtml } from '../../shared/html-utils.js';
 
 const TOLERANCE = 0.1; // anticipata = dura almeno il 10% in meno della media (cambia qui la soglia)
@@ -79,13 +79,13 @@ export function computeLifespan(rows) {
     if (piattella) {
       // Una piattella per testa: un prelievo di N piattelle è una sostituzione per ognuna delle N teste, e ogni testa si
       // confronta solo con se stessa (stessa macchina). Senza teste (prelievi precedenti) non si sa con chi confrontare.
-      const teste = Array.isArray(r.teste) ? r.teste : [];
-      if (!macch || !teste.length) {
+      const punti = puntiDiMovimento(r); // torre + testa + superiore/inferiore (o solo il numero, per i prelievi senza torri)
+      if (!macch || !punti.length) {
         skipped += 1;
         return;
       }
-      teste.forEach((testa) => {
-        const g = addEvent(`${r.product_id}|${r.linea}|${macch}|testa${testa}`, { codice, bearing: false, piattella: true, linea: r.linea, testa }, t);
+      punti.forEach((testa) => {
+        const g = addEvent(`${r.product_id}|${r.linea}|${macch}|testa${chiavePunto(testa)}`, { codice, bearing: false, piattella: true, linea: r.linea, testa }, t);
         g.macchinario = r.macchinario;
       });
       return;
@@ -134,7 +134,7 @@ const fmtDate = (t) => new Date(t).toLocaleDateString('it-IT', { day: '2-digit',
 function placeLabel(g) {
   const parts = [g.linea === 'REP' ? 'Reparto' : g.linea];
   if (g.bearing) parts.push(g.macchinario, g.punto);
-  else if (g.piattella) parts.push(g.macchinario, `Testa ${g.testa}`);
+  else if (g.piattella) parts.push(g.macchinario, labelTesta(g.testa));
   return parts.filter(Boolean).map(escapeHtml).join(' · ');
 }
 
