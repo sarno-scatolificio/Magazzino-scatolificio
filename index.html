@@ -1988,21 +1988,32 @@
       <button type="button" data-pos="I" aria-pressed="false">Inferiore</button>
     </div>
     <div class="px-3 pt-2 shrink-0">
-      <svg id="testa-picker-svg" viewBox="0 0 380 300" class="w-full block" tabindex="0" role="slider" aria-label="Testa montata"
+      <svg id="testa-picker-svg" viewBox="0 0 380 282" class="w-full block" tabindex="0" role="slider" aria-label="Testa montata"
         style="touch-action:none;user-select:none;-webkit-user-select:none;outline:none">
-        <!-- Stella di trasporto (disegno tecnico, piatto): contorno con gli alloggiamenti, viti e assi; tutto disegnato da testa-picker.js e ruota con il dito -->
+        <defs>
+          <!-- Acciaio: sfumatura chiara in alto, più scura ai bordi (centro e raggio li imposta testa-picker.js) -->
+          <radialGradient id="testa-picker-grad" gradientUnits="userSpaceOnUse" cx="190" cy="233" r="175">
+            <stop offset="0" stop-color="#f6f8fb"/><stop offset="0.62" stop-color="#e1e5eb"/><stop offset="1" stop-color="#c4cad4"/>
+          </radialGradient>
+          <linearGradient id="testa-picker-rim" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#cdd3dc"/>
+          </linearGradient>
+          <filter id="testa-picker-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0d1117" flood-opacity="0.28"/></filter>
+          <filter id="testa-picker-shadow-sm" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.6" flood-color="#0d1117" flood-opacity="0.35"/></filter>
+        </defs>
+        <!-- Stella di trasporto vista dall'alto: tutto disegnato da testa-picker.js, ruota con il dito -->
         <g id="testa-picker-wheel">
-          <path id="testa-picker-star" fill="#ffffff" stroke="var(--ink, #0d1117)" stroke-width="2.4" stroke-linejoin="round"/>
-          <path id="testa-picker-axes" fill="none" stroke="var(--ink, #0d1117)" stroke-width="0.8" stroke-dasharray="14 3 2 3"/>
-          <path id="testa-picker-deco" fill="none" stroke="var(--ink, #0d1117)" stroke-width="1"/>
-          <g id="testa-picker-heads"></g>
+          <path id="testa-picker-star" fill="url(#testa-picker-grad)" stroke="#7b8494" stroke-width="2" stroke-linejoin="round" filter="url(#testa-picker-shadow)"/>
+          <circle id="testa-picker-ring" cx="190" cy="233" r="80" fill="none" stroke="#aab2be" stroke-width="1.4" opacity="0.8"/>
+          <circle id="testa-picker-hub" cx="190" cy="233" r="58" fill="#d3d8e0" stroke="#9aa3b0" stroke-width="1.4"/>
+          <g id="testa-picker-heads" filter="url(#testa-picker-shadow-sm)"></g>
         </g>
         <!-- Mozzo fisso con la testa puntata -->
-        <circle id="testa-picker-badge" cx="190" cy="170" r="40" fill="#ffffff" stroke="var(--ink, #0d1117)" stroke-width="3"/>
-        <text x="190" y="155" text-anchor="middle" font-size="10" fill="#6b7280">Testa</text>
-        <text id="testa-picker-num" x="190" y="184" text-anchor="middle" font-size="32" font-weight="600" fill="var(--ink, #0d1117)">1</text>
-        <text id="testa-picker-of" x="190" y="199" text-anchor="middle" font-size="10" fill="#6b7280"></text>
-        <polygon points="180,22 200,22 190,40" fill="var(--accent)"/>
+        <circle cx="190" cy="233" r="40" fill="#ffffff" stroke="#9aa3b0" stroke-width="2"/>
+        <text x="190" y="218" text-anchor="middle" font-size="10" fill="#6b7280">Testa</text>
+        <text id="testa-picker-num" x="190" y="247" text-anchor="middle" font-size="32" font-weight="600" fill="var(--ink, #0d1117)">1</text>
+        <text id="testa-picker-of" x="190" y="262" text-anchor="middle" font-size="10" fill="#6b7280"></text>
+        <polygon points="180,16 200,16 190,34" fill="var(--accent)"/>
       </svg>
     </div>
     <p id="testa-picker-chosen" class="hidden text-sm text-graphite-300 text-center px-4 -mt-1 shrink-0"></p>
