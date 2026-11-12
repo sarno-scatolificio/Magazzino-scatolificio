@@ -13,6 +13,7 @@ import { loadIdlePanel } from './scanner-idle.js';
 import { normPunto } from '../magazzino/punti-utilizzo.js';
 import { paintPunti } from './scanner-punti.js';
 import { resetTesta } from './scanner-testa.js';
+import { paramTeste } from '../magazzino/testa-macchine.js';
 import { refreshPrestitiCount } from './prestiti.js';
 import { toastError, toastSuccess, toastWarning } from '../../shared/toast.js';
 
@@ -40,7 +41,7 @@ export function resetAll() {
  * la accoda per la sincronizzazione automatica e aggiorna otticamente la
  * giacenza in cache.
  */
-async function runTransaction({ product, quantita, puntoUtilizzo, linea, macchinario, locationId, teste }) {
+async function runTransaction({ product, quantita, puntoUtilizzo, linea, macchinario, locationId, teste, puntiTesta }) {
   const tipo = ss.currentMode;
   try {
     const result = await processTransaction({
@@ -52,6 +53,7 @@ async function runTransaction({ product, quantita, puntoUtilizzo, linea, macchin
       macchinario,
       locationId,
       teste,
+      puntiTesta,
     });
 
     if (tipo === 'deposito') feedback.transactionDeposito();
@@ -72,7 +74,7 @@ async function runTransaction({ product, quantita, puntoUtilizzo, linea, macchin
     return { ok: true, nuovaGiacenza: result.nuova_giacenza };
   } catch (err) {
     if (isNetworkError(err)) {
-      const saved = enqueueTransaction({ productId: product.id, tipo, quantita, puntoUtilizzo, linea, macchinario, locationId, teste, codice_articolo: product.codice_articolo });
+      const saved = enqueueTransaction({ productId: product.id, tipo, quantita, puntoUtilizzo, linea, macchinario, locationId, teste, puntiTesta, codice_articolo: product.codice_articolo });
       if (!saved) {
         // Senza rete e senza spazio sul dispositivo il movimento andrebbe perso:
         // meglio dirlo chiaramente che far credere che sia stato salvato.
@@ -162,6 +164,7 @@ export async function confirmTransaction() {
   let linea = null;
   let macchinario = null;
   let teste = null;
+  let puntiTesta = null;
   let punto = els.puntoInput.value.trim();
   if (ss.currentMode === 'prelievo') {
     // La linea si sceglie con i pulsanti; non serve se il macchinario scelto è di reparto o sta su una sola linea
@@ -193,6 +196,12 @@ export async function confirmTransaction() {
     // Piattelle su un macchinario con teste: serve una testa per ogni piattella (la vita utile si calcola per testa) e
     // le teste devono essere tante quanto la quantità; il macchinario si ricava dalla linea
     if (ss.testa) {
+      if (!ss.testa.macchinario) {
+        feedback.errorAction();
+        flagMissing(els.testaBtn);
+        toastError('Scegli il macchinario e la testa su cui monti la piattella.');
+        return;
+      }
       const scelte = ss.testa.value || [];
       if (!scelte.length) {
         feedback.errorAction();
@@ -206,14 +215,14 @@ export async function confirmTransaction() {
         toastError(`Hai scelto ${scelte.length} ${scelte.length === 1 ? 'testa' : 'teste'} ma la quantità è ${quantita}: devono essere uguali.`, 6000);
         return;
       }
-      teste = scelte;
+      ({ teste, puntiTesta } = paramTeste(scelte, ss.testa.torri));
       macchinario = ss.testa.macchinario;
     }
   }
 
   setButtonBusy(els.confirmBtn, true, 'Registrazione…');
   const product = ss.currentProduct;
-  const outcome = await runTransaction({ product, quantita, puntoUtilizzo: punto, linea, macchinario, locationId: ss.currentLocationId, teste });
+  const outcome = await runTransaction({ product, quantita, puntoUtilizzo: punto, linea, macchinario, locationId: ss.currentLocationId, teste, puntiTesta });
   setButtonBusy(els.confirmBtn, false);
 
   if (outcome.ok) {

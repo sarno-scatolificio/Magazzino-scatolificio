@@ -137,7 +137,7 @@ export function movementRow(r, i, container = els.list, { compact = false } = {}
   // Il nome di un ricambio è il «punto di utilizzo» (come nell'elenco articoli); la colonna «descrizione» c'è solo se compilata
   const desc = cat === 'pezzi_ricambio' ? (r.products?.punto_utilizzo_standard || r.products?.descrizione || '').trim() : '';
   const code = r.products?.codice_articolo || '';
-  const teste = formatTeste(r.teste); // teste su cui sono montati i pezzi (piattelle e simili), se registrate
+  const teste = formatTeste(r.teste, r.punti_testa); // teste su cui sono montati i pezzi (piattelle e simili), se registrate
 
   const head = document.createElement('button');
   head.type = 'button';
