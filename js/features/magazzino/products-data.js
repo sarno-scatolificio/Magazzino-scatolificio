@@ -39,6 +39,7 @@ function toWritableRow(row) {
     barcodes_extra: (row.barcodes_extra || []).map((b) => ({ codice_barre: b.codice_barre, produttore: b.produttore || null })),
     linea: row.linea,
     macchina: row.macchina,
+    ...(row.torre !== undefined ? { torre: row.torre ?? null } : {}), // assente finché la colonna non esiste (migrazione 2026-11-12)
   };
 }
 

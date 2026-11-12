@@ -11,6 +11,8 @@
 // Su quali teste è montato un ricambio si salva in uno di due modi (colonne di `transactions`):
 //  - `teste` (integer[]): macchinario con una sola torre senza nome e teste singole (il caso storico: Tasi test, Boni);
 //  - `punti_testa` (jsonb): [{ torre, testa, pos }] con pos 'S' (superiore), 'I' (inferiore) o null, per tutti gli altri.
+// Un ricambio si lega a una torre nella scheda articolo (colonna `products.torre`, solo Ricambi tecnici con macchina che ha
+// torri con nome): nel Prelievo il selettore delle teste mostra solo le teste di quella torre.
 // Per ESTENDERE: altri ricambi da registrare per testa → cambiare richiedeTesta()/isPiattella().
 
 import { normPunto } from './punti-utilizzo.js';
@@ -73,7 +75,17 @@ export function riepilogoTorri(torri) {
 /** Le piattelle (per ora gli unici ricambi registrati per testa) */
 export const isPiattella = (codiceArticolo) => /piattell/i.test(codiceArticolo || '');
 
-export const richiedeTesta = (product) => isPiattella(product?.codice_articolo);
+/** Torre assegnata all'articolo nella scheda (campo `torre`): '' se non ce n'è */
+export const torreDelProdotto = (product) => String(product?.torre || '').replace(/\s+/g, ' ').trim();
+
+/**
+ * Articoli registrati per testa: le piattelle e ogni ricambio con una torre assegnata nella scheda (es. gommino di
+ * bordatura → torre «Bordatura» dell'Uniformer). Senza macchina la torre non ha senso e non conta.
+ */
+export const richiedeTesta = (product) => isPiattella(product?.codice_articolo) || (!!torreDelProdotto(product) && !!String(product?.macchina || '').trim());
+
+/** Nomi delle torri con un nome (le uniche assegnabili a un articolo) del macchinario indicato (voce di listMachineEntries) */
+export const torriAssegnabili = (entry) => torriDi(entry).filter((t) => t.nome).map((t) => t.nome);
 
 // --- Punti (torre + testa + posizione) -------------------------------------
 // Un punto: { torre: string ('' se la torre non ha nome), testa: number, pos: 'S' | 'I' | null }
@@ -145,6 +157,8 @@ export function macchineConTeste(linea, machines) {
 /**
  * Macchinario indicato nella scheda articolo (campo «macchina»), se ha teste: ha la precedenza sulla linea, così con
  * un articolo montato su una macchina precisa non si chiede quale macchinario sia. Vuoto se non c'è o non ha teste.
+ * Se nella scheda è assegnata anche una torre, del macchinario resta SOLO quella torre (nel Prelievo si vedono solo le
+ * sue teste); se la torre non esiste più (rinominata o tolta in Gestione macchine) si ripiega su tutte le torri.
  * @returns {{nome: string, torri: object[]}[]}
  */
 export function macchinaDelProdotto(product, machines) {
@@ -152,9 +166,16 @@ export function macchinaDelProdotto(product, machines) {
   if (!key) return [];
   return (machines || [])
     .filter((m) => normPunto(m.nome) === key)
-    .map((m) => ({ nome: m.nome, torri: torriDi(m) }))
+    .map((m) => ({ nome: m.nome, torri: soloTorre(torriDi(m), torreDelProdotto(product)) }))
     .filter((m) => m.torri.length > 0)
     .slice(0, 1);
+}
+
+/** Tiene solo la torre col nome indicato (senza badare a maiuscole e punteggiatura); se non c'è, le torri restano tutte */
+function soloTorre(torri, nome) {
+  if (!nome) return torri;
+  const trovate = torri.filter((t) => normPunto(t.nome) === normPunto(nome));
+  return trovate.length ? trovate : torri;
 }
 
 /** True se la macchina ha una sola torre senza nome con teste singole: si salva come prima, nella colonna `teste` */
