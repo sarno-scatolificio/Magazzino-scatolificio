@@ -496,7 +496,7 @@
                 </button>
                 <select id="scan-macchinario-input" class="hidden" tabindex="-1" aria-hidden="true"></select>
               </div>
-              <!-- Solo piattelle (macchinario con teste, ricavato dalla linea): si sceglie con il semicerchio -->
+              <!-- Solo piattelle (macchinario con teste, ricavato dalla linea; se ce n'è più d'uno si sceglie prima quale): torre e testa si scelgono con il semicerchio -->
               <div id="scan-testa-wrap" class="hidden">
                 <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Testa <span id="scan-testa-machine" class="normal-case font-normal text-graphite-500"></span></label>
                 <button type="button" id="scan-testa-btn"
@@ -1959,6 +1959,12 @@
       <button id="testa-picker-close" aria-label="Chiudi" class="modal-close modal-close--on-light">
         <i data-lucide="x" class="w-6 h-6" stroke-width="2.5"></i>
       </button>
+    </div>
+    <!-- Torri del macchinario (solo se sono più d'una) e posizione superiore/inferiore (solo per le torri con teste doppie) -->
+    <div id="testa-picker-torri" class="hidden flex gap-2 overflow-x-auto px-4 pt-3 shrink-0"></div>
+    <div id="testa-picker-pos" class="hidden flex gap-2 px-4 pt-3 shrink-0" role="group" aria-label="Posizione della testa">
+      <button type="button" data-pos="S" aria-pressed="true">Superiore</button>
+      <button type="button" data-pos="I" aria-pressed="false">Inferiore</button>
     </div>
     <div class="px-3 pt-2 shrink-0">
       <svg id="testa-picker-svg" viewBox="0 0 380 240" class="w-full block" tabindex="0" role="slider" aria-label="Testa montata"
