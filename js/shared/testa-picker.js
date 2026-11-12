@@ -7,10 +7,12 @@
 //
 // Il macchinario può avere più torri (pulsanti in alto per passare dall'una all'altra: le scelte restano) e ogni torre un
 // numero di teste diverso, singole oppure doppie (superiore/inferiore: due pulsanti scelgono quale delle due).
-// I numeri stanno su una semicirconferenza che si ruota col dito (anche con una spinta: si ferma sul numero più
-// vicino) o toccando un numero; il cerchio è continuo (dopo l'ultima testa si torna alla prima). Il numero sotto il
-// segnalino in alto è quello "puntato": «Aggiungi testa» lo aggiunge alle scelte (o lo toglie), come toccarlo quando è
-// già al centro. Frecce ◀ ▶ per spostarsi di una testa alla volta.
+// La torre è disegnata come una STELLA DI TRASPORTO (stile disegno tecnico, piatta): un disco con tanti alloggiamenti quante
+// sono le teste, e in ogni alloggiamento la sua testa, come un barattolo nella stella. Il raggio è proporzionato al numero di
+// teste (alloggiamenti sempre grandi quanto basta per toccarli): con poche teste si vede la stella intera, con tante è più
+// grande dello schermo e se ne vede la parte in alto. La stella si ruota col dito (anche con una spinta: si ferma sulla testa
+// più vicina) o toccando una testa; quella sotto il segnalino in alto è la «puntata»: «Aggiungi testa» la aggiunge alle
+// scelte (o la toglie), come toccarla quando è già in alto. Frecce ◀ ▶ per spostarsi di una testa alla volta.
 //
 // Più teste (una piattella per testa): il numero delle teste deve combaciare con la quantità del prelievo.
 //  - quantità impostata a Q > 1: servono esattamente Q teste; con meno non si conferma; con più si avvisa che non
@@ -21,11 +23,13 @@
 import { openOverlay, closeOverlay, enableSheetDrag } from './ui-utils.js';
 
 const NS = 'http://www.w3.org/2000/svg';
-const CX = 190;
-const CY = 215;
-const R = 150;
-const STEP = 16; // gradi tra un numero e il successivo (indipendente dal numero di teste)
-const MAXA = 100; // oltre questo angolo il numero è fuori dal semicerchio
+const VBW = 380; // dimensioni del disegno (viewBox)
+const VBH = 300;
+const CX = VBW / 2;
+const TOP_Y = 62; // bordo alto della stella: la testa puntata sta sempre qui
+const R_MIN = 108; // raggio minimo della stella (poche teste: si vede intera)
+const PITCH_MIN = 50; // distanza minima tra due alloggiamenti sul bordo: sotto non si toccherebbero bene
+const INK = 'var(--ink, #0d1117)';
 const POS_SHORT = { S: 'sup.', I: 'inf.' };
 const CHIP_ON = 'bg-amber-400 border-amber-400 text-white';
 const CHIP_OFF = 'bg-graphite-900 border-graphite-700 text-graphite-300';
@@ -37,6 +41,9 @@ let torri = []; // torri del macchinario: [{ nome, teste, tipo }]
 let tIdx = 0; // torre mostrata (indice in torri)
 let curPos = 'S'; // posizione scelta nelle torri doppie: 'S' superiore, 'I' inferiore
 let fixedPos = null; // posizione già decisa nella scheda articolo ('S' | 'I'): non si sceglie, vale per tutte le teste
+let R = R_MIN; // raggio della stella della torre mostrata
+let CY = TOP_Y + R_MIN; // centro della stella (fuori schermo se le teste sono tante)
+let pitchDeg = 36; // gradi tra una testa e la successiva (360 / teste)
 let pos = 0; // posizione fluida della rotazione, in "teste" (0 = testa 1 sotto il segnalino)
 let vel = 0;
 let target = null;
@@ -44,6 +51,7 @@ let dragging = false;
 let running = false;
 let sel = 0; // testa puntata (sotto il segnalino)
 let nodes = [];
+let headR = 17; // raggio del cerchio di una testa
 let chosen = new Map(); // teste scelte: chiave "torre:testa:pos" -> { t: indice torre, n: testa, p: 'S' | 'I' | null }
 let quantita = 1; // quantità del prelievo all'apertura
 let lastA = null;
@@ -69,6 +77,11 @@ export function initTestaPicker() {
   enableSheetDrag(els.modal.querySelector('.modal-panel'), () => close(null));
   els.svg = document.getElementById('testa-picker-svg');
   els.layer = document.getElementById('testa-picker-heads');
+  els.axes = document.getElementById('testa-picker-axes');
+  els.badge = document.getElementById('testa-picker-badge');
+  els.wheel = document.getElementById('testa-picker-wheel');
+  els.star = document.getElementById('testa-picker-star');
+  els.deco = document.getElementById('testa-picker-deco');
   els.num = document.getElementById('testa-picker-num');
   els.of = document.getElementById('testa-picker-of');
   els.title = document.getElementById('testa-picker-title');
@@ -210,7 +223,63 @@ function refreshPos() {
   });
 }
 
+const NUM = (n) => n.toFixed(2);
+// Punto a distanza r dal centro della stella, ad angolo f (gradi, orario da in alto), nel disegno non ruotato
+const polar = (r, f) => {
+  const rad = (f * Math.PI) / 180;
+  return { x: CX + r * Math.sin(rad), y: CY - r * Math.cos(rad) };
+};
+
+/** Foro con mirino, come le viti del disegno */
+function bolt(x, y, r) {
+  return `M${NUM(x - r)} ${NUM(y)}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0M${NUM(x - r * 0.35)} ${NUM(y)}a${r * 0.35} ${r * 0.35} 0 1 0 ${r * 0.7} 0a${r * 0.35} ${r * 0.35} 0 1 0 ${-r * 0.7} 0M${NUM(x - r * 1.5)} ${NUM(y)}h${r * 3}M${NUM(x)} ${NUM(y - r * 1.5)}v${r * 3}`;
+}
+
+/**
+ * Disegna la stella della torre mostrata e le sue teste. Il raggio cresce col numero di teste (PITCH_MIN tra un alloggiamento
+ * e l'altro); il centro si abbassa in modo che il bordo alto resti sempre a TOP_Y.
+ */
 function build() {
+  pitchDeg = 360 / N;
+  R = Math.max(R_MIN, Math.min(1800, (N * PITCH_MIN) / (2 * Math.PI)));
+  CY = TOP_Y + R;
+  const pitchArc = (2 * Math.PI * R) / N;
+  const rn = Math.min(24, pitchArc * 0.44); // raggio dell'alloggiamento (più largo della testa: resta un bordo visibile)
+  headR = Math.max(6, rn - 5);
+  const rc = R - rn * 0.3; // centro degli alloggiamenti: la testa sta dentro per la maggior parte e sporge un poco, come un barattolo
+  // incrocio tra il bordo della stella e l'alloggiamento: x lungo il raggio, ±h di lato
+  const px = (rc * rc + R * R - rn * rn) / (2 * rc);
+  const h = Math.sqrt(Math.max(0, R * R - px * px));
+  const halfAng = (Math.asin(Math.min(1, h / R)) * 180) / Math.PI;
+
+  // Contorno: alloggiamento (arco concavo) e tratto di bordo fino al successivo
+  let d = '';
+  for (let i = 0; i < N; i += 1) {
+    const f = i * pitchDeg;
+    const a = polar(R, f - halfAng); // lato antiorario dell'alloggiamento
+    const b = polar(R, f + halfAng);
+    const next = polar(R, f + pitchDeg - halfAng);
+    const span = pitchDeg - 2 * halfAng;
+    d += `${i === 0 ? 'M' : 'L'}${NUM(a.x)} ${NUM(a.y)}A${NUM(rn)} ${NUM(rn)} 0 1 0 ${NUM(b.x)} ${NUM(b.y)}`;
+    d += `A${R} ${R} 0 ${span > 180 ? 1 : 0} 1 ${NUM(next.x)} ${NUM(next.y)}`;
+  }
+  els.star.setAttribute('d', `${d}Z`);
+
+  // Dettagli da disegno tecnico: viti tra un alloggiamento e l'altro, mozzo con viti, assi tratteggiati
+  let deco = '';
+  const boltR = Math.min(4.5, pitchArc * 0.09);
+  for (let i = 0; i < N; i += 1) {
+    const q = polar(R - 34, i * pitchDeg + pitchDeg / 2); // una vite su ogni dente
+    deco += bolt(q.x, q.y, boltR);
+    if (N <= 20) {
+      const m = polar(58, i * pitchDeg + pitchDeg / 2); // e una vite del mozzo sullo stesso raggio
+      deco += bolt(m.x, m.y, 4.5);
+    }
+  }
+  els.deco.setAttribute('d', deco);
+  els.axes.setAttribute('d', `M${NUM(CX - R + 14)} ${NUM(CY)}H${NUM(CX + R - 14)}M${NUM(CX)} ${NUM(CY - R + 14)}V${NUM(CY + R - 14)}`);
+  els.badge.setAttribute('cy', NUM(TOP_Y + R_MIN));
+
   els.layer.innerHTML = '';
   nodes = [];
   for (let i = 0; i < N; i += 1) {
@@ -218,51 +287,52 @@ function build() {
     g.setAttribute('data-i', String(i));
     g.style.cursor = 'pointer';
     const c = document.createElementNS(NS, 'circle');
-    c.setAttribute('r', '17');
+    c.setAttribute('r', String(NUM(headR)));
     const t = document.createElementNS(NS, 'text');
     t.setAttribute('text-anchor', 'middle');
     t.setAttribute('dy', '0.35em');
-    t.setAttribute('font-size', '13');
+    t.setAttribute('font-size', String(Math.min(13, Math.max(8, headR * 0.78))));
     t.setAttribute('font-weight', '600');
     t.textContent = String(i + 1);
     g.appendChild(c);
     g.appendChild(t);
     els.layer.appendChild(g);
-    nodes.push({ g, c, t });
+    const q = polar(rc, i * pitchDeg);
+    nodes.push({ g, c, t, x: q.x, y: q.y });
   }
 }
 
 function render() {
   const other = curPos === 'S' ? 'I' : 'S';
+  const rot = -pos * pitchDeg;
+  els.wheel.setAttribute('transform', `rotate(${rot.toFixed(2)} ${CX} ${NUM(CY)})`);
   for (let i = 0; i < N; i += 1) {
     let d = norm(i - pos);
     if (d >= N / 2) d -= N;
-    const a = d * STEP;
     const n = nodes[i];
-    if (Math.abs(a) > MAXA) {
+    // stella più grande dello schermo: le teste lontane dalla parte visibile non si aggiornano
+    if (R > 160 && Math.abs(d * pitchDeg) > 80) {
       n.g.style.display = 'none';
       continue;
     }
     n.g.style.display = '';
-    const rad = (a * Math.PI) / 180;
-    const x = CX + R * Math.sin(rad);
-    const y = CY - R * Math.cos(rad);
-    const scale = 1 + 0.35 * Math.max(0, 1 - Math.abs(d));
     const isCursor = Math.abs(d) < 0.5;
     const isChosen = chosen.has(keyOf(tIdx, i + 1, posNow()));
     const isChosenOther = !isChosen && isDoppia() && chosen.has(keyOf(tIdx, i + 1, other)); // scelta nell'altra posizione (sup./inf.)
-    n.g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale.toFixed(3)})`);
-    n.g.style.opacity = Math.abs(a) <= 64 ? 1 : Math.max(0.12, 1 - (Math.abs(a) - 64) / 40);
+    const scale = 1 + 0.2 * Math.max(0, 1 - Math.abs(d));
+    // la testa ruota con la stella ma il numero resta dritto: rotazione contraria
+    n.g.setAttribute('transform', `translate(${NUM(n.x)} ${NUM(n.y)}) rotate(${(-rot).toFixed(2)}) scale(${scale.toFixed(3)})`);
     if (isChosen) {
       // scelta: piena nel colore dell'app (se è anche quella puntata, resta più grande)
       n.c.style.fill = 'var(--accent)';
-      n.c.style.stroke = 'none';
+      n.c.style.stroke = INK;
+      n.c.style.strokeWidth = '1.5';
       n.t.style.fill = '#ffffff';
     } else if (isCursor) {
       // puntata ma non ancora scelta: bianca con contorno spesso
       n.c.style.fill = '#ffffff';
       n.c.style.stroke = 'var(--accent)';
-      n.c.style.strokeWidth = '2';
+      n.c.style.strokeWidth = '3';
       n.t.style.fill = 'var(--accent)';
     } else if (isChosenOther) {
       // testa già scelta ma nell'altra posizione: contorno nel colore dell'app, senza riempimento
@@ -272,8 +342,8 @@ function render() {
       n.t.style.fill = 'var(--accent)';
     } else {
       n.c.style.fill = 'var(--accent-tint-soft, #f3f4f8)';
-      n.c.style.stroke = 'var(--line, #dde1e7)';
-      n.c.style.strokeWidth = '1';
+      n.c.style.stroke = INK;
+      n.c.style.strokeWidth = '1.2';
       n.t.style.fill = 'var(--ink, #0d1117)';
     }
   }
@@ -420,10 +490,10 @@ function kick() {
 
 function svgPoint(e) {
   const r = els.svg.getBoundingClientRect();
-  return { x: ((e.clientX - r.left) * 380) / r.width, y: ((e.clientY - r.top) * 240) / r.height };
+  return { x: ((e.clientX - r.left) * VBW) / r.width, y: ((e.clientY - r.top) * VBH) / r.height };
 }
 
-// Angolo del dito rispetto al centro dell'arco (gradi, in senso orario): ruotare = seguire il dito lungo l'arco
+// Angolo del dito rispetto al centro della stella (gradi, in senso orario): ruotare = seguire il dito lungo il bordo
 function angleOf(p) {
   const dx = p.x - CX;
   const dy = CY - p.y;
@@ -461,12 +531,12 @@ function onMove(e) {
   if (da > 180) da -= 360;
   if (da < -180) da += 360;
   lastA = a;
-  pos -= da / STEP;
+  pos -= da / pitchDeg;
   // velocità in teste per fotogramma (16,7 ms), calcolata sul tempo reale: non dipende da quanti eventi manda il telefono
   const now = performance.now();
   const dt = Math.max(1, now - lastT);
   lastT = now;
-  vel = vel * 0.5 + ((-da / STEP / dt) * 16.7) * 0.5;
+  vel = vel * 0.5 + ((-da / pitchDeg / dt) * 16.7) * 0.5;
 }
 
 function onUp() {
