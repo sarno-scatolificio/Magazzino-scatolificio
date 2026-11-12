@@ -5,13 +5,15 @@
 // registrate compaiono nel form articolo e nel filtro "per macchina".
 // =============================================================
 
-import { listMachinesWithCounts, createMachine, deleteMachine, updateMachineLinee, updateMachinesOrder, compareMachines, MACHINE_LINES, REPARTO, bumpProductsVersion, uploadMachineManual, deleteMachineManual, uploadOperatorManual, deleteOperatorManual } from '../../data/supabase.js';
+import { listMachinesWithCounts, createMachine, deleteMachine, updateMachineLinee, updateMachineTorri, updateMachinesOrder, compareMachines, MACHINE_LINES, REPARTO, bumpProductsVersion, uploadMachineManual, deleteMachineManual, uploadOperatorManual, deleteOperatorManual } from '../../data/supabase.js';
 import { toastSuccess, toastError } from '../../shared/toast.js';
 import { isAdmin } from '../../core/auth.js';
 import { staggerIndex, setButtonBusy, openOverlay, closeOverlay, enableSheetDrag, startUploadProgress } from '../../shared/ui-utils.js';
 import { confirmDialog } from '../../shared/ui-modal.js';
 import { refreshManualsCache, getManualsForMachine, getOperatorManualsForMachine, openManualViewer } from '../manuali/manuals.js';
 import feedback from '../../shared/feedback.js';
+import { normPunto } from '../magazzino/punti-utilizzo.js';
+import { macchinaHaTeste, torriDi, riepilogoTorri, sanitizeTorri, TIPO_SINGOLA, TIPO_DOPPIA, MAX_TORRI, MAX_TESTE, MAX_NOME_TORRE } from '../magazzino/testa-macchine.js';
 
 // Stesse opzioni del campo "Linea" nel form articolo (products.js): un
 // manuale può essere caricato per ognuna, oppure come "Generale" (vale per
@@ -134,6 +136,7 @@ function render(machines, { animate = true } = {}) {
     row.appendChild(topLine);
 
     if (m.id) row.appendChild(buildLineeRow(m));
+    if (m.id && macchinaHaTeste(m.nome)) row.appendChild(buildTorriSection(m)); // solo i 4 macchinari con teste
     row.appendChild(buildManualRow(m));
     els.list.appendChild(row);
   });
@@ -185,6 +188,177 @@ function buildLineeRow(machine) {
 
   wrap.append(left, right);
   return wrap;
+}
+
+// --- Torri e teste (solo TASI TEST, PROVATRICE BONI, UNIFORMER, CAN-O-MAT) --------------------------------------
+const INPUT_CLS = 'rounded-lg bg-graphite-800 border border-graphite-700 px-3 py-2 text-sm text-graphite-100 focus:border-amber-400 outline-none transition-colors';
+const SEG_ON = 'bg-amber-400 border-amber-400 text-white';
+const SEG_OFF = 'bg-graphite-900 border-graphite-700 text-graphite-400';
+
+/** Riga «Torri e teste» di una macchina con teste: riepilogo e editor (numero di torri, nome, teste, singola o superiori/inferiori) */
+function buildTorriSection(machine) {
+  const wrap = document.createElement('div');
+  wrap.className = 'mt-1 pt-1.5 border-t border-graphite-800/70';
+  const head = document.createElement('div');
+  head.className = 'flex items-center justify-between gap-2';
+  const left = document.createElement('div');
+  left.className = 'min-w-0';
+  const label = document.createElement('span');
+  label.className = 'ui-note font-semibold uppercase tracking-wide text-graphite-500 mr-2';
+  label.textContent = 'Torri e teste';
+  const summary = document.createElement('span');
+  summary.className = 'ui-note text-graphite-300';
+  const saved = torriDi(machine);
+  summary.textContent = riepilogoTorri(saved);
+  left.append(label, summary);
+  const editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.className = 'press-spring shrink-0 min-h-[40px] px-3 rounded-lg border border-graphite-700 bg-graphite-900 text-graphite-200 text-xs font-display font-semibold uppercase tracking-wide';
+  editBtn.textContent = 'Modifica';
+  head.append(left, editBtn);
+  wrap.appendChild(head);
+
+  const editor = document.createElement('div');
+  editor.className = 'hidden mt-2 pb-1.5 space-y-2';
+  wrap.appendChild(editor);
+  editBtn.addEventListener('click', () => {
+    const open = editor.classList.toggle('hidden') === false;
+    editBtn.textContent = open ? 'Chiudi' : 'Modifica';
+    if (open) {
+      const draft = saved.length ? saved.map((t) => ({ ...t })) : [{ nome: '', teste: 1, tipo: TIPO_SINGOLA }];
+      renderTorriEditor(editor, machine, draft);
+    }
+  });
+  return wrap;
+}
+
+function renderTorriEditor(editor, machine, draft) {
+  editor.innerHTML = '';
+  const redraw = () => renderTorriEditor(editor, machine, draft);
+
+  // Numero di torri
+  const count = document.createElement('div');
+  count.className = 'flex items-center justify-between gap-2';
+  const countLabel = document.createElement('span');
+  countLabel.className = 'text-sm text-graphite-200';
+  countLabel.textContent = 'Numero di torri';
+  const stepper = document.createElement('div');
+  stepper.className = 'flex items-center gap-1';
+  const mk = (txt, aria, disabled, fn) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.disabled = disabled;
+    b.setAttribute('aria-label', aria);
+    b.className = 'press-spring w-10 h-10 rounded-lg border border-graphite-700 bg-graphite-900 text-graphite-200 text-lg font-semibold';
+    b.textContent = txt;
+    b.addEventListener('click', fn);
+    return b;
+  };
+  const num = document.createElement('span');
+  num.className = 'w-8 text-center font-mono text-base font-semibold text-graphite-100';
+  num.textContent = String(draft.length);
+  stepper.append(
+    mk('−', 'Meno torri', draft.length <= 1, () => {
+      draft.pop();
+      redraw();
+    }),
+    num,
+    mk('+', 'Più torri', draft.length >= MAX_TORRI, () => {
+      draft.push({ nome: '', teste: draft[draft.length - 1]?.teste || 1, tipo: draft[draft.length - 1]?.tipo || TIPO_SINGOLA });
+      redraw();
+    })
+  );
+  count.append(countLabel, stepper);
+  editor.appendChild(count);
+
+  // Una scheda per torre
+  draft.forEach((t, i) => {
+    const card = document.createElement('div');
+    card.className = 'rounded-lg border border-graphite-800 p-2.5 space-y-2';
+    const row = document.createElement('div');
+    row.className = 'flex gap-2';
+    const name = document.createElement('input');
+    name.type = 'text';
+    name.maxLength = MAX_NOME_TORRE;
+    name.value = t.nome;
+    name.autocomplete = 'off';
+    name.placeholder = draft.length > 1 ? `Nome torre ${i + 1} (es. Bordatura)` : 'Nome torre (facoltativo)';
+    name.setAttribute('aria-label', `Nome della torre ${i + 1}`);
+    name.className = `flex-1 min-w-0 ${INPUT_CLS}`;
+    name.addEventListener('input', () => (t.nome = name.value));
+    const teste = document.createElement('input');
+    teste.type = 'number';
+    teste.inputMode = 'numeric';
+    teste.min = '1';
+    teste.max = String(MAX_TESTE);
+    teste.value = String(t.teste);
+    teste.setAttribute('aria-label', `Numero di teste della torre ${i + 1}`);
+    teste.className = `w-20 shrink-0 text-center ${INPUT_CLS}`;
+    teste.addEventListener('input', () => (t.teste = teste.value === '' ? NaN : Number(teste.value)));
+    const testeLbl = document.createElement('span');
+    testeLbl.className = 'self-center ui-note text-graphite-500';
+    testeLbl.textContent = 'teste';
+    row.append(name, teste, testeLbl);
+
+    const seg = document.createElement('div');
+    seg.className = 'flex gap-2';
+    seg.setAttribute('role', 'group');
+    seg.setAttribute('aria-label', `Tipo di teste della torre ${i + 1}`);
+    [
+      [TIPO_SINGOLA, 'Testa singola'],
+      [TIPO_DOPPIA, 'Superiori e inferiori'],
+    ].forEach(([tipo, text]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(t.tipo === tipo));
+      b.className = `press-spring flex-1 min-h-[40px] rounded-lg border text-xs font-display font-semibold uppercase tracking-wide transition-colors ${t.tipo === tipo ? SEG_ON : SEG_OFF}`;
+      b.textContent = text;
+      b.addEventListener('click', () => {
+        t.tipo = tipo;
+        redraw();
+      });
+      seg.appendChild(b);
+    });
+    card.append(row, seg);
+    editor.appendChild(card);
+  });
+
+  const hint = document.createElement('p');
+  hint.className = 'ui-note text-graphite-500';
+  hint.textContent = 'Con superiori e inferiori ogni numero ha due teste. Il nome serve a indicare il punto esatto (es. Bordatura · Testa 5 superiore).';
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'press-spring w-full rounded-lg bg-amber-400 hover:bg-amber-300 text-white font-display font-semibold uppercase tracking-wide text-xs min-h-[44px]';
+  save.textContent = 'Salva torri';
+  save.addEventListener('click', () => saveTorri(machine, draft, save));
+  editor.append(hint, save);
+}
+
+async function saveTorri(machine, draft, btn) {
+  const fail = (msg) => {
+    feedback.errorAction();
+    toastError(msg);
+  };
+  const torri = sanitizeTorri(draft);
+  if (torri.length !== draft.length) return fail(`Il numero di teste di ogni torre va da 1 a ${MAX_TESTE}.`);
+  if (torri.length > 1) {
+    const names = torri.map((t) => normPunto(t.nome));
+    if (names.some((n) => !n)) return fail('Con più torri ognuna deve avere un nome.');
+    if (new Set(names).size !== names.length) return fail('Due torri hanno lo stesso nome.');
+  }
+  setButtonBusy(btn, true, 'Salvataggio…');
+  try {
+    await updateMachineTorri(machine.id, torri);
+    machine.torri = torri;
+    feedback.modeSelect();
+    notifyMachinesChanged();
+    toastSuccess(`Torri di ${machine.nome} salvate.`);
+    render(currentMachines, { animate: false });
+  } catch (err) {
+    console.error(err);
+    fail(err.message || 'Impossibile salvare le torri.');
+    setButtonBusy(btn, false);
+  }
 }
 
 async function toggleLinea(machine, linea, chip) {
