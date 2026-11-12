@@ -142,6 +142,21 @@ export function macchineConTeste(linea, machines) {
     .filter((m) => m.torri.length > 0);
 }
 
+/**
+ * Macchinario indicato nella scheda articolo (campo «macchina»), se ha teste: ha la precedenza sulla linea, così con
+ * un articolo montato su una macchina precisa non si chiede quale macchinario sia. Vuoto se non c'è o non ha teste.
+ * @returns {{nome: string, torri: object[]}[]}
+ */
+export function macchinaDelProdotto(product, machines) {
+  const key = normPunto(product?.macchina);
+  if (!key) return [];
+  return (machines || [])
+    .filter((m) => normPunto(m.nome) === key)
+    .map((m) => ({ nome: m.nome, torri: torriDi(m) }))
+    .filter((m) => m.torri.length > 0)
+    .slice(0, 1);
+}
+
 /** True se la macchina ha una sola torre senza nome con teste singole: si salva come prima, nella colonna `teste` */
 export const salvaComeTeste = (torri) => torri.length === 1 && !torri[0].nome && torri[0].tipo === TIPO_SINGOLA;
 
