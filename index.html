@@ -1486,6 +1486,18 @@
         </div>
       </div>
 
+      <!-- Torre del macchinario (solo Ricambi tecnici, se la macchina scelta ha torri con un nome, es. Bordatura / Inferiore):
+           nel Prelievo si vedono solo le teste di questa torre -->
+      <div id="product-torre-wrap" class="hidden">
+        <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Torre <span class="normal-case font-normal text-graphite-500">(facoltativa)</span></label>
+        <button type="button" id="product-torre-btn" class="w-full flex items-center justify-between gap-2 rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm text-left hover:border-amber-400 transition-colors min-h-[44px]">
+          <span id="product-torre-value" class="truncate text-graphite-400">Nessuna: tutte le torri</span>
+          <i data-lucide="chevrons-up-down" class="w-4 h-4 text-graphite-400 shrink-0" stroke-width="2"></i>
+        </button>
+        <input type="hidden" id="product-torre">
+        <p class="ui-note text-graphite-500 mt-1">Nel Prelievo di questo ricambio si sceglie la testa solo tra quelle della torre.</p>
+      </div>
+
       <!-- Manuale ricambi della macchina selezionata: solo per la categoria "Ricambi tecnici",
            e solo se la macchina scelta ha un manuale PDF caricato (vedi Impostazioni → Gestione macchine) -->
       <button type="button" id="product-open-manual-btn" class="hidden w-full flex items-center justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-400/10 hover:bg-amber-400/15 px-3.5 py-2.5 text-sm font-display font-semibold uppercase tracking-wide text-amber-300 transition-colors min-h-[44px]">
