@@ -84,6 +84,22 @@ export const torreDelProdotto = (product) => String(product?.torre || '').replac
  */
 export const richiedeTesta = (product) => isPiattella(product?.codice_articolo) || (!!torreDelProdotto(product) && !!String(product?.macchina || '').trim());
 
+export const POS_LABEL = { S: 'Superiore', I: 'Inferiore' };
+
+/** True se la torre col nome indicato del macchinario (voce di listMachineEntries) ha teste doppie (superiore + inferiore) */
+export const torreDoppia = (entry, nomeTorre) => torriDi(entry).some((t) => t.tipo === TIPO_DOPPIA && normPunto(t.nome) === normPunto(nomeTorre));
+
+/**
+ * Posizione (superiore/inferiore) assegnata all'articolo nella scheda: vale solo con una torre a teste doppie, già
+ * ristretta alla sola torre dell'articolo (macchinaDelProdotto). Altrimenti null: la posizione si sceglie nel selettore.
+ * @returns {'S'|'I'|null}
+ */
+export function posizioneDelProdotto(product, torri) {
+  const pos = product?.posizione;
+  if ((pos !== 'S' && pos !== 'I') || !torreDelProdotto(product)) return null;
+  return torri?.length === 1 && torri[0].tipo === TIPO_DOPPIA ? pos : null;
+}
+
 /** Nomi delle torri con un nome (le uniche assegnabili a un articolo) del macchinario indicato (voce di listMachineEntries) */
 export const torriAssegnabili = (entry) => torriDi(entry).filter((t) => t.nome).map((t) => t.nome);
 

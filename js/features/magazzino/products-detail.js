@@ -21,7 +21,7 @@ import { enhanceShelfNames } from '../../shared/shelf-photo-viewer.js';
 import { fitTextIn } from '../../shared/fit-text.js';
 import { generateLabelsPdf, labelDescription } from '../../shared/label-pdf.js';
 import { refresh, pushHistory } from './products-data.js';
-import { torriAssegnabili } from './testa-macchine.js';
+import { torriAssegnabili, torreDoppia, POS_LABEL } from './testa-macchine.js';
 import { normPunto } from './punti-utilizzo.js';
 
 let editingId = null;
@@ -83,6 +83,10 @@ export function initProductsDetail() {
   els.torreBtn = document.getElementById('product-torre-btn');
   els.torreValue = document.getElementById('product-torre-value');
   els.torreHidden = document.getElementById('product-torre');
+  els.posWrap = document.getElementById('product-posizione-wrap');
+  els.posBtn = document.getElementById('product-posizione-btn');
+  els.posValue = document.getElementById('product-posizione-value');
+  els.posHidden = document.getElementById('product-posizione');
   els.shelvesRows = document.getElementById('product-shelves-rows');
   els.shelvesTotal = document.getElementById('product-shelves-total');
   els.shelfAddBtn = document.getElementById('product-shelf-add-btn');
@@ -168,6 +172,7 @@ export function initProductsDetail() {
   });
 
   els.torreBtn?.addEventListener('click', pickTorre);
+  els.posBtn?.addEventListener('click', pickPosizione);
 
   document.getElementById('product-codice-barre').addEventListener('input', updateBarcodePreview);
   bindDetailBack();
@@ -189,6 +194,7 @@ function applyModalPermissions() {
   els.lineaBtn.disabled = readOnly;
   els.macchinaBtn.disabled = readOnly;
   if (els.torreBtn) els.torreBtn.disabled = readOnly;
+  if (els.posBtn) els.posBtn.disabled = readOnly;
   els.shelfAddBtn.disabled = readOnly;
   els.shelfAddBtn.classList.toggle('hidden', readOnly);
   els.shelvesRows.querySelectorAll('button, input').forEach((el) => {
@@ -230,6 +236,7 @@ function openModal(product = null, { fromDetail = false, prefill = {} } = {}) {
   els.macchinaValue.classList.toggle('text-graphite-400', !product?.macchina);
   els.macchinaValue.classList.toggle('text-graphite-100', !!product?.macchina);
   setPickerValue(els.torreHidden, els.torreValue, product?.torre || '', TORRE_VUOTA);
+  setPosizione(product?.posizione || '');
   document.getElementById('product-punto-standard').value = product?.punto_utilizzo_standard || '';
   document.getElementById('product-descrizione').value = product?.descrizione || '';
   renderShelfRows(product ? getProductLocations(product) : prefill.locazione ? [{ locazione: prefill.locazione, quantita: 0 }] : []);
@@ -520,17 +527,22 @@ function updateManualButtonVisibility() {
 const TORRE_VUOTA = 'Nessuna: tutte le torri';
 let torreSeq = 0; // scarta le risposte arrivate in ritardo (macchina cambiata in fretta)
 
+/** Voce di listMachineEntries della macchina scelta nel form (null se non c'è o l'elenco non è raggiungibile) */
+async function macchinaSceltaEntry() {
+  const macchina = normPunto(els.macchinaHidden.value);
+  if (!macchina) return null;
+  try {
+    return (await listMachineEntries()).find((m) => normPunto(m.nome) === macchina) || null;
+  } catch (err) {
+    console.warn('Elenco macchine non disponibile: i campi Torre e Posizione restano nascosti.', err);
+    return null;
+  }
+}
+
 /** Torri con un nome della macchina scelta nel form (vuoto se la macchina non ha torri o l'elenco non è raggiungibile) */
 async function torriDellaMacchinaScelta() {
-  const macchina = normPunto(els.macchinaHidden.value);
-  if (!macchina) return [];
-  try {
-    const entry = (await listMachineEntries()).find((m) => normPunto(m.nome) === macchina);
-    return entry ? torriAssegnabili(entry) : [];
-  } catch (err) {
-    console.warn('Elenco macchine non disponibile: il campo Torre resta nascosto.', err);
-    return [];
-  }
+  const entry = await macchinaSceltaEntry();
+  return entry ? torriAssegnabili(entry) : [];
 }
 
 /** Mostra il campo Torre solo per i Ricambi tecnici con una macchina che ha torri; con reset azzera una torre che non esiste più */
@@ -544,6 +556,40 @@ async function updateTorreField({ reset = false } = {}) {
   // Una torre salvata che nel frattempo non esiste più resta visibile (si può togliere a mano); cambiando macchina si azzera
   if (reset && attuale && !torri.some((t) => normPunto(t) === normPunto(attuale))) setPickerValue(els.torreHidden, els.torreValue, '', TORRE_VUOTA);
   els.torreWrap.classList.toggle('hidden', !torri.length && !els.torreHidden.value);
+  await syncPosizione();
+}
+
+// Posizione (superiore/inferiore): solo se la torre scelta ha teste doppie. Decide dove va montato il ricambio, così
+// nel Prelievo non si dichiara ogni volta (il selettore delle teste la dà per assegnata).
+const POS_VUOTA = 'Nessuna: si sceglie a ogni prelievo';
+
+function setPosizione(value) {
+  const v = value === 'S' || value === 'I' ? value : '';
+  els.posHidden.value = v;
+  els.posValue.textContent = POS_LABEL[v] || POS_VUOTA;
+  els.posValue.classList.toggle('text-graphite-400', !v);
+  els.posValue.classList.toggle('text-graphite-100', !!v);
+}
+
+async function syncPosizione() {
+  if (!els.posWrap) return;
+  const torre = els.torreHidden.value;
+  const entry = torre ? await macchinaSceltaEntry() : null;
+  const doppia = !!entry && torreDoppia(entry, torre);
+  // Torre tolta, o senza teste doppie (con la macchina raggiungibile): la posizione non ha più senso e si svuota
+  if (els.posHidden.value && (!torre || (entry && !doppia))) setPosizione('');
+  els.posWrap.classList.toggle('hidden', !doppia && !els.posHidden.value);
+}
+
+async function pickPosizione() {
+  const scelta = await openPicker({
+    title: 'Posizione della testa',
+    options: [POS_LABEL.S, POS_LABEL.I],
+    keepOrder: true,
+    currentValue: POS_LABEL[els.posHidden.value] || '',
+  });
+  if (scelta === null) return; // annullato; '' = nessuna
+  setPosizione(scelta === POS_LABEL.S ? 'S' : scelta === POS_LABEL.I ? 'I' : '');
 }
 
 async function pickTorre() {
@@ -557,6 +603,7 @@ async function pickTorre() {
   });
   if (scelta === null) return; // annullato; '' = «Nessuna torre»
   setPickerValue(els.torreHidden, els.torreValue, scelta, TORRE_VUOTA);
+  await syncPosizione();
 }
 
 /** Categorie senza un codice a barre fisico sulla confezione: per queste si può generare il barcode */
@@ -693,6 +740,7 @@ function renderDetail(p) {
     rows.push({ label: 'Linea', value: p.linea });
     rows.push({ label: 'Macchina', value: p.macchina });
     if (isRicambi && (p.torre || '').trim()) rows.push({ label: 'Torre', value: p.torre });
+    if (isRicambi && (p.torre || '').trim() && POS_LABEL[p.posizione]) rows.push({ label: 'Posizione', value: POS_LABEL[p.posizione] });
   }
   if (isCuscinetto && (p.macchina || '').trim()) rows.push({ label: 'Macchina', value: p.macchina });
   if (!isRicambi && (hasMachine || (p.punto_utilizzo_standard || '').trim())) {
@@ -941,6 +989,8 @@ async function handleSubmit(e) {
   // precedente da togliere): così gli altri salvataggi funzionano anche prima di eseguire la migrazione 2026-11-12-articolo-torre.sql
   const torre = payload.categoria === 'pezzi_ricambio' && payload.macchina ? els.torreHidden.value || null : null;
   if (torre || editingSnapshot?.torre) payload.torre = torre;
+  const posizione = torre ? els.posHidden.value || null : null;
+  if (posizione || editingSnapshot?.posizione) payload.posizione = posizione;
 
   const submitBtn = els.form.querySelector('button[type="submit"]');
   setButtonBusy(submitBtn, true, 'Salvataggio…');

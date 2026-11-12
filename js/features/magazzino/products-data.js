@@ -40,6 +40,7 @@ function toWritableRow(row) {
     linea: row.linea,
     macchina: row.macchina,
     ...(row.torre !== undefined ? { torre: row.torre ?? null } : {}), // assente finché la colonna non esiste (migrazione 2026-11-12)
+    ...(row.posizione !== undefined ? { posizione: row.posizione ?? null } : {}), // idem (migrazione 2026-11-12-articolo-posizione)
   };
 }
 
