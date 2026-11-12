@@ -100,7 +100,7 @@ async function fetchMachineEntries() {
   if (!registered.error) {
     registered.data.forEach((r) => {
       const n = normalizeMachineName(r.nome);
-      if (n) byKey.set(n.toLowerCase(), { id: r.id, nome: n, linee: Array.isArray(r.linee) ? r.linee : null, sort_order: r.sort_order ?? null, icon_storage_path: r.icon_storage_path || null });
+      if (n) byKey.set(n.toLowerCase(), { id: r.id, nome: n, linee: Array.isArray(r.linee) ? r.linee : null, sort_order: r.sort_order ?? null, icon_storage_path: r.icon_storage_path || null, torri: Array.isArray(r.torri) ? r.torri : null });
     });
   } else if (!isMissingMachinesTable(registered.error)) {
     throw registered.error;
@@ -109,7 +109,7 @@ async function fetchMachineEntries() {
   if (error) throw error;
   data.forEach((r) => {
     const n = normalizeMachineName(r.macchina);
-    if (n && !byKey.has(n.toLowerCase())) byKey.set(n.toLowerCase(), { id: null, nome: n, linee: null, sort_order: null, icon_storage_path: null });
+    if (n && !byKey.has(n.toLowerCase())) byKey.set(n.toLowerCase(), { id: null, nome: n, linee: null, sort_order: null, icon_storage_path: null, torri: null });
   });
   return Array.from(byKey.values()).sort(compareMachines);
 }
@@ -130,12 +130,18 @@ export async function listDistinctMacchine({ linea = '' } = {}) {
 /** True se l'errore indica che mancano le colonne icona/ordine su `machines` (sql/machines_icona_e_ordine.sql non ancora eseguito) */
 function isMissingMachineColumn(error) {
   const msg = `${error?.message || ''} ${error?.details || ''}`;
-  return error?.code === '42703' || error?.code === 'PGRST204' || (/icon_storage_path|sort_order|linee/.test(msg) && /column|schema cache/i.test(msg));
+  return error?.code === '42703' || error?.code === 'PGRST204' || (/icon_storage_path|sort_order|linee|torri/.test(msg) && /column|schema cache/i.test(msg));
 }
 const MISSING_MACHINE_COLUMNS_MSG = 'Mancano le colonne icona/ordine sulla tabella delle macchine: esegui sql/machines_icona_e_ordine.sql da Supabase → SQL Editor.';
 
 /** Righe di `machines`; se le colonne icona/ordine non esistono ancora ripiega su id e nome, così nulla si rompe. */
+let hasTorriColumn = true; // colonna `torri` (migrazione 2026-11-11-macchine-torri-teste.sql): se manca si legge senza
 async function selectMachinesRows() {
+  if (hasTorriColumn) {
+    const withTorri = await supabase.from('machines').select('id, nome, icon_storage_path, sort_order, linee, torri');
+    if (!withTorri.error || !isMissingMachineColumn(withTorri.error)) return withTorri;
+    hasTorriColumn = false;
+  }
   const full = await supabase.from('machines').select('id, nome, icon_storage_path, sort_order, linee');
   if (!full.error || !isMissingMachineColumn(full.error)) return full;
   // Colonna `linee` non ancora creata: si ripiega sulle colonne precedenti
@@ -158,7 +164,7 @@ export async function listMachinesWithCounts() {
     const nome = normalizeMachineName(raw);
     if (!nome) return;
     const key = nome.toLowerCase();
-    if (!byKey.has(key)) byKey.set(key, { id, nome, articoli: 0, icon_storage_path: null, sort_order: null, linee: null });
+    if (!byKey.has(key)) byKey.set(key, { id, nome, articoli: 0, icon_storage_path: null, sort_order: null, linee: null, torri: null });
     const entry = byKey.get(key);
     if (id && !entry.id) entry.id = id;
     if (countIt) entry.articoli += 1;
@@ -166,6 +172,7 @@ export async function listMachinesWithCounts() {
       entry.icon_storage_path = extra.icon_storage_path ?? null;
       entry.sort_order = extra.sort_order ?? null;
       entry.linee = Array.isArray(extra.linee) ? extra.linee : null;
+      entry.torri = Array.isArray(extra.torri) ? extra.torri : null;
     }
   };
   (registered.data || []).forEach((r) => add(r.nome, false, r.id, r));
@@ -225,6 +232,17 @@ export async function updateMachineLinee(machineId, linee) {
   }
   if (!data || data.length === 0) throw new Error('Non è stato possibile salvare le linee (solo un amministratore può farlo).');
   return clean;
+}
+
+/** Imposta torri e teste di una macchina con teste (vedi magazzino/testa-macchine.js). Solo admin. */
+export async function updateMachineTorri(machineId, torri) {
+  invalidateMachineEntries();
+  const { data, error } = await supabase.from('machines').update({ torri }).eq('id', machineId).select('id');
+  if (error) {
+    if (isMissingMachineColumn(error)) throw new Error('Manca la colonna delle torri: esegui database/migrazioni/2026-11-11-macchine-torri-teste.sql da Supabase → SQL Editor.');
+    throw error;
+  }
+  if (!data || data.length === 0) throw new Error('Non è stato possibile salvare le torri (solo un amministratore può farlo).');
 }
 
 /** Salva l'ordine delle macchine, valido in tutta l'app: elenchi, filtri, Manuali (posizione = indice nell'array). Solo admin. */

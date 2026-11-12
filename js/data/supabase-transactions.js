@@ -12,7 +12,7 @@ import { supabase } from './supabase-client.js';
  * process_transaction (SECURITY DEFINER): aggiorna la giacenza e
  * registra il log in una singola transazione DB.
  */
-export async function processTransaction({ productId, tipo, quantita, puntoUtilizzo, note, linea, macchinario, locationId, teste }) {
+export async function processTransaction({ productId, tipo, quantita, puntoUtilizzo, note, linea, macchinario, locationId, teste, puntiTesta }) {
   const params = {
     p_product_id: productId,
     p_tipo: tipo,
@@ -27,6 +27,8 @@ export async function processTransaction({ productId, tipo, quantita, puntoUtili
   if (locationId) params.p_location_id = locationId;
   // Teste su cui si montano le piattelle (solo prelievi di piattelle, tante quanto la quantità): senza teste la chiamata resta identica a prima
   if (teste?.length) params.p_teste = teste;
+  // Torri con nome o teste superiori/inferiori: [{ torre, testa, pos }] (colonna `punti_testa`, migrazione 2026-11-11)
+  if (puntiTesta?.length) params.p_punti_testa = puntiTesta;
   const { data, error } = await supabase.rpc('process_transaction', params);
   if (error) throw error;
   return data?.[0] ?? null;
@@ -35,14 +37,27 @@ export async function processTransaction({ productId, tipo, quantita, puntoUtili
 // Colonne lette per gli elenchi dei movimenti. `teste` (teste su cui si montano le piattelle) c'è solo dopo la migrazione
 // 2026-11-10-testa-piattelle.sql: se il database non ce l'ha ancora si legge senza e gli elenchi funzionano come prima.
 const TX_COLS =
-  'id, tipo, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, teste, locazione, note, product_id, user_id, products(codice_articolo, categoria, descrizione, punto_utilizzo_standard), profiles(full_name)';
+  'id, tipo, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, teste, punti_testa, locazione, note, product_id, user_id, products(codice_articolo, categoria, descrizione, punto_utilizzo_standard), profiles(full_name)';
+// Stesso per `punti_testa` (migrazione 2026-11-11-macchine-torri-teste.sql).
 let hasTesteColumn = true;
+let hasPuntiColumn = true;
+
+const txCols = () => {
+  let c = TX_COLS;
+  if (!hasPuntiColumn) c = c.replace(' punti_testa,', '');
+  if (!hasTesteColumn) c = c.replace(' teste,', '');
+  return c;
+};
 
 async function runTxQuery(build) {
-  let res = await build(hasTesteColumn ? TX_COLS : TX_COLS.replace(' teste,', ''));
+  let res = await build(txCols());
+  if (res.error && hasPuntiColumn && /punti_testa/i.test(res.error.message || '')) {
+    hasPuntiColumn = false;
+    res = await build(txCols());
+  }
   if (res.error && hasTesteColumn && /teste/i.test(res.error.message || '')) {
     hasTesteColumn = false;
-    res = await build(TX_COLS.replace(' teste,', ''));
+    res = await build(txCols());
   }
   return res;
 }
@@ -122,11 +137,15 @@ export async function listPrelieviForLifespan() {
     console.warn('Elenco prestiti non disponibile: si escludono dalla nota.', err);
   }
   // Colonna `teste` (piattelle): se il database non l'ha ancora (migrazione 2026-11-10 non eseguita) si legge senza
-  let cols = 'id, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, teste, note, product_id, products(codice_articolo, categoria)';
+  let cols = 'id, quantita, data_ora, punto_utilizzo_specifico, linea, macchinario, teste, punti_testa, note, product_id, products(codice_articolo, categoria)';
   const fetchPage = (from) =>
     supabase.from('transactions').select(cols).eq('tipo', 'prelievo').order('data_ora', { ascending: true }).range(from, from + pageSize - 1);
   for (let from = 0; ; from += pageSize) {
     let { data, error } = await fetchPage(from);
+    if (error && cols.includes(' punti_testa,') && /punti_testa/i.test(error.message || '')) {
+      cols = cols.replace(' punti_testa,', '');
+      ({ data, error } = await fetchPage(from));
+    }
     if (error && cols.includes(' teste,') && /teste/i.test(error.message || '')) {
       cols = cols.replace(' teste,', '');
       ({ data, error } = await fetchPage(from));
