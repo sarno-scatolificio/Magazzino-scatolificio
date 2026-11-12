@@ -154,7 +154,7 @@ begin
     nullif(btrim(p_linea), ''),
     nullif(btrim(p_macchinario), ''),
     v_loc_name,
-    case when p_tipo = 'prelievo' then (select array_agg(t order by t) from unnest(p_teste) t) else null end  -- le teste hanno senso solo nel prelievo,
+    case when p_tipo = 'prelievo' then (select array_agg(t order by t) from unnest(p_teste) t) else null end,  -- le teste hanno senso solo nel prelievo
     case when p_tipo = 'prelievo' and p_punti_testa is not null then (
       select jsonb_agg(jsonb_build_object('torre', btrim(coalesce(e->>'torre', '')), 'testa', (e->>'testa')::int, 'pos', nullif(e->>'pos', ''))
         order by btrim(coalesce(e->>'torre', '')), (e->>'testa')::int, coalesce(e->>'pos', ''))
