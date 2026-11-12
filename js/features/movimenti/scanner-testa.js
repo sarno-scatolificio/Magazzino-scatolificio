@@ -9,7 +9,7 @@
 import { els, ss, effectiveLinea } from './scanner-shared.js';
 import { listMachineEntries } from '../../data/supabase.js';
 import feedback from '../../shared/feedback.js';
-import { macchineConTeste, richiedeTesta, riepilogoTorri, labelTesta, labelBreve } from '../magazzino/testa-macchine.js';
+import { macchinaDelProdotto, macchineConTeste, richiedeTesta, riepilogoTorri, labelTesta, labelBreve } from '../magazzino/testa-macchine.js';
 import { openPicker } from '../../shared/picker.js';
 import { openTestaPicker } from '../../shared/testa-picker.js';
 import { setQty } from './scanner-result.js';
@@ -31,10 +31,9 @@ const sameCandidates = (a, b) => a.length === b.length && a.every((c, i) => c.no
 /** Mostra o nasconde il campo in base ad articolo, modalità e linea. Se cambiano i macchinari possibili la scelta si azzera. */
 export function syncTestaField() {
   if (!els.testaWrap) return;
-  const cand =
-    ss.currentMode === 'prelievo' && ss.currentProduct && richiedeTesta(ss.currentProduct)
-      ? macchineConTeste(effectiveLinea(), ss.machinesCache)
-      : [];
+  const serve = ss.currentMode === 'prelievo' && ss.currentProduct && richiedeTesta(ss.currentProduct);
+  // Prima la macchina indicata nella scheda articolo (es. piattelle della Provatrice boni); solo senza, quelle presenti sulla linea
+  const cand = !serve ? [] : macchinaDelProdotto(ss.currentProduct, ss.machinesCache).length ? macchinaDelProdotto(ss.currentProduct, ss.machinesCache) : macchineConTeste(effectiveLinea(), ss.machinesCache);
   if (!cand.length) {
     ss.testa = null;
     els.testaWrap.classList.add('hidden');
