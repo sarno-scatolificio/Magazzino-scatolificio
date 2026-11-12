@@ -9,7 +9,7 @@
 import { els, ss, effectiveLinea } from './scanner-shared.js';
 import { listMachineEntries } from '../../data/supabase.js';
 import feedback from '../../shared/feedback.js';
-import { macchinaDelProdotto, macchineConTeste, richiedeTesta, riepilogoTorri, labelTesta, labelBreve } from '../magazzino/testa-macchine.js';
+import { macchinaDelProdotto, macchineConTeste, richiedeTesta, riepilogoTorri, labelTesta, labelBreve, posizioneDelProdotto } from '../magazzino/testa-macchine.js';
 import { openPicker } from '../../shared/picker.js';
 import { openTestaPicker } from '../../shared/testa-picker.js';
 import { setQty } from './scanner-result.js';
@@ -84,7 +84,7 @@ export async function pickTesta() {
     paintTesta();
   }
   const qty = parseInt(els.qtyInput.value, 10) || 1;
-  const res = await openTestaPicker({ machine: ss.testa.macchinario, torri: ss.testa.torri, selected: ss.testa.value, quantita: qty });
+  const res = await openTestaPicker({ machine: ss.testa.macchinario, torri: ss.testa.torri, selected: ss.testa.value, quantita: qty, posizione: posizioneDelProdotto(ss.currentProduct, ss.testa.torri) });
   if (res === null || !ss.testa) return; // annullato (o nel frattempo il campo è sparito)
   ss.testa.value = res.punti;
   if (res.quantita !== qty) setQty(res.quantita); // confermata dal selettore (es. «Sì, 5 piattelle»): la quantità segue le teste
