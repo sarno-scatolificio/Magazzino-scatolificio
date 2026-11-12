@@ -1496,6 +1496,15 @@
         </button>
         <input type="hidden" id="product-torre">
         <p class="ui-note text-graphite-500 mt-1">Nel Prelievo di questo ricambio si sceglie la testa solo tra quelle della torre.</p>
+        <!-- Solo se la torre ha teste doppie: dove va montato questo ricambio, così non si dichiara a ogni prelievo -->
+        <div id="product-posizione-wrap" class="hidden mt-3">
+          <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Posizione <span class="normal-case font-normal text-graphite-500">(facoltativa)</span></label>
+          <button type="button" id="product-posizione-btn" class="w-full flex items-center justify-between gap-2 rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm text-left hover:border-amber-400 transition-colors min-h-[44px]">
+            <span id="product-posizione-value" class="truncate text-graphite-400">Nessuna: si sceglie a ogni prelievo</span>
+            <i data-lucide="chevrons-up-down" class="w-4 h-4 text-graphite-400 shrink-0" stroke-width="2"></i>
+          </button>
+          <input type="hidden" id="product-posizione">
+        </div>
       </div>
 
       <!-- Manuale ricambi della macchina selezionata: solo per la categoria "Ricambi tecnici",
