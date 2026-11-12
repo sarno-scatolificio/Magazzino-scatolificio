@@ -36,6 +36,7 @@ let N = 0; // teste della torre mostrata
 let torri = []; // torri del macchinario: [{ nome, teste, tipo }]
 let tIdx = 0; // torre mostrata (indice in torri)
 let curPos = 'S'; // posizione scelta nelle torri doppie: 'S' superiore, 'I' inferiore
+let fixedPos = null; // posizione già decisa nella scheda articolo ('S' | 'I'): non si sceglie, vale per tutte le teste
 let pos = 0; // posizione fluida della rotazione, in "teste" (0 = testa 1 sotto il segnalino)
 let vel = 0;
 let target = null;
@@ -124,22 +125,24 @@ export function initTestaPicker() {
  * @param {{machine: string, torri: {nome: string, teste: number, tipo: 'singola'|'doppia'}[], selected?: {torre: string, testa: number, pos: string|null}[], quantita?: number}} opts
  * @returns {Promise<{punti: {torre: string, testa: number, pos: string|null}[], quantita: number}|null>}
  */
-export function openTestaPicker({ machine, torri: towers, selected = [], quantita: qty = 1 }) {
+export function openTestaPicker({ machine, torri: towers, selected = [], quantita: qty = 1, posizione = null }) {
   return new Promise((resolve) => {
     resolveFn = resolve;
     torri = towers && towers.length ? towers : [{ nome: '', teste: 1, tipo: 'singola' }];
     quantita = Math.max(1, Math.round(qty) || 1);
     chosen = new Map();
+    // posizione fissa dalla scheda articolo: conta solo con una torre a teste doppie
+    fixedPos = (posizione === 'S' || posizione === 'I') && torri.some((x) => x.tipo === 'doppia') ? posizione : null;
     selected.forEach((s) => {
       let t = torri.findIndex((x) => x.nome.trim().toLowerCase() === String(s.torre || '').trim().toLowerCase());
       if (t < 0) t = 0;
-      const p = torri[t].tipo === 'doppia' ? (s.pos === 'I' ? 'I' : 'S') : null;
+      const p = torri[t].tipo === 'doppia' ? (fixedPos || (s.pos === 'I' ? 'I' : 'S')) : null;
       if (Number.isInteger(s.testa) && s.testa >= 1 && s.testa <= torri[t].teste) chosen.set(keyOf(t, s.testa, p), { t, n: s.testa, p });
     });
     els.title.textContent = quantita > 1 || chosen.size > 1 ? 'Teste montate' : 'Testa montata';
-    els.sub.textContent = torri.length === 1 && torri[0].nome ? `${machine} · ${torri[0].nome}` : machine;
+    els.sub.textContent = (torri.length === 1 && torri[0].nome ? `${machine} · ${torri[0].nome}` : machine) + (fixedPos ? ` · ${fixedPos === 'S' ? 'superiore' : 'inferiore'}` : '');
     const first = sorted()[0];
-    curPos = first?.p || 'S';
+    curPos = fixedPos || first?.p || 'S';
     hideNote();
     setTower(first ? first.t : 0);
     openOverlay(els.modal);
@@ -199,7 +202,7 @@ function buildChips() {
 /** Superiore / Inferiore: visibile solo per le torri con teste doppie */
 function refreshPos() {
   if (!els.posWrap) return;
-  els.posWrap.classList.toggle('hidden', !isDoppia());
+  els.posWrap.classList.toggle('hidden', !isDoppia() || !!fixedPos); // con la posizione decisa nella scheda articolo non si sceglie
   els.posBtns.forEach((b) => {
     const on = b.dataset.pos === curPos;
     b.setAttribute('aria-pressed', String(on));
