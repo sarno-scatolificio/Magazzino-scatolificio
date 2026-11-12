@@ -1,22 +1,73 @@
 // =============================================================
-// testa-macchine.js — Macchinari con più teste e ricambi da registrare per testa
+// testa-macchine.js — Macchinari con torri e teste, e ricambi da registrare per testa
 // =============================================================
-// Su alcuni macchinari ogni testa monta la sua piattella: per calcolare la vita utile (Report) serve sapere su quale
-// testa è stata montata, altrimenti la sostituzione di una testa sembra "anticipata" rispetto alle altre.
-// Per ESTENDERE: nuovo macchinario con teste → aggiungerlo in TESTE (nome come in Impostazioni → Macchinari);
-// altri ricambi da registrare per testa → cambiare richiedeTesta()/isPiattella().
+// Solo 4 macchinari hanno teste (TASI TEST, PROVATRICE BONI, UNIFORMER, CAN-O-MAT). Ognuno ha una o più TORRI, e ogni torre
+// ha un nome, un numero di teste e un tipo: «singola» (una testa per posizione) oppure «doppia» (ogni posizione ha una
+// testa superiore e una inferiore). La configurazione si fa in Impostazioni → Gestione macchine e vive nella colonna
+// `machines.torri` (jsonb): [{ nome, teste, tipo }].
+// TASI TEST e PROVATRICE BONI, finché non vengono configurate, valgono come una sola torre senza nome (40 e 72 teste singole),
+// come prima; UNIFORMER e CAN-O-MAT non chiedono la testa finché non si imposta almeno una torre.
+//
+// Su quali teste è montato un ricambio si salva in uno di due modi (colonne di `transactions`):
+//  - `teste` (integer[]): macchinario con una sola torre senza nome e teste singole (il caso storico: Tasi test, Boni);
+//  - `punti_testa` (jsonb): [{ torre, testa, pos }] con pos 'S' (superiore), 'I' (inferiore) o null, per tutti gli altri.
+// Per ESTENDERE: altri ricambi da registrare per testa → cambiare richiedeTesta()/isPiattella().
 
 import { normPunto } from './punti-utilizzo.js';
 
-// nome del macchinario (maiuscole e punteggiatura non contano) → numero di teste
-const TESTE = {
-  'tasi test': 40,
-  'provatrice boni': 72,
+export const TIPO_SINGOLA = 'singola';
+export const TIPO_DOPPIA = 'doppia'; // testa superiore + testa inferiore
+export const MAX_TORRI = 12;
+export const MAX_TESTE = 200;
+export const MAX_NOME_TORRE = 40;
+
+// nome del macchinario normalizzato (maiuscole e punteggiatura non contano) → torri predefinite (null = nessuna: va configurato)
+const MACCHINE_CON_TESTE = {
+  'tasi test': [{ nome: '', teste: 40, tipo: TIPO_SINGOLA }],
+  'provatrice boni': [{ nome: '', teste: 72, tipo: TIPO_SINGOLA }],
+  uniformer: null,
+  'can o mat': null,
 };
 
-/** Numero di teste del macchinario (0 se non ha teste da registrare) */
-export function testeDi(nome) {
-  return TESTE[normPunto(nome)] || 0;
+function chiave(nome) {
+  const k = normPunto(nome);
+  return k === 'canomat' ? 'can o mat' : k;
+}
+
+/** True se per questo macchinario si possono impostare torri e teste (solo i 4 macchinari con teste) */
+export const macchinaHaTeste = (nome) => chiave(nome) in MACCHINE_CON_TESTE;
+
+/** Pulisce un elenco di torri letto dal database o dal modulo: scarta le voci non valide */
+export function sanitizeTorri(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((t) => ({
+      nome: String(t?.nome || '').replace(/\s+/g, ' ').trim().slice(0, MAX_NOME_TORRE),
+      teste: Math.round(Number(t?.teste)),
+      tipo: t?.tipo === TIPO_DOPPIA ? TIPO_DOPPIA : TIPO_SINGOLA,
+    }))
+    .filter((t) => Number.isInteger(t.teste) && t.teste >= 1 && t.teste <= MAX_TESTE)
+    .slice(0, MAX_TORRI);
+}
+
+/** Torri predefinite del macchinario (copia): vuoto se va configurato da zero */
+export function torriPredefinite(nome) {
+  const def = MACCHINE_CON_TESTE[chiave(nome)];
+  return def ? def.map((t) => ({ ...t })) : [];
+}
+
+/** Torri del macchinario (voce di listMachineEntries): quelle salvate, altrimenti le predefinite. Vuoto se non ha teste. */
+export function torriDi(entry) {
+  if (!macchinaHaTeste(entry?.nome)) return [];
+  const salvate = sanitizeTorri(entry.torri);
+  return salvate.length ? salvate : torriPredefinite(entry.nome);
+}
+
+/** Riepilogo per Impostazioni, es. «2 torri · 24 teste» */
+export function riepilogoTorri(torri) {
+  if (!torri.length) return 'Non configurate';
+  const teste = torri.reduce((s, t) => s + t.teste * (t.tipo === TIPO_DOPPIA ? 2 : 1), 0);
+  return `${torri.length === 1 ? '1 torre' : `${torri.length} torri`} · ${teste} ${teste === 1 ? 'testa' : 'teste'}`;
 }
 
 /** Le piattelle (per ora gli unici ricambi registrati per testa) */
@@ -24,23 +75,82 @@ export const isPiattella = (codiceArticolo) => /piattell/i.test(codiceArticolo |
 
 export const richiedeTesta = (product) => isPiattella(product?.codice_articolo);
 
-/**
- * Teste di un movimento per la visualizzazione (elenchi dei movimenti, Report): null se non ce ne sono.
- * Vale per qualsiasi articolo registrato per testa, non solo per le piattelle.
- * @returns {{label: string, value: string}|null} es. { label: 'Testa', value: '17' } o { label: 'Teste', value: '5, 17, 18, 23' }
- */
-export function formatTeste(teste) {
-  if (!Array.isArray(teste) || teste.length === 0) return null;
-  const list = [...teste].sort((a, b) => a - b);
-  return { label: list.length === 1 ? 'Testa' : 'Teste', value: list.join(', ') };
+// --- Punti (torre + testa + posizione) -------------------------------------
+// Un punto: { torre: string ('' se la torre non ha nome), testa: number, pos: 'S' | 'I' | null }
+
+/** Nome completo del punto, es. «Bordatura · Testa 5 superiore» */
+export function labelTesta(p) {
+  const pos = p.pos === 'S' ? ' superiore' : p.pos === 'I' ? ' inferiore' : '';
+  return `${p.torre ? `${p.torre} · ` : ''}Testa ${p.testa}${pos}`;
+}
+
+/** Nome breve del punto, es. «Bordatura · 5 sup» */
+export function labelBreve(p) {
+  const pos = p.pos === 'S' ? ' sup' : p.pos === 'I' ? ' inf' : '';
+  return `${p.torre ? `${p.torre} · ` : ''}${p.testa}${pos}`;
+}
+
+/** Chiave che identifica una testa fisica (per confrontare le sostituzioni della stessa testa) */
+export const chiavePunto = (p) => `${normPunto(p.torre)}|${p.testa}|${p.pos || ''}`;
+
+const POS_ORDER = { S: 0, I: 1 };
+/** Ordine dei punti: per torre (nell'ordine delle torri della macchina), poi numero di testa, superiore prima dell'inferiore */
+export function sortPunti(punti, torri = []) {
+  const idx = (p) => {
+    const i = torri.findIndex((t) => normPunto(t.nome) === normPunto(p.torre));
+    return i < 0 ? 999 : i;
+  };
+  return [...punti].sort((a, b) => idx(a) - idx(b) || a.testa - b.testa || (POS_ORDER[a.pos] ?? 2) - (POS_ORDER[b.pos] ?? 2));
+}
+
+/** Punti di un movimento (qualunque sia la colonna usata per salvarli): [] se non ci sono */
+export function puntiDiMovimento(r) {
+  if (Array.isArray(r?.punti_testa) && r.punti_testa.length) {
+    return r.punti_testa
+      .map((p) => ({ torre: String(p?.torre || ''), testa: Number(p?.testa), pos: p?.pos === 'S' || p?.pos === 'I' ? p.pos : null }))
+      .filter((p) => Number.isInteger(p.testa));
+  }
+  if (Array.isArray(r?.teste) && r.teste.length) return r.teste.map((n) => ({ torre: '', testa: Number(n), pos: null }));
+  return [];
 }
 
 /**
- * Macchinario con teste presente sulla linea (la piattella non chiede il macchinario: si ricava dalla linea).
- * Restituisce null se non ce n'è uno solo (nessuno, oppure ambiguo): in quel caso la testa non si chiede.
+ * Teste di un movimento per la visualizzazione (elenchi dei movimenti, Report): null se non ce ne sono.
+ * Vale per qualsiasi articolo registrato per testa, non solo per le piattelle.
+ * @param {number[]|null} teste colonna `teste`
+ * @param {object[]|null} [puntiTesta] colonna `punti_testa`
+ * @returns {{label: string, value: string}|null} es. { label: 'Testa', value: '17' } o { label: 'Teste', value: 'Bordatura · 5 sup, Bordatura · 6 sup' }
  */
-export function macchinaConTeste(linea, machines) {
-  if (!linea) return null;
-  const list = (machines || []).filter((m) => testeDi(m.nome) && Array.isArray(m.linee) && m.linee.includes(linea));
-  return list.length === 1 ? { nome: list[0].nome, teste: testeDi(list[0].nome) } : null;
+export function formatTeste(teste, puntiTesta) {
+  const punti = puntiDiMovimento({ teste, punti_testa: puntiTesta });
+  if (!punti.length) return null;
+  const label = punti.length === 1 ? 'Testa' : 'Teste';
+  if (punti.every((p) => !p.torre && !p.pos)) return { label, value: punti.map((p) => p.testa).sort((a, b) => a - b).join(', ') };
+  return { label, value: sortPunti(punti).map(labelBreve).join(', ') };
+}
+
+/**
+ * Macchinari con teste presenti sulla linea (la piattella non chiede il macchinario: si ricava dalla linea).
+ * Più di uno è possibile (es. Uniformer e Can-o-mat sulla stessa linea): allora si sceglie quale al momento della testa.
+ * @returns {{nome: string, torri: object[]}[]}
+ */
+export function macchineConTeste(linea, machines) {
+  if (!linea) return [];
+  return (machines || [])
+    .filter((m) => Array.isArray(m.linee) && m.linee.includes(linea))
+    .map((m) => ({ nome: m.nome, torri: torriDi(m) }))
+    .filter((m) => m.torri.length > 0);
+}
+
+/** True se la macchina ha una sola torre senza nome con teste singole: si salva come prima, nella colonna `teste` */
+export const salvaComeTeste = (torri) => torri.length === 1 && !torri[0].nome && torri[0].tipo === TIPO_SINGOLA;
+
+/**
+ * Da scelte (punti) a parametri della registrazione.
+ * @returns {{teste: number[]|null, puntiTesta: object[]|null}}
+ */
+export function paramTeste(punti, torri) {
+  if (!punti.length) return { teste: null, puntiTesta: null };
+  if (salvaComeTeste(torri)) return { teste: punti.map((p) => p.testa).sort((a, b) => a - b), puntiTesta: null };
+  return { teste: null, puntiTesta: sortPunti(punti, torri).map((p) => ({ torre: p.torre, testa: p.testa, pos: p.pos })) };
 }
