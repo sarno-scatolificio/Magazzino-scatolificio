@@ -3329,10 +3329,28 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
 
   /* Movimenti: niente sovrapposizioni con la barra. La vista si accorcia dello spazio della barra (58 px) e i pulsanti
      Deposito/Prelievo si rimpiccioliscono un po', così tutto resta in alto sopra la ricerca. */
-  #app-shell.has-dock #view-scanner:not(.hidden) { min-height: calc(100dvh - var(--header-h, 56px) - var(--nav-h) - 4rem - 58px); }
+  /* La schermata è alta esattamente quanto lo spazio tra testata e barra di ricerca: la pagina non scorre mai.
+     Tessere in alto e Deposito/Prelievo in basso restano fissi; «Ultimi movimenti» occupa lo spazio che resta e scorre
+     al suo interno (con la scheda sotto scorta aperta scorre il pannello, sempre dentro lo spazio disponibile). */
+  html:has(#app-shell.has-dock #view-scanner:not(.hidden)), body:has(#app-shell.has-dock #view-scanner:not(.hidden)) { overflow: hidden; }
+  #app-shell.has-dock:has(#view-scanner:not(.hidden)) > main { padding-bottom: 0; }
+  #app-shell.has-dock #view-scanner:not(.hidden) {
+    height: calc(100dvh - var(--header-h, 56px) - var(--nav-h) - 58px - 2rem);
+    min-height: 0;
+    overflow: hidden;
+  }
+  #app-shell.has-dock #view-scanner .scanner-actions { flex: none; }
   #app-shell.has-dock #view-scanner .scanner-actions button { height: 96px; padding-top: 0.25rem; padding-bottom: 0.4rem; }
   #app-shell.has-dock #view-scanner .scanner-actions button svg { width: 48px; height: 48px; }
-  #app-shell.has-dock #view-scanner #scanner-idle-panel { margin-bottom: 0.75rem; }
+  #app-shell.has-dock #view-scanner #scanner-idle-panel {
+    flex: 1 1 auto; min-height: 0; margin-bottom: 0.75rem;
+    display: flex; flex-direction: column; gap: 0.75rem;
+    overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  }
+  #app-shell.has-dock #view-scanner #scanner-idle-panel::-webkit-scrollbar { width: 0; height: 0; }
+  #app-shell.has-dock #view-scanner #scanner-idle-panel > * { margin-top: 0; flex: none; }
+  #app-shell.has-dock #view-scanner #scanner-idle-panel > .card-plate:last-child { flex: 1 1 0; min-height: 7.5rem; display: flex; flex-direction: column; }
+  #app-shell.has-dock #view-scanner #scanner-recent-list { flex: 1 1 0; min-height: 0; max-height: none !important; }
 }
 @media (max-width: 1023.98px) and (max-height: 780px) {
   #app-shell.has-dock #view-scanner .scanner-actions button { height: 84px; }
