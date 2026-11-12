@@ -7,12 +7,13 @@
 //
 // Il macchinario può avere più torri (pulsanti in alto per passare dall'una all'altra: le scelte restano) e ogni torre un
 // numero di teste diverso, singole oppure doppie (superiore/inferiore: due pulsanti scelgono quale delle due).
-// La torre è disegnata come una STELLA DI TRASPORTO (stile disegno tecnico, piatta): un disco con tanti alloggiamenti quante
-// sono le teste, e in ogni alloggiamento la sua testa, come un barattolo nella stella. Il raggio è proporzionato al numero di
-// teste (alloggiamenti sempre grandi quanto basta per toccarli): con poche teste si vede la stella intera, con tante è più
-// grande dello schermo e se ne vede la parte in alto. La stella si ruota col dito (anche con una spinta: si ferma sulla testa
-// più vicina) o toccando una testa; quella sotto il segnalino in alto è la «puntata»: «Aggiungi testa» la aggiunge alle
-// scelte (o la toglie), come toccarla quando è già in alto. Frecce ◀ ▶ per spostarsi di una testa alla volta.
+// La torre è disegnata come una STELLA DI TRASPORTO vista dall'alto (illustrazione piatta in acciaio, senza simboli da disegno
+// tecnico): un disco con tanti alloggiamenti quante sono le teste, e in ogni alloggiamento la sua testa, come un barattolo
+// nella stella. Si vede sempre la metà alta della stella. Il raggio è proporzionato al numero di teste (alloggiamenti sempre
+// grandi quanto basta per toccarli): se le teste sono tante la stella cresce oltre lo schermo e se ne vede la parte in alto.
+// La stella si ruota col dito (anche con una spinta: si ferma sulla testa più vicina) o toccando una testa; quella sotto il
+// segnalino in alto è la «puntata»: «Aggiungi testa» la aggiunge alle scelte (o la toglie), come toccarla quando è già in
+// alto. Frecce ◀ ▶ per spostarsi di una testa alla volta.
 //
 // Più teste (una piattella per testa): il numero delle teste deve combaciare con la quantità del prelievo.
 //  - quantità impostata a Q > 1: servono esattamente Q teste; con meno non si conferma; con più si avvisa che non
@@ -24,12 +25,12 @@ import { openOverlay, closeOverlay, enableSheetDrag } from './ui-utils.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const VBW = 380; // dimensioni del disegno (viewBox)
-const VBH = 300;
+const VBH = 282; // si vede la metà alta della stella: il centro è in basso
 const CX = VBW / 2;
-const TOP_Y = 62; // bordo alto della stella: la testa puntata sta sempre qui
-const R_MIN = 108; // raggio minimo della stella (poche teste: si vede intera)
-const PITCH_MIN = 50; // distanza minima tra due alloggiamenti sul bordo: sotto non si toccherebbero bene
-const INK = 'var(--ink, #0d1117)';
+const TOP_Y = 58; // bordo alto della stella: la testa puntata sta sempre qui
+const R_MIN = 175; // raggio minimo: la metà alta della stella occupa tutta la larghezza
+const PITCH_MIN = 40; // distanza minima tra due alloggiamenti sul bordo: sotto non si toccherebbero bene
+const EDGE = '#7b8494'; // bordo dell'acciaio
 const POS_SHORT = { S: 'sup.', I: 'inf.' };
 const CHIP_ON = 'bg-amber-400 border-amber-400 text-white';
 const CHIP_OFF = 'bg-graphite-900 border-graphite-700 text-graphite-300';
@@ -77,11 +78,11 @@ export function initTestaPicker() {
   enableSheetDrag(els.modal.querySelector('.modal-panel'), () => close(null));
   els.svg = document.getElementById('testa-picker-svg');
   els.layer = document.getElementById('testa-picker-heads');
-  els.axes = document.getElementById('testa-picker-axes');
-  els.badge = document.getElementById('testa-picker-badge');
   els.wheel = document.getElementById('testa-picker-wheel');
   els.star = document.getElementById('testa-picker-star');
-  els.deco = document.getElementById('testa-picker-deco');
+  els.grad = document.getElementById('testa-picker-grad');
+  els.ring = document.getElementById('testa-picker-ring');
+  els.hub = document.getElementById('testa-picker-hub');
   els.num = document.getElementById('testa-picker-num');
   els.of = document.getElementById('testa-picker-of');
   els.title = document.getElementById('testa-picker-title');
@@ -230,11 +231,6 @@ const polar = (r, f) => {
   return { x: CX + r * Math.sin(rad), y: CY - r * Math.cos(rad) };
 };
 
-/** Foro con mirino, come le viti del disegno */
-function bolt(x, y, r) {
-  return `M${NUM(x - r)} ${NUM(y)}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0M${NUM(x - r * 0.35)} ${NUM(y)}a${r * 0.35} ${r * 0.35} 0 1 0 ${r * 0.7} 0a${r * 0.35} ${r * 0.35} 0 1 0 ${-r * 0.7} 0M${NUM(x - r * 1.5)} ${NUM(y)}h${r * 3}M${NUM(x)} ${NUM(y - r * 1.5)}v${r * 3}`;
-}
-
 /**
  * Disegna la stella della torre mostrata e le sue teste. Il raggio cresce col numero di teste (PITCH_MIN tra un alloggiamento
  * e l'altro); il centro si abbassa in modo che il bordo alto resti sempre a TOP_Y.
@@ -244,7 +240,7 @@ function build() {
   R = Math.max(R_MIN, Math.min(1800, (N * PITCH_MIN) / (2 * Math.PI)));
   CY = TOP_Y + R;
   const pitchArc = (2 * Math.PI * R) / N;
-  const rn = Math.min(24, pitchArc * 0.44); // raggio dell'alloggiamento (più largo della testa: resta un bordo visibile)
+  const rn = Math.min(30, pitchArc * 0.44); // raggio dell'alloggiamento (più largo della testa: resta un bordo visibile)
   headR = Math.max(6, rn - 5);
   const rc = R - rn * 0.3; // centro degli alloggiamenti: la testa sta dentro per la maggior parte e sporge un poco, come un barattolo
   // incrocio tra il bordo della stella e l'alloggiamento: x lungo il raggio, ±h di lato
@@ -265,20 +261,15 @@ function build() {
   }
   els.star.setAttribute('d', `${d}Z`);
 
-  // Dettagli da disegno tecnico: viti tra un alloggiamento e l'altro, mozzo con viti, assi tratteggiati
-  let deco = '';
-  const boltR = Math.min(4.5, pitchArc * 0.09);
-  for (let i = 0; i < N; i += 1) {
-    const q = polar(R - 34, i * pitchDeg + pitchDeg / 2); // una vite su ogni dente
-    deco += bolt(q.x, q.y, boltR);
-    if (N <= 20) {
-      const m = polar(58, i * pitchDeg + pitchDeg / 2); // e una vite del mozzo sullo stesso raggio
-      deco += bolt(m.x, m.y, 4.5);
-    }
-  }
-  els.deco.setAttribute('d', deco);
-  els.axes.setAttribute('d', `M${NUM(CX - R + 14)} ${NUM(CY)}H${NUM(CX + R - 14)}M${NUM(CX)} ${NUM(CY - R + 14)}V${NUM(CY + R - 14)}`);
-  els.badge.setAttribute('cy', NUM(TOP_Y + R_MIN));
+  // Sfumatura d'acciaio centrata sulla stella, anello interno e mozzo (tutto si sposta col centro)
+  els.grad.setAttribute('cx', String(CX));
+  els.grad.setAttribute('cy', NUM(CY));
+  els.grad.setAttribute('r', NUM(R));
+  els.grad.setAttribute('fx', String(CX));
+  els.grad.setAttribute('fy', NUM(CY - R * 0.35));
+  els.ring.setAttribute('cy', NUM(CY));
+  els.ring.setAttribute('r', NUM(Math.max(40, R - rn * 2 - 14)));
+  els.hub.setAttribute('cy', NUM(CY));
 
   els.layer.innerHTML = '';
   nodes = [];
@@ -286,19 +277,23 @@ function build() {
     const g = document.createElementNS(NS, 'g');
     g.setAttribute('data-i', String(i));
     g.style.cursor = 'pointer';
+    // la testa vista dall'alto, come il fondo di un barattolo: bordo d'acciaio e tondo interno
     const c = document.createElementNS(NS, 'circle');
-    c.setAttribute('r', String(NUM(headR)));
+    c.setAttribute('r', NUM(headR));
+    const c2 = document.createElementNS(NS, 'circle');
+    c2.setAttribute('r', NUM(headR * 0.76));
     const t = document.createElementNS(NS, 'text');
     t.setAttribute('text-anchor', 'middle');
     t.setAttribute('dy', '0.35em');
-    t.setAttribute('font-size', String(Math.min(13, Math.max(8, headR * 0.78))));
+    t.setAttribute('font-size', String(Math.min(15, Math.max(8, headR * 0.72))));
     t.setAttribute('font-weight', '600');
     t.textContent = String(i + 1);
     g.appendChild(c);
+    g.appendChild(c2);
     g.appendChild(t);
     els.layer.appendChild(g);
     const q = polar(rc, i * pitchDeg);
-    nodes.push({ g, c, t, x: q.x, y: q.y });
+    nodes.push({ g, c, c2, t, x: q.x, y: q.y });
   }
 }
 
@@ -310,8 +305,8 @@ function render() {
     let d = norm(i - pos);
     if (d >= N / 2) d -= N;
     const n = nodes[i];
-    // stella più grande dello schermo: le teste lontane dalla parte visibile non si aggiornano
-    if (R > 160 && Math.abs(d * pitchDeg) > 80) {
+    // si vede solo la metà alta della stella: le teste della metà bassa non si aggiornano
+    if (Math.abs(d * pitchDeg) > 100) {
       n.g.style.display = 'none';
       continue;
     }
@@ -322,28 +317,32 @@ function render() {
     const scale = 1 + 0.2 * Math.max(0, 1 - Math.abs(d));
     // la testa ruota con la stella ma il numero resta dritto: rotazione contraria
     n.g.setAttribute('transform', `translate(${NUM(n.x)} ${NUM(n.y)}) rotate(${(-rot).toFixed(2)}) scale(${scale.toFixed(3)})`);
+    n.c.style.fill = 'url(#testa-picker-rim)';
+    n.c.style.stroke = EDGE;
+    n.c.style.strokeWidth = '1.2';
+    n.c2.style.strokeWidth = '1';
     if (isChosen) {
-      // scelta: piena nel colore dell'app (se è anche quella puntata, resta più grande)
-      n.c.style.fill = 'var(--accent)';
-      n.c.style.stroke = INK;
-      n.c.style.strokeWidth = '1.5';
+      // scelta: tondo pieno nel colore dell'app (se è anche quella puntata, resta più grande)
+      n.c2.style.fill = 'var(--accent)';
+      n.c2.style.stroke = 'var(--accent-dark, #24406f)';
       n.t.style.fill = '#ffffff';
     } else if (isCursor) {
-      // puntata ma non ancora scelta: bianca con contorno spesso
-      n.c.style.fill = '#ffffff';
+      // puntata ma non ancora scelta: bordo spesso nel colore dell'app
       n.c.style.stroke = 'var(--accent)';
       n.c.style.strokeWidth = '3';
+      n.c2.style.fill = '#ffffff';
+      n.c2.style.stroke = '#c5ccd6';
       n.t.style.fill = 'var(--accent)';
     } else if (isChosenOther) {
       // testa già scelta ma nell'altra posizione: contorno nel colore dell'app, senza riempimento
-      n.c.style.fill = 'var(--accent-tint-soft, #f3f4f8)';
       n.c.style.stroke = 'var(--accent)';
       n.c.style.strokeWidth = '2';
+      n.c2.style.fill = 'var(--accent-tint-soft, #f3f4f8)';
+      n.c2.style.stroke = 'var(--accent)';
       n.t.style.fill = 'var(--accent)';
     } else {
-      n.c.style.fill = 'var(--accent-tint-soft, #f3f4f8)';
-      n.c.style.stroke = INK;
-      n.c.style.strokeWidth = '1.2';
+      n.c2.style.fill = '#f7f8fa';
+      n.c2.style.stroke = '#c5ccd6';
       n.t.style.fill = 'var(--ink, #0d1117)';
     }
   }
