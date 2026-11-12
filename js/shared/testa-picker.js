@@ -1,9 +1,12 @@
 // =============================================================
 // testa-picker.js — Scelta delle teste del macchinario con un semicerchio di cerchi numerati
 // =============================================================
-// Uso: const r = await openTestaPicker({ machine: 'TASI-TEST', total: 40, selected: [17], quantita: 1 });
-// Ritorna { teste: [..], quantita } (teste in ordine crescente) o null se annulla.
+// Uso: const r = await openTestaPicker({ machine: 'UNIFORMER', torri: [{ nome: 'Bordatura', teste: 8, tipo: 'doppia' }], selected: [], quantita: 1 });
+// Ritorna { punti: [{ torre, testa, pos }], quantita } (punti ordinati: per torre, testa, superiore prima di inferiore) o null se annulla.
+// pos è 'S' (superiore), 'I' (inferiore) o null (torre con testa singola); torre è '' se la torre non ha nome.
 //
+// Il macchinario può avere più torri (pulsanti in alto per passare dall'una all'altra: le scelte restano) e ogni torre un
+// numero di teste diverso, singole oppure doppie (superiore/inferiore: due pulsanti scelgono quale delle due).
 // I numeri stanno su una semicirconferenza che si ruota col dito (anche con una spinta: si ferma sul numero più
 // vicino) o toccando un numero; il cerchio è continuo (dopo l'ultima testa si torna alla prima). Il numero sotto il
 // segnalino in alto è quello "puntato": «Aggiungi testa» lo aggiunge alle scelte (o lo toglie), come toccarlo quando è
@@ -23,10 +26,16 @@ const CY = 215;
 const R = 150;
 const STEP = 16; // gradi tra un numero e il successivo (indipendente dal numero di teste)
 const MAXA = 100; // oltre questo angolo il numero è fuori dal semicerchio
+const POS_SHORT = { S: 'sup.', I: 'inf.' };
+const CHIP_ON = 'bg-amber-400 border-amber-400 text-white';
+const CHIP_OFF = 'bg-graphite-900 border-graphite-700 text-graphite-300';
 
 const els = {};
 let resolveFn = null;
-let N = 0;
+let N = 0; // teste della torre mostrata
+let torri = []; // torri del macchinario: [{ nome, teste, tipo }]
+let tIdx = 0; // torre mostrata (indice in torri)
+let curPos = 'S'; // posizione scelta nelle torri doppie: 'S' superiore, 'I' inferiore
 let pos = 0; // posizione fluida della rotazione, in "teste" (0 = testa 1 sotto il segnalino)
 let vel = 0;
 let target = null;
@@ -34,7 +43,7 @@ let dragging = false;
 let running = false;
 let sel = 0; // testa puntata (sotto il segnalino)
 let nodes = [];
-let chosen = new Set(); // teste scelte (numeri 1…N)
+let chosen = new Map(); // teste scelte: chiave "torre:testa:pos" -> { t: indice torre, n: testa, p: 'S' | 'I' | null }
 let quantita = 1; // quantità del prelievo all'apertura
 let lastA = null;
 let lastT = 0; // istante dell'ultimo movimento del dito (per la velocità e per sapere se il dito si è fermato)
@@ -44,8 +53,14 @@ let moved = false;
 let downEl = null;
 
 const norm = (p) => ((p % N) + N) % N;
-const sorted = () => [...chosen].sort((a, b) => a - b);
 const plural = (n, one, many) => (n === 1 ? one : many);
+const isDoppia = () => torri[tIdx]?.tipo === 'doppia';
+const posNow = () => (isDoppia() ? curPos : null);
+const keyOf = (t, n, p) => `${t}:${n}:${p || ''}`;
+const sorted = () => [...chosen.values()].sort((a, b) => a.t - b.t || a.n - b.n || Number(a.p === 'I') - Number(b.p === 'I'));
+const nowDesc = () => `testa ${sel}${isDoppia() ? ` ${POS_SHORT[curPos]}` : ''}`;
+// Nome breve di una scelta: il nome della torre si mostra solo se serve (più torri, oppure la torre ne ha uno)
+const descOf = (c) => `${torri.length > 1 || torri[c.t]?.nome ? `${torri[c.t]?.nome || `Torre ${c.t + 1}`} · ` : ''}${c.n}${c.p ? ` ${POS_SHORT[c.p]}` : ''}`;
 
 export function initTestaPicker() {
   els.modal = document.getElementById('testa-picker-modal');
@@ -63,6 +78,9 @@ export function initTestaPicker() {
   els.note = document.getElementById('testa-picker-note');
   els.noteText = document.getElementById('testa-picker-note-text');
   els.noteActions = document.getElementById('testa-picker-note-actions');
+  els.torri = document.getElementById('testa-picker-torri');
+  els.posWrap = document.getElementById('testa-picker-pos');
+  els.posBtns = els.posWrap ? [...els.posWrap.querySelectorAll('[data-pos]')] : [];
 
   document.getElementById('testa-picker-close').addEventListener('click', () => close(null));
   els.modal.addEventListener('click', (e) => {
@@ -73,6 +91,14 @@ export function initTestaPicker() {
   els.add.addEventListener('click', () => toggle(sel));
   document.getElementById('testa-picker-prev').addEventListener('click', () => stepBy(-1));
   document.getElementById('testa-picker-next').addEventListener('click', () => stepBy(1));
+  els.posBtns.forEach((b) =>
+    b.addEventListener('click', () => {
+      curPos = b.dataset.pos;
+      refreshPos();
+      render();
+      refreshLabels();
+    })
+  );
 
   els.svg.addEventListener('pointerdown', onDown);
   els.svg.addEventListener('pointermove', onMove);
@@ -95,28 +121,27 @@ export function initTestaPicker() {
 }
 
 /**
- * @param {{machine: string, total: number, selected?: number[], quantita?: number}} opts
- * @returns {Promise<{teste: number[], quantita: number}|null>}
+ * @param {{machine: string, torri: {nome: string, teste: number, tipo: 'singola'|'doppia'}[], selected?: {torre: string, testa: number, pos: string|null}[], quantita?: number}} opts
+ * @returns {Promise<{punti: {torre: string, testa: number, pos: string|null}[], quantita: number}|null>}
  */
-export function openTestaPicker({ machine, total, selected = [], quantita: qty = 1 }) {
+export function openTestaPicker({ machine, torri: towers, selected = [], quantita: qty = 1 }) {
   return new Promise((resolve) => {
     resolveFn = resolve;
-    N = Math.max(1, total);
+    torri = towers && towers.length ? towers : [{ nome: '', teste: 1, tipo: 'singola' }];
     quantita = Math.max(1, Math.round(qty) || 1);
-    chosen = new Set(selected.filter((n) => Number.isInteger(n) && n >= 1 && n <= N));
+    chosen = new Map();
+    selected.forEach((s) => {
+      let t = torri.findIndex((x) => x.nome.trim().toLowerCase() === String(s.torre || '').trim().toLowerCase());
+      if (t < 0) t = 0;
+      const p = torri[t].tipo === 'doppia' ? (s.pos === 'I' ? 'I' : 'S') : null;
+      if (Number.isInteger(s.testa) && s.testa >= 1 && s.testa <= torri[t].teste) chosen.set(keyOf(t, s.testa, p), { t, n: s.testa, p });
+    });
     els.title.textContent = quantita > 1 || chosen.size > 1 ? 'Teste montate' : 'Testa montata';
-    els.sub.textContent = machine;
-    els.of.textContent = `su ${N}`;
-    els.svg.setAttribute('aria-valuemin', '1');
-    els.svg.setAttribute('aria-valuemax', String(N));
-    build();
-    pos = chosen.size ? Math.min(...chosen) - 1 : 0; // si parte dalla prima testa già scelta
-    vel = 0;
-    target = null;
-    sel = 0;
+    els.sub.textContent = torri.length === 1 && torri[0].nome ? `${machine} · ${torri[0].nome}` : machine;
+    const first = sorted()[0];
+    curPos = first?.p || 'S';
     hideNote();
-    render();
-    refreshLabels();
+    setTower(first ? first.t : 0);
     openOverlay(els.modal);
   });
 }
@@ -129,6 +154,57 @@ function close(value) {
   const resolve = resolveFn;
   resolveFn = null;
   resolve(value);
+}
+
+/** Mostra la torre i: ricostruisce i cerchi con le sue teste (le scelte fatte sulle altre torri restano) */
+function setTower(i) {
+  tIdx = i;
+  N = torri[i].teste;
+  els.of.textContent = `su ${N}`;
+  els.svg.setAttribute('aria-valuemin', '1');
+  els.svg.setAttribute('aria-valuemax', String(N));
+  build();
+  const mine = sorted().filter((c) => c.t === i);
+  pos = mine.length ? mine[0].n - 1 : 0; // si parte dalla prima testa già scelta di questa torre
+  vel = 0;
+  target = null;
+  sel = 0;
+  buildChips();
+  refreshPos();
+  hideNote();
+  render();
+  refreshLabels();
+}
+
+/** Pulsanti delle torri (solo se sono più d'una), con il numero di teste già scelte su ognuna */
+function buildChips() {
+  if (!els.torri) return;
+  els.torri.innerHTML = '';
+  els.torri.classList.toggle('hidden', torri.length < 2);
+  if (torri.length < 2) return;
+  torri.forEach((t, i) => {
+    const count = [...chosen.values()].filter((c) => c.t === i).length;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(i === tIdx));
+    b.className = `press-spring shrink-0 min-h-[36px] px-3 rounded-lg border text-xs font-display font-semibold uppercase tracking-wide transition-colors ${i === tIdx ? CHIP_ON : CHIP_OFF}`;
+    b.textContent = `${t.nome || `Torre ${i + 1}`}${count ? ` · ${count}` : ''}`;
+    b.addEventListener('click', () => {
+      if (i !== tIdx) setTower(i);
+    });
+    els.torri.appendChild(b);
+  });
+}
+
+/** Superiore / Inferiore: visibile solo per le torri con teste doppie */
+function refreshPos() {
+  if (!els.posWrap) return;
+  els.posWrap.classList.toggle('hidden', !isDoppia());
+  els.posBtns.forEach((b) => {
+    const on = b.dataset.pos === curPos;
+    b.setAttribute('aria-pressed', String(on));
+    b.className = `press-spring flex-1 min-h-[40px] rounded-lg border text-xs font-display font-semibold uppercase tracking-wide transition-colors ${on ? CHIP_ON : CHIP_OFF}`;
+  });
 }
 
 function build() {
@@ -154,6 +230,7 @@ function build() {
 }
 
 function render() {
+  const other = curPos === 'S' ? 'I' : 'S';
   for (let i = 0; i < N; i += 1) {
     let d = norm(i - pos);
     if (d >= N / 2) d -= N;
@@ -169,7 +246,8 @@ function render() {
     const y = CY - R * Math.cos(rad);
     const scale = 1 + 0.35 * Math.max(0, 1 - Math.abs(d));
     const isCursor = Math.abs(d) < 0.5;
-    const isChosen = chosen.has(i + 1);
+    const isChosen = chosen.has(keyOf(tIdx, i + 1, posNow()));
+    const isChosenOther = !isChosen && isDoppia() && chosen.has(keyOf(tIdx, i + 1, other)); // scelta nell'altra posizione (sup./inf.)
     n.g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale.toFixed(3)})`);
     n.g.style.opacity = Math.abs(a) <= 64 ? 1 : Math.max(0.12, 1 - (Math.abs(a) - 64) / 40);
     if (isChosen) {
@@ -180,6 +258,12 @@ function render() {
     } else if (isCursor) {
       // puntata ma non ancora scelta: bianca con contorno spesso
       n.c.style.fill = '#ffffff';
+      n.c.style.stroke = 'var(--accent)';
+      n.c.style.strokeWidth = '2';
+      n.t.style.fill = 'var(--accent)';
+    } else if (isChosenOther) {
+      // testa già scelta ma nell'altra posizione: contorno nel colore dell'app, senza riempimento
+      n.c.style.fill = 'var(--accent-tint-soft, #f3f4f8)';
       n.c.style.stroke = 'var(--accent)';
       n.c.style.strokeWidth = '2';
       n.t.style.fill = 'var(--accent)';
@@ -207,14 +291,15 @@ function render() {
 /** Testi dei pulsanti e dell'elenco delle scelte (dipendono da testa puntata, scelte e quantità) */
 function refreshLabels() {
   const n = chosen.size;
-  els.add.textContent = chosen.has(sel) ? `Togli testa ${sel}` : `Aggiungi testa ${sel}`;
+  const here = chosen.has(keyOf(tIdx, sel, posNow()));
+  els.add.textContent = here ? `Togli ${nowDesc()}` : `Aggiungi ${nowDesc()}`;
   let ok;
-  if (n === 0) ok = quantita === 1 ? `Conferma testa ${sel}` : `Scegli ${quantita} teste`;
+  if (n === 0) ok = quantita === 1 ? `Conferma ${nowDesc()}` : `Scegli ${quantita} teste`;
   else if (quantita > 1) ok = `Conferma (${n} di ${quantita})`;
-  else ok = n === 1 ? `Conferma testa ${sorted()[0]}` : `Conferma ${n} teste`;
+  else ok = n === 1 ? `Conferma ${descOf(sorted()[0]).replace(/^(.*· )?(\d+)/, '$1testa $2')}` : `Conferma ${n} teste`;
   els.ok.textContent = ok;
   if (n) {
-    els.chosen.textContent = `${plural(n, 'Scelta', 'Scelte')}: ${sorted().join(' · ')}`;
+    els.chosen.textContent = `${plural(n, 'Scelta', 'Scelte')}: ${sorted().map(descOf).join(' · ')}`;
     els.chosen.classList.remove('hidden');
   } else if (quantita > 1) {
     els.chosen.textContent = `Servono ${quantita} teste: puntale e tocca «Aggiungi testa»`;
@@ -225,9 +310,11 @@ function refreshLabels() {
 }
 
 function toggle(n) {
-  if (chosen.has(n)) chosen.delete(n);
-  else chosen.add(n);
+  const k = keyOf(tIdx, n, posNow());
+  if (chosen.has(k)) chosen.delete(k);
+  else chosen.set(k, { t: tIdx, n, p: posNow() });
   hideNote();
+  buildChips();
   render();
   refreshLabels();
   try {
@@ -260,11 +347,11 @@ function showNote(text, actions = []) {
 }
 
 function finish(list, qty) {
-  close({ teste: list.slice().sort((a, b) => a - b), quantita: qty });
+  close({ punti: list.map((c) => ({ torre: torri[c.t].nome, testa: c.n, pos: c.p })), quantita: qty });
 }
 
 function tryConfirm() {
-  const picks = chosen.size ? sorted() : quantita === 1 ? [sel] : [];
+  const picks = chosen.size ? sorted() : quantita === 1 ? [{ t: tIdx, n: sel, p: posNow() }] : [];
   const n = picks.length;
   const Q = quantita;
   if (n === 0) {
