@@ -3364,3 +3364,21 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
   #app-shell.has-dock #view-scanner .scanner-actions button svg { width: 40px; height: 40px; }
 }
 
+
+
+/* ── Selettore testa (stella): su desktop i pulsanti ◀ ▶ sono ben in vista e si tengono premuti per girare ────────── */
+.tp-hint-desk { display: none; }
+#testa-picker-prev, #testa-picker-next { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+@media (hover: hover) and (pointer: fine) {
+  #testa-picker-prev, #testa-picker-next {
+    width: 5.5rem; min-height: 60px;
+    background: var(--accent); border-color: var(--accent-dark); color: #ffffff;
+    box-shadow: 0 4px 0 var(--accent-deep), 0 8px 14px -6px rgba(13, 17, 23, 0.35);
+  }
+  #testa-picker-prev:hover, #testa-picker-next:hover { filter: brightness(1.12); }
+  #testa-picker-prev:active, #testa-picker-next:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--accent-deep); }
+  #testa-picker-prev svg, #testa-picker-next svg { width: 2.25rem; height: 2.25rem; }
+  #testa-picker-add { min-height: 60px; }
+  .tp-hint-touch { display: none; }
+  .tp-hint-desk { display: inline; }
+}
