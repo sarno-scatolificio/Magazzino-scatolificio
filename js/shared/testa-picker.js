@@ -45,6 +45,10 @@ let fixedPos = null; // posizione già decisa nella scheda articolo ('S' | 'I'):
 let R = R_MIN; // raggio della stella della torre mostrata
 let CY = TOP_Y + R_MIN; // centro della stella (fuori schermo se le teste sono tante)
 let pitchDeg = 36; // gradi tra una testa e la successiva (360 / teste)
+let holdDir = 0; // tasto ◀ ▶ tenuto premuto: -1 | 1, 0 = nessuno (la stella gira finché resta premuto)
+let holdT0 = 0;
+let holdLast = 0;
+let holdTimer = null;
 let pos = 0; // posizione fluida della rotazione, in "teste" (0 = testa 1 sotto il segnalino)
 let vel = 0;
 let target = null;
@@ -52,6 +56,7 @@ let dragging = false;
 let running = false;
 let sel = 0; // testa puntata (sotto il segnalino)
 let nodes = [];
+let rcNow = R_MIN; // raggio su cui stanno i centri delle teste
 let headR = 17; // raggio del cerchio di una testa
 let chosen = new Map(); // teste scelte: chiave "torre:testa:pos" -> { t: indice torre, n: testa, p: 'S' | 'I' | null }
 let quantita = 1; // quantità del prelievo all'apertura
@@ -83,6 +88,8 @@ export function initTestaPicker() {
   els.grad = document.getElementById('testa-picker-grad');
   els.ring = document.getElementById('testa-picker-ring');
   els.hub = document.getElementById('testa-picker-hub');
+  els.shadow1 = document.getElementById('testa-picker-shadow1');
+  els.shadow2 = document.getElementById('testa-picker-shadow2');
   els.num = document.getElementById('testa-picker-num');
   els.of = document.getElementById('testa-picker-of');
   els.title = document.getElementById('testa-picker-title');
@@ -104,8 +111,8 @@ export function initTestaPicker() {
   els.modal.addEventListener('overlay-cancel', () => close(null)); // chiusura forzata (indietro, disconnessione)
   els.ok.addEventListener('click', tryConfirm);
   els.add.addEventListener('click', () => toggle(sel));
-  document.getElementById('testa-picker-prev').addEventListener('click', () => stepBy(-1));
-  document.getElementById('testa-picker-next').addEventListener('click', () => stepBy(1));
+  bindHoldButton(document.getElementById('testa-picker-prev'), -1);
+  bindHoldButton(document.getElementById('testa-picker-next'), 1);
   els.posBtns.forEach((b) =>
     b.addEventListener('click', () => {
       curPos = b.dataset.pos;
@@ -164,6 +171,8 @@ export function openTestaPicker({ machine, torri: towers, selected = [], quantit
 }
 
 function close(value) {
+  holdDir = 0;
+  clearTimeout(holdTimer);
   if (!resolveFn) return;
   dragging = false;
   hideNote();
@@ -270,81 +279,103 @@ function build() {
   els.ring.setAttribute('cy', NUM(CY));
   els.ring.setAttribute('r', NUM(Math.max(40, R - rn * 2 - 14)));
   els.hub.setAttribute('cy', NUM(CY));
+  for (const sh of [els.shadow1, els.shadow2]) {
+    sh.setAttribute('cy', NUM(CY + 3));
+    sh.setAttribute('r', NUM(R + 1));
+  }
 
   els.layer.innerHTML = '';
   nodes = [];
+  rcNow = rc;
   for (let i = 0; i < N; i += 1) {
     const g = document.createElementNS(NS, 'g');
     g.setAttribute('data-i', String(i));
     g.style.cursor = 'pointer';
+    // ombra fissa sotto la testa (un cerchio scuro e trasparente: niente filtri)
+    const c0 = document.createElementNS(NS, 'circle');
+    c0.setAttribute('r', NUM(headR + 0.8));
+    c0.setAttribute('cy', '1.8');
+    c0.setAttribute('fill', '#0d1117');
+    c0.setAttribute('fill-opacity', '0.22');
     // la testa vista dall'alto, come il fondo di un barattolo: bordo d'acciaio e tondo interno
     const c = document.createElementNS(NS, 'circle');
     c.setAttribute('r', NUM(headR));
+    c.setAttribute('fill', 'url(#testa-picker-rim)');
     const c2 = document.createElementNS(NS, 'circle');
     c2.setAttribute('r', NUM(headR * 0.76));
+    c2.setAttribute('stroke-width', '1');
     const t = document.createElementNS(NS, 'text');
     t.setAttribute('text-anchor', 'middle');
     t.setAttribute('dy', '0.35em');
     t.setAttribute('font-size', String(Math.min(15, Math.max(8, headR * 0.72))));
     t.setAttribute('font-weight', '600');
     t.textContent = String(i + 1);
-    g.appendChild(c);
-    g.appendChild(c2);
-    g.appendChild(t);
+    g.append(c0, c, c2, t);
     els.layer.appendChild(g);
-    const q = polar(rc, i * pitchDeg);
-    nodes.push({ g, c, c2, t, x: q.x, y: q.y });
+    nodes.push({ g, c, c2, t, vis: true, st: '' });
+  }
+}
+
+/** Aspetto di una testa per stato; si applica solo quando lo stato cambia, non a ogni fotogramma */
+function applyState(n, st) {
+  n.st = st;
+  const rim = (stroke, w) => {
+    n.c.setAttribute('stroke', stroke);
+    n.c.setAttribute('stroke-width', w);
+  };
+  const inner = (fill, stroke, text) => {
+    n.c2.setAttribute('fill', fill);
+    n.c2.setAttribute('stroke', stroke);
+    n.t.setAttribute('fill', text);
+  };
+  if (st === 'chosen') {
+    // scelta: tondo pieno nel colore dell'app (se è anche quella puntata, resta più grande)
+    rim(EDGE, '1.2');
+    inner('var(--accent)', 'var(--accent-dark, #24406f)', '#ffffff');
+  } else if (st === 'cursor') {
+    // puntata ma non ancora scelta: bordo spesso nel colore dell'app
+    rim('var(--accent)', '3');
+    inner('#ffffff', '#c5ccd6', 'var(--accent)');
+  } else if (st === 'other') {
+    // testa già scelta ma nell'altra posizione: contorno nel colore dell'app, senza riempimento
+    rim('var(--accent)', '2');
+    inner('var(--accent-tint-soft, #f3f4f8)', 'var(--accent)', 'var(--accent)');
+  } else {
+    rim(EDGE, '1.2');
+    inner('#f7f8fa', '#c5ccd6', 'var(--ink, #0d1117)');
   }
 }
 
 function render() {
   const other = curPos === 'S' ? 'I' : 'S';
-  const rot = -pos * pitchDeg;
-  els.wheel.setAttribute('transform', `rotate(${rot.toFixed(2)} ${CX} ${NUM(CY)})`);
+  els.wheel.setAttribute('transform', `rotate(${(-pos * pitchDeg).toFixed(2)} ${CX} ${NUM(CY)})`);
   for (let i = 0; i < N; i += 1) {
     let d = norm(i - pos);
     if (d >= N / 2) d -= N;
     const n = nodes[i];
-    // si vede solo la metà alta della stella: le teste della metà bassa non si aggiornano
-    if (Math.abs(d * pitchDeg) > 100) {
-      n.g.style.display = 'none';
+    // la testa sta al suo posto sul bordo della stella; fuori dalla parte visibile non si tocca il DOM
+    const p = polar(rcNow, d * pitchDeg);
+    if (Math.abs(d * pitchDeg) > 100 || p.x < -45 || p.x > VBW + 45 || p.y > VBH + 45) {
+      if (n.vis) {
+        n.g.setAttribute('display', 'none');
+        n.vis = false;
+      }
       continue;
     }
-    n.g.style.display = '';
-    const isCursor = Math.abs(d) < 0.5;
-    const isChosen = chosen.has(keyOf(tIdx, i + 1, posNow()));
-    const isChosenOther = !isChosen && isDoppia() && chosen.has(keyOf(tIdx, i + 1, other)); // scelta nell'altra posizione (sup./inf.)
-    const scale = 1 + 0.2 * Math.max(0, 1 - Math.abs(d));
-    // la testa ruota con la stella ma il numero resta dritto: rotazione contraria
-    n.g.setAttribute('transform', `translate(${NUM(n.x)} ${NUM(n.y)}) rotate(${(-rot).toFixed(2)}) scale(${scale.toFixed(3)})`);
-    n.c.style.fill = 'url(#testa-picker-rim)';
-    n.c.style.stroke = EDGE;
-    n.c.style.strokeWidth = '1.2';
-    n.c2.style.strokeWidth = '1';
-    if (isChosen) {
-      // scelta: tondo pieno nel colore dell'app (se è anche quella puntata, resta più grande)
-      n.c2.style.fill = 'var(--accent)';
-      n.c2.style.stroke = 'var(--accent-dark, #24406f)';
-      n.t.style.fill = '#ffffff';
-    } else if (isCursor) {
-      // puntata ma non ancora scelta: bordo spesso nel colore dell'app
-      n.c.style.stroke = 'var(--accent)';
-      n.c.style.strokeWidth = '3';
-      n.c2.style.fill = '#ffffff';
-      n.c2.style.stroke = '#c5ccd6';
-      n.t.style.fill = 'var(--accent)';
-    } else if (isChosenOther) {
-      // testa già scelta ma nell'altra posizione: contorno nel colore dell'app, senza riempimento
-      n.c.style.stroke = 'var(--accent)';
-      n.c.style.strokeWidth = '2';
-      n.c2.style.fill = 'var(--accent-tint-soft, #f3f4f8)';
-      n.c2.style.stroke = 'var(--accent)';
-      n.t.style.fill = 'var(--accent)';
-    } else {
-      n.c2.style.fill = '#f7f8fa';
-      n.c2.style.stroke = '#c5ccd6';
-      n.t.style.fill = 'var(--ink, #0d1117)';
+    if (!n.vis) {
+      n.g.removeAttribute('display');
+      n.vis = true;
     }
+    const scale = 1 + 0.2 * Math.max(0, 1 - Math.abs(d));
+    n.g.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) scale(${scale.toFixed(2)})`);
+    const st = chosen.has(keyOf(tIdx, i + 1, posNow()))
+      ? 'chosen'
+      : Math.abs(d) < 0.5
+        ? 'cursor'
+        : isDoppia() && chosen.has(keyOf(tIdx, i + 1, other)) // scelta nell'altra posizione (sup./inf.)
+          ? 'other'
+          : 'idle';
+    if (st !== n.st) applyState(n, st);
   }
   const s = norm(Math.round(pos)) + 1;
   if (s !== sel) {
@@ -353,7 +384,7 @@ function render() {
     els.svg.setAttribute('aria-valuenow', String(sel));
     refreshLabels();
     try {
-      navigator.vibrate?.(6);
+      if (!holdDir) navigator.vibrate?.(6);
     } catch (err) {
       // non essenziale
     }
@@ -455,7 +486,17 @@ function tryConfirm() {
 
 // --- Rotazione ----------------------------------------------------------
 function tick() {
-  if (!dragging) {
+  if (holdDir) {
+    // Tasto ◀ ▶ tenuto premuto: la stella gira da sola, sempre più veloce (tra 3 e 14 teste al secondo, in gradi
+    // per essere ugualmente leggibile con poche o tante teste)
+    const now = performance.now();
+    const dt = Math.min(64, now - holdLast) / 1000;
+    holdLast = now;
+    const degPerSec = 150 + Math.min(300, ((now - holdT0) / 1000) * 260);
+    pos += holdDir * Math.max(3, Math.min(14, degPerSec / pitchDeg)) * dt;
+    vel = 0;
+    target = null;
+  } else if (!dragging) {
     if (target !== null) {
       pos += (target - pos) * 0.22;
       if (Math.abs(target - pos) < 0.004) {
@@ -472,7 +513,7 @@ function tick() {
     }
   }
   render();
-  if (dragging || target !== null || Math.abs(vel) > 0.01) {
+  if (holdDir || dragging || target !== null || Math.abs(vel) > 0.01) {
     requestAnimationFrame(tick);
   } else {
     pos = norm(pos);
@@ -562,6 +603,44 @@ function goTo(i) {
   if (diff > N / 2) diff -= N;
   target = pos + diff; // sempre la strada più corta
   kick();
+}
+
+/**
+ * Pulsante ◀ ▶: un tocco sposta di una testa; tenuto premuto oltre 350 ms la stella gira di continuo finché non si rilascia,
+ * poi si ferma sulla testa più vicina. Da tastiera (Invio/Spazio) è un passo alla volta.
+ */
+function bindHoldButton(btn, dir) {
+  const stop = () => {
+    clearTimeout(holdTimer);
+    holdTimer = null;
+    if (!holdDir) return;
+    holdDir = 0;
+    target = Math.round(pos);
+    kick();
+  };
+  btn.addEventListener('pointerdown', (e) => {
+    if (e.button !== undefined && e.button > 0) return;
+    stepBy(dir); // subito, così il tocco breve risponde senza attese
+    try {
+      btn.setPointerCapture(e.pointerId);
+    } catch (err) {
+      // non essenziale
+    }
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => {
+      holdTimer = null;
+      holdDir = dir;
+      holdT0 = performance.now();
+      holdLast = holdT0;
+      target = null;
+      kick();
+    }, 350);
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => btn.addEventListener(t, stop));
+  btn.addEventListener('click', (e) => {
+    if (e.detail === 0) stepBy(dir); // tastiera: il mouse e il tocco sono già gestiti da pointerdown
+  });
+  btn.addEventListener('contextmenu', (e) => e.preventDefault()); // la pressione lunga sul telefono non apre il menu
 }
 
 function stepBy(k) {
