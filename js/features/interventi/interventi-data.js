@@ -22,6 +22,19 @@ export const STATI = {
 /** Operatori di un intervento: elenco nuovo, con ripiego sul vecchio campo a nome singolo */
 export const operatoriDi = (r) => (Array.isArray(r?.operatori) && r.operatori.length ? r.operatori : r?.operatore_nome ? [r.operatore_nome] : []);
 
+/**
+ * Testi liberi di un intervento che si possono stampare nel PDF (scelta «Dettagli»): i dettagli scritti per chi fa il lavoro e
+ * le note dell'esito («Cosa manca» se da completare, dettagli post intervento se effettuato). Un testo per paragrafo.
+ */
+export function dettagliPdf(r) {
+  const out = [];
+  const d = String(r?.dettagli || '').trim();
+  if (d) out.push(d);
+  const n = String(r?.note_esito || '').trim();
+  if (n) out.push(r.stato === 'sospeso' ? `Da completare: ${n}` : n);
+  return out;
+}
+
 /** Ricambi prelevati dal magazzino per un intervento: [{ product_id, codice, categoria, descrizione, quantita, locazione }] */
 export const ricambiDi = (r) => (Array.isArray(r?.ricambi) ? r.ricambi : []);
 export const ricambiLabel = (x) => `${x.codice} ×${x.quantita}`;

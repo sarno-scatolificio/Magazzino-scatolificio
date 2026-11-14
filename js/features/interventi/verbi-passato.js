@@ -6,7 +6,8 @@
 //
 // Regole, senza intelligenza artificiale:
 // - si converte solo il verbo a inizio titolo e quelli che iniziano una nuova azione: dopo "e", "ed",
-//   "poi", "quindi", "infine", dopo una virgola, un punto e virgola, due punti o una barra;
+//   "poi", "quindi", "infine", dopo una virgola, un punto e virgola, due punti, un punto, una barra o un a capo
+//   (vale anche per i dettagli, che spesso sono un elenco di azioni una per riga);
 //   le altre parole (anche se finiscono in -are/-ere/-ire) non si toccano;
 // - -are → -ato, -ere → -uto, -ire → -ito; i verbi irregolari (fare, aprire, rimuovere, togliere…)
 //   hanno il loro participio, anche con prefisso (rifare, riaprire, rimettere…);
@@ -69,7 +70,10 @@ export function infinitoAPassato(titolo) {
   let cambiato = false;
 
   const out = parts.map((tok) => {
-    if (!tok.trim()) return tok; // spazio
+    if (!tok.trim()) {
+      if (/\n/.test(tok)) expectVerb = true; // a capo (elenco di azioni, tipico dei dettagli): ricomincia un'azione
+      return tok;
+    }
     const m = tok.match(WORD);
     if (!m) {
       // "+", "/", "-" da soli: nuova azione

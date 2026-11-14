@@ -1,20 +1,17 @@
 // =============================================================
 // interventi-pdf-todo.js — PDF degli interventi ANCORA DA EFFETTUARE, diviso per operatore
 // Una sezione (pagina) per ogni operatore a cui sono stati assegnati dei lavori, poi gli "Non assegnati".
-// Accanto a ogni lavoro c'è una casella vuota da spuntare a penna sulla carta.
+// Accanto a ogni lavoro c'è una casella vuota da spuntare a penna sulla carta. Foto e dettagli solo per i lavori scelti.
+// Grafica chiara (si stampa): niente barre piene scure.
 // Dentro ogni operatore: Linea -> Macchina (ordine scelto in Impostazioni) -> lavori.
 // Un lavoro assegnato a più operatori compare nella pagina di ciascuno.
 // =============================================================
 
-import { LINEE, compareOperatori, lineaLabel, operatoriDi } from './interventi-data.js';
+import { LINEE, compareOperatori, dettagliPdf, lineaLabel, operatoriDi } from './interventi-data.js';
+import { ACCENT, DEEP, GREY, LINE, drawBand, drawHeader, loadPhotos, photoSize } from './interventi-pdf.js';
 import { loadLib } from '../../shared/ui-utils.js';
 import { listDistinctMacchine } from '../../data/supabase.js';
 import { confirmDialog } from '../../shared/ui-modal.js';
-
-const ACCENT = [47, 79, 146];
-const DEEP = [19, 34, 63];
-const GREY = [98, 102, 110];
-const LINE = [195, 201, 209];
 
 const fmtDate = (d) => d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -23,8 +20,9 @@ const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,
  * @param {Array} rows interventi aperti (da effettuare / da completare)
  * @returns {Promise<'empty'|'cancelled'|true>}
  */
-export async function exportDaFarePdf(rows) {
+export async function exportDaFarePdf(rows, { photoIds = null, detailIds = null, onPhotosSkipped = null } = {}) {
   if (!rows?.length) return 'empty';
+  const photos = await loadPhotos(rows, photoIds, onPhotosSkipped);
   await loadLib('jspdf');
   const { jsPDF } = window.jspdf;
 
@@ -63,17 +61,7 @@ export async function exportDaFarePdf(rows) {
 
   const header = (nome, count, first) => {
     if (!first) doc.addPage();
-    doc.setFillColor(...ACCENT);
-    doc.rect(0, 0, PW, 26, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(17);
-    doc.text('Interventi da effettuare', M, 12);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text('Scatolificio Sarno  |  Foglio di lavoro', M, 19);
-    doc.setFont('helvetica', 'bold');
-    doc.text(today, PW - M, 12, { align: 'right' });
+    drawHeader(doc, PW, M, 'Interventi da effettuare', 'Scatolificio Sarno  |  Foglio di lavoro', today);
     y = 36;
     doc.setTextColor(...DEEP);
     doc.setFontSize(14);
@@ -103,15 +91,7 @@ export async function exportDaFarePdf(rows) {
       const machines = [...new Set(inLinea.map((r) => r.macchina))].sort((a, b) => idxOf(a) - idxOf(b) || a.localeCompare(b, 'it'));
 
       ensure(34, nome, list.length);
-      doc.setFillColor(...DEEP);
-      doc.roundedRect(M, y, CW, 8.5, 1.2, 1.2, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11.5);
-      doc.text(lineaLabel(linea).toUpperCase(), M + 3.5, y + 5.9);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.text(`${inLinea.length}`, PW - M - 3.5, y + 5.9, { align: 'right' });
+      drawBand(doc, M, CW, y, 8.5, lineaLabel(linea).toUpperCase(), `${inLinea.length}`);
       y += 13;
 
       for (const macchina of machines) {
@@ -139,11 +119,13 @@ export async function exportDaFarePdf(rows) {
           doc.setFontSize(10.5);
           const lines = doc.splitTextToSize(r.descrizione || '', CW - 14);
           doc.setFontSize(9.5);
-          const det = r.dettagli ? doc.splitTextToSize(r.dettagli, CW - 14) : [];
+          const det = detailIds?.has(r.id) ? dettagliPdf(r).flatMap((t) => doc.splitTextToSize(t, CW - 14)) : [];
           doc.setFontSize(10.5);
           const DET_H = 4.3;
+          const photo = photos.get(r.id);
+          const { pw, ph } = photo ? photoSize(photo) : { pw: 0, ph: 0 };
           const h = Math.max(BOX, lines.length * LINE_H + det.length * DET_H);
-          ensure(h + 4, nome, list.length);
+          ensure(h + 4 + (photo ? ph + 4 : 0), nome, list.length);
           // casella vuota da spuntare a penna
           doc.setDrawColor(40, 40, 46);
           doc.setLineWidth(0.4);
@@ -158,6 +140,12 @@ export async function exportDaFarePdf(rows) {
             doc.setFontSize(10.5);
           }
           y += h + 3.2;
+          if (photo) {
+            doc.addImage(photo.data, 'JPEG', M + 9, y - 1, pw, ph);
+            doc.setDrawColor(...LINE);
+            doc.rect(M + 9, y - 1, pw, ph);
+            y += ph + 3;
+          }
         }
         y += 3;
       }

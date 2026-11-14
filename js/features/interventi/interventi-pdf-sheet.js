@@ -4,7 +4,7 @@
 // Parte di quello che prima era un unico interventi.js (vedi interventi.js).
 
 import { $, els, state } from './interventi-shared.js';
-import { LINEE, keyToDate, lineaLabel, listEffettuatiRange, operatoriDi, signedUrls } from './interventi-data.js';
+import { LINEE, dettagliPdf, keyToDate, lineaLabel, listEffettuatiRange, operatoriDi, signedUrls } from './interventi-data.js';
 import { closeOverlay, enableSheetDrag, openOverlay, setButtonBusy } from '../../shared/ui-utils.js';
 import { escapeHtml } from '../magazzino/products-shared.js';
 import { exportGiornoPdf } from './interventi-pdf.js';
@@ -14,10 +14,97 @@ import { openPhotoViewer } from './interventi-photo.js';
 import { pickDateRange } from '../../shared/date-range-modal.js';
 import { toastError, toastSuccess, toastWarning } from '../../shared/toast.js';
 
+
+const CHECK_SVG = (on) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:${on ? 1 : 0}"><path d="m5 12 5 5 9-10"/></svg>`;
+
+/**
+ * Riga di scelta (uguale per effettuati e da effettuare): spunta dell'intervento, sotto-testo,
+ * "Dettagli" (se l'intervento ne ha) e miniatura con "Foto" (se ha una foto).
+ * st = { selected, photoSel, detailSel, urls }; chiedere foto o dettagli di un intervento vuol dire volerlo nel PDF.
+ */
+function buildPickRow(st, r, repaint, sub) {
+  const on = st.selected.has(r.id);
+  const photoPath = pdfPhotoPath(r);
+  const photoOn = !!photoPath && st.photoSel.has(r.id);
+  const hasDet = dettagliPdf(r).length > 0;
+  const detOn = hasDet && st.detailSel.has(r.id);
+  const chip = (attr, checked, label) => `
+        <button type="button" ${attr} role="checkbox" aria-checked="${checked}" class="press-spring flex items-center gap-1.5 min-h-[32px] text-[11px] font-display font-semibold uppercase tracking-wide text-graphite-300">
+          <span class="int-check">${CHECK_SVG(checked)}</span>${label}
+        </button>`;
+  const row = document.createElement('div');
+  row.className = 'int-card card-plate rounded-xl p-3 flex items-start gap-3';
+  row.innerHTML = `
+      <div class="min-w-0 flex-1 flex flex-col gap-1">
+        <button type="button" data-pick role="checkbox" aria-checked="${on}" class="press-spring flex items-start gap-3 text-left">
+          <span class="int-check mt-0.5">${CHECK_SVG(on)}</span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm font-medium text-graphite-100 leading-snug line-clamp-2">${escapeHtml(r.descrizione)}</span>
+            ${sub ? `<span class="block text-xs text-graphite-400 mt-0.5 truncate">${escapeHtml(sub)}</span>` : ''}
+          </span>
+        </button>
+        ${hasDet ? `<span class="pl-8">${chip('data-detail-pick', detOn, 'Includi dettagli')}</span>` : ''}
+      </div>
+      ${photoPath ? `
+      <span class="shrink-0 flex flex-col items-center gap-1.5">
+        <button type="button" data-thumb-open aria-label="Ingrandisci la foto" class="press-spring w-16 h-16 rounded-lg overflow-hidden bg-graphite-800 border border-graphite-700 flex items-center justify-center">
+          <img data-pdf-thumb data-id="${r.id}" alt="" class="w-full h-full object-cover ${st.urls[photoPath] ? '' : 'hidden'}" ${st.urls[photoPath] ? `src="${st.urls[photoPath]}"` : ''}>
+        </button>
+        ${chip('data-photo-pick', photoOn, 'Foto')}
+      </span>` : ''}`;
+  const toggle = (set, withRow) => {
+    if (set.has(r.id)) set.delete(r.id);
+    else {
+      set.add(r.id);
+      if (withRow) st.selected.add(r.id);
+    }
+    feedback.presetPick();
+    repaint();
+  };
+  row.querySelector('[data-pick]').addEventListener('click', () => toggle(st.selected, false));
+  row.querySelector('[data-detail-pick]')?.addEventListener('click', () => toggle(st.detailSel, true));
+  row.querySelector('[data-photo-pick]')?.addEventListener('click', () => toggle(st.photoSel, true));
+  row.querySelector('[data-thumb-open]')?.addEventListener('click', () => {
+    const url = st.urls[photoPath];
+    if (url) openPhotoViewer(url);
+  });
+  return row;
+}
+
+/** Miniature delle foto di un elenco (URL firmati in un'unica richiesta, poi tenuti in memoria) */
+async function loadThumbs(st, rows, listEl) {
+  const missing = rows.map(pdfPhotoPath).filter((p) => p && !st.urls[p]);
+  if (missing.length) {
+    try {
+      Object.assign(st.urls, await signedUrls(missing));
+    } catch (err) {
+      console.warn('Anteprime foto non disponibili.', err);
+      return;
+    }
+  }
+  rows.forEach((r) => {
+    const p = pdfPhotoPath(r);
+    const url = p && st.urls[p];
+    const img = url && listEl.querySelector(`[data-pdf-thumb][data-id="${r.id}"]`);
+    if (img && !img.getAttribute('src')) {
+      img.src = url;
+      img.classList.remove('hidden');
+    }
+  });
+}
+
+/** Riepilogo della scelta: "5 di 8 selezionati · 2 con foto · 1 con dettagli" */
+function countText(st, rows) {
+  const sel = rows.filter((r) => st.selected.has(r.id));
+  const nP = sel.filter((r) => st.photoSel.has(r.id) && pdfPhotoPath(r)).length;
+  const nD = sel.filter((r) => st.detailSel.has(r.id) && dettagliPdf(r).length).length;
+  return `${sel.length} di ${rows.length} selezionati${nP ? ` · ${nP} con foto` : ''}${nD ? ` · ${nD} con dettagli` : ''}`;
+}
+
 // ---------------------------------------------------------------
 // PDF DEGLI INTERVENTI EFFETTUATI: scelta del giorno e degli interventi da inserire
 // ---------------------------------------------------------------
-const pdf = { from: null, to: null, rows: [], selected: new Set(), photoSel: new Set(), urls: {}, busy: false };
+const pdf = { from: null, to: null, rows: [], selected: new Set(), photoSel: new Set(), detailSel: new Set(), urls: {}, busy: false };
 
 /** La foto che finisce nel PDF: quella dell'esito, altrimenti quella del promemoria (come la miniatura dell'elenco) */
 const pdfPhotoPath = (r) => r.foto_esito_path || r.foto_promemoria_path || '';
@@ -61,7 +148,7 @@ export function initPdfSheet() {
 // ---------------------------------------------------------------
 // PDF DEGLI INTERVENTI DA EFFETTUARE: scelta dei lavori da inserire (come per gli effettuati)
 // ---------------------------------------------------------------
-const todo = { rows: [], selected: new Set(), busy: false };
+const todo = { rows: [], selected: new Set(), photoSel: new Set(), detailSel: new Set(), urls: {}, busy: false };
 
 /** Stesso ordine del PDF: linea, poi macchina (come scelto dall'admin), poi data di inserimento */
 function todoRowSort(a, b) {
@@ -77,6 +164,8 @@ export function onExportTodoPdf() {
   feedback.tap();
   todo.rows = [...state.open].sort(todoRowSort);
   todo.selected = new Set(todo.rows.map((r) => r.id));
+  todo.photoSel = new Set(); // foto e dettagli vanno scelti uno per uno: di partenza non inclusi
+  todo.detailSel = new Set();
   paintTodoSheet();
   openOverlay(els.pdfTodoModal);
 }
@@ -84,7 +173,7 @@ export function onExportTodoPdf() {
 function paintTodoSheet() {
   const total = todo.rows.length;
   const n = todo.selected.size;
-  $('int-pdf-todo-count').textContent = `${n} di ${total} selezionati`;
+  $('int-pdf-todo-count').textContent = countText(todo, todo.rows);
   $('int-pdf-todo-all').textContent = n === total ? 'Deseleziona tutti' : 'Seleziona tutti';
   const go = $('int-pdf-todo-go');
   go.disabled = n === 0 || todo.busy;
@@ -110,27 +199,11 @@ function paintTodoSheet() {
       h.textContent = r.macchina; // testo, mai HTML
       list.appendChild(h);
     }
-    const on = todo.selected.has(r.id);
     const ops = operatoriDi(r);
-    const row = document.createElement('button');
-    row.type = 'button';
-    row.setAttribute('role', 'checkbox');
-    row.setAttribute('aria-checked', String(on));
-    row.className = 'int-card card-plate press-spring rounded-xl p-3 flex items-start gap-3';
-    row.innerHTML = `
-      <span class="int-check mt-0.5"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:${on ? 1 : 0}"><path d="m5 12 5 5 9-10"/></svg></span>
-      <span class="min-w-0 flex-1">
-        <span class="block text-sm font-medium text-graphite-100 leading-snug line-clamp-2">${escapeHtml(r.descrizione)}</span>
-        <span class="block text-xs text-graphite-400 mt-0.5 truncate">${ops.length ? escapeHtml(ops.join(', ')) : 'Non assegnato'}</span>
-      </span>`;
-    row.addEventListener('click', () => {
-      if (todo.selected.has(r.id)) todo.selected.delete(r.id);
-      else todo.selected.add(r.id);
-      feedback.presetPick();
-      paintTodoSheet();
-    });
+    const row = buildPickRow(todo, r, paintTodoSheet, ops.length ? ops.join(', ') : 'Non assegnato');
     list.appendChild(row);
   });
+  loadThumbs(todo, todo.rows, list);
 }
 
 /** Genera il PDF per operatore con i soli lavori scelti */
@@ -141,7 +214,11 @@ async function generateTodoPdf() {
   const go = $('int-pdf-todo-go');
   setButtonBusy(go, true, 'Preparo il PDF…');
   try {
-    const res = await exportDaFarePdf(chosen);
+    const res = await exportDaFarePdf(chosen, {
+      photoIds: todo.photoSel,
+      detailIds: todo.detailSel,
+      onPhotosSkipped: (n) => toastWarning(`${n} ${n === 1 ? 'foto non è stata inclusa' : 'foto non sono state incluse'}: non disponibili.`),
+    });
     if (res === true) {
       feedback.confirmAction();
       toastSuccess('PDF generato.', 2500);
@@ -183,7 +260,8 @@ async function loadPdfRange(range, { open = false } = {}) {
     pdf.to = range.to;
     pdf.rows = rows;
     pdf.selected = new Set(rows.map((r) => r.id)); // di partenza sono tutti selezionati
-    pdf.photoSel = new Set(); // le foto vanno scelte una per una: di partenza non incluse
+    pdf.photoSel = new Set(); // foto e dettagli vanno scelti uno per uno: di partenza non inclusi
+    pdf.detailSel = new Set();
     paintPdfSheet();
     if (open) openOverlay(els.pdfModal);
   } catch (err) {
@@ -207,8 +285,7 @@ function paintPdfSheet() {
   $('int-pdf-period').textContent = periodLabel();
   const total = pdf.rows.length;
   const n = pdf.selected.size;
-  const nPhotos = pdf.rows.filter((r) => pdf.selected.has(r.id) && pdf.photoSel.has(r.id) && pdfPhotoPath(r)).length;
-  $('int-pdf-count').textContent = `${n} di ${total} selezionati${nPhotos ? ` · ${nPhotos} con foto` : ''}`;
+  $('int-pdf-count').textContent = countText(pdf, pdf.rows);
   $('int-pdf-all').textContent = n === total ? 'Deseleziona tutti' : 'Seleziona tutti';
   const go = $('int-pdf-go');
   go.disabled = n === 0 || pdf.busy;
@@ -234,74 +311,9 @@ function paintPdfSheet() {
       h.textContent = r.macchina; // testo, mai HTML
       list.appendChild(h);
     }
-    const on = pdf.selected.has(r.id);
-    const photoPath = pdfPhotoPath(r);
-    const photoOn = !!photoPath && pdf.photoSel.has(r.id);
-    const row = document.createElement('div');
-    row.className = 'int-card card-plate rounded-xl p-3 flex items-start gap-3';
-    row.innerHTML = `
-      <button type="button" data-pick role="checkbox" aria-checked="${on}" class="press-spring min-w-0 flex-1 flex items-start gap-3 text-left">
-        <span class="int-check mt-0.5"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:${on ? 1 : 0}"><path d="m5 12 5 5 9-10"/></svg></span>
-        <span class="min-w-0 flex-1">
-          <span class="block text-sm font-medium text-graphite-100 leading-snug line-clamp-2">${escapeHtml(r.descrizione)}</span>
-        </span>
-      </button>
-      ${photoPath ? `
-      <span class="shrink-0 flex flex-col items-center gap-1.5">
-        <button type="button" data-thumb-open aria-label="Ingrandisci la foto" class="press-spring w-16 h-16 rounded-lg overflow-hidden bg-graphite-800 border border-graphite-700 flex items-center justify-center">
-          <img data-pdf-thumb data-id="${r.id}" alt="" class="w-full h-full object-cover ${pdf.urls[photoPath] ? '' : 'hidden'}" ${pdf.urls[photoPath] ? `src="${pdf.urls[photoPath]}"` : ''}>
-        </button>
-        <button type="button" data-photo-pick role="checkbox" aria-checked="${photoOn}" class="press-spring flex items-center gap-1.5 min-h-[32px] text-[11px] font-display font-semibold uppercase tracking-wide text-graphite-300">
-          <span class="int-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:${photoOn ? 1 : 0}"><path d="m5 12 5 5 9-10"/></svg></span>
-          Nel PDF
-        </button>
-      </span>` : ''}`;
-    row.querySelector('[data-pick]').addEventListener('click', () => {
-      if (pdf.selected.has(r.id)) pdf.selected.delete(r.id);
-      else pdf.selected.add(r.id);
-      feedback.presetPick();
-      paintPdfSheet();
-    });
-    if (photoPath) {
-      row.querySelector('[data-photo-pick]').addEventListener('click', () => {
-        if (pdf.photoSel.has(r.id)) pdf.photoSel.delete(r.id);
-        else {
-          pdf.photoSel.add(r.id);
-          pdf.selected.add(r.id); // chiedere la foto di un intervento vuol dire volerlo nel PDF
-        }
-        feedback.presetPick();
-        paintPdfSheet();
-      });
-      row.querySelector('[data-thumb-open]').addEventListener('click', () => {
-        const url = pdf.urls[photoPath];
-        if (url) openPhotoViewer(url);
-      });
-    }
-    list.appendChild(row);
+    list.appendChild(buildPickRow(pdf, r, paintPdfSheet, ''));
   });
-  loadPdfThumbs();
-}
-
-/** Miniature delle foto nell'elenco del PDF (URL firmati in un'unica richiesta, poi tenuti in memoria) */
-async function loadPdfThumbs() {
-  const missing = pdf.rows.map(pdfPhotoPath).filter((p) => p && !pdf.urls[p]);
-  if (missing.length) {
-    try {
-      Object.assign(pdf.urls, await signedUrls(missing));
-    } catch (err) {
-      console.warn('Anteprime foto non disponibili.', err);
-      return;
-    }
-  }
-  pdf.rows.forEach((r) => {
-    const p = pdfPhotoPath(r);
-    const url = p && pdf.urls[p];
-    const img = url && $('int-pdf-list').querySelector(`[data-pdf-thumb][data-id="${r.id}"]`);
-    if (img && !img.getAttribute('src')) {
-      img.src = url;
-      img.classList.remove('hidden');
-    }
-  });
+  loadThumbs(pdf, pdf.rows, list);
 }
 
 async function generatePdf() {
@@ -314,6 +326,7 @@ async function generatePdf() {
     const result = await exportGiornoPdf(pdf.from, pdf.to, {
       rows: chosen,
       photoIds: pdf.photoSel,
+      detailIds: pdf.detailSel,
       onPhotosSkipped: (n) => toastWarning(`${n} ${n === 1 ? 'foto non è stata inclusa' : 'foto non sono state incluse'}: non disponibili.`),
     });
     if (result === true) {

@@ -147,25 +147,37 @@ export async function openDetail(row) {
 }
 
 /**
- * Passando a "Effettuato" i verbi all'infinito del titolo diventano participi ("Sostituire cuscinetto" →
- * "Sostituito cuscinetto"). Il nuovo titolo si vede subito e si può correggere con la matita prima di salvare;
- * tornando a "Da fare" senza averlo toccato, si ripristina quello di prima.
+ * Passando a "Effettuato" i verbi all'infinito del titolo e dei dettagli diventano participi ("Sostituire cuscinetto" →
+ * "Sostituito cuscinetto"). Il nuovo testo si vede subito (il titolo si corregge con la matita, i dettagli direttamente)
+ * prima di salvare; tornando a "Da fare" senza averli toccati, si ripristinano quelli di prima.
  */
 function adattaTitoloAlloStato(prevStato) {
   const input = $('int-detail-desc-input');
+  const det = $('int-detail-dettagli');
   if (detail.stato === 'effettuato' && prevStato !== 'effettuato') {
-    const { testo, cambiato } = infinitoAPassato(input.value);
-    if (!cambiato) return;
-    detail.titoloPrima = input.value;
-    detail.titoloConvertito = testo;
-    input.value = testo;
-    $('int-detail-desc').textContent = testo;
-    toastInfo('Titolo scritto al passato. Per correggerlo tocca la matita.', 3500);
-  } else if (prevStato === 'effettuato' && detail.stato !== 'effettuato' && detail.titoloConvertito && input.value === detail.titoloConvertito) {
-    input.value = detail.titoloPrima;
-    $('int-detail-desc').textContent = detail.titoloPrima;
-    detail.titoloPrima = null;
-    detail.titoloConvertito = null;
+    const t = infinitoAPassato(input.value);
+    const d = infinitoAPassato(det.value);
+    if (t.cambiato) {
+      detail.titoloPrima = input.value;
+      detail.titoloConvertito = t.testo;
+      input.value = t.testo;
+      $('int-detail-desc').textContent = t.testo;
+    }
+    if (d.cambiato) {
+      detail.dettagliPrima = det.value;
+      detail.dettagliConvertiti = d.testo;
+      det.value = d.testo;
+    }
+    if (t.cambiato && d.cambiato) toastInfo('Titolo e dettagli scritti al passato. Per correggere il titolo tocca la matita.', 3500);
+    else if (t.cambiato) toastInfo('Titolo scritto al passato. Per correggerlo tocca la matita.', 3500);
+    else if (d.cambiato) toastInfo('Dettagli scritti al passato.', 3000);
+  } else if (prevStato === 'effettuato' && detail.stato !== 'effettuato') {
+    if (detail.titoloConvertito && input.value === detail.titoloConvertito) {
+      input.value = detail.titoloPrima;
+      $('int-detail-desc').textContent = detail.titoloPrima;
+    }
+    if (detail.dettagliConvertiti && det.value === detail.dettagliConvertiti) det.value = detail.dettagliPrima;
+    detail.titoloPrima = detail.titoloConvertito = detail.dettagliPrima = detail.dettagliConvertiti = null;
   }
 }
 
