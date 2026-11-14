@@ -4,7 +4,7 @@
 // Parte di quello che prima era un unico interventi.js (vedi interventi.js).
 
 import { $, els, state } from './interventi-shared.js';
-import { LINEE, keyToDate, lineaLabel, listEffettuatiRange, signedUrls } from './interventi-data.js';
+import { LINEE, keyToDate, lineaLabel, listEffettuatiRange, operatoriDi, signedUrls } from './interventi-data.js';
 import { closeOverlay, enableSheetDrag, openOverlay, setButtonBusy } from '../../shared/ui-utils.js';
 import { escapeHtml } from '../magazzino/products-shared.js';
 import { exportGiornoPdf } from './interventi-pdf.js';
@@ -42,27 +42,120 @@ export function initPdfSheet() {
     paintPdfSheet();
   });
   $('int-pdf-go').addEventListener('click', generatePdf);
+
+  // Foglio di scelta del PDF degli interventi da effettuare
+  els.pdfTodoModal = $('int-pdf-todo-modal');
+  const closeTodo = () => closeOverlay(els.pdfTodoModal);
+  $('int-pdf-todo-close').addEventListener('click', closeTodo);
+  els.pdfTodoModal.addEventListener('click', (e) => e.target === els.pdfTodoModal && closeTodo());
+  enableSheetDrag(els.pdfTodoModal.querySelector('.modal-panel'), closeTodo);
+  $('int-pdf-todo-all').addEventListener('click', () => {
+    const all = todo.selected.size !== todo.rows.length;
+    todo.selected = new Set(all ? todo.rows.map((r) => r.id) : []);
+    feedback.modeSelect();
+    paintTodoSheet();
+  });
+  $('int-pdf-todo-go').addEventListener('click', generateTodoPdf);
 }
 
-/** PDF dei lavori ancora da effettuare, diviso per operatore, con caselle da spuntare a penna */
-export async function onExportTodoPdf() {
+// ---------------------------------------------------------------
+// PDF DEGLI INTERVENTI DA EFFETTUARE: scelta dei lavori da inserire (come per gli effettuati)
+// ---------------------------------------------------------------
+const todo = { rows: [], selected: new Set(), busy: false };
+
+/** Stesso ordine del PDF: linea, poi macchina (come scelto dall'admin), poi data di inserimento */
+function todoRowSort(a, b) {
+  const orderIdx = new Map(state.machineOrder.map((n, i) => [n.toLowerCase(), i]));
+  const idxOf = (m) => (orderIdx.has(m.toLowerCase()) ? orderIdx.get(m.toLowerCase()) : 9999);
+  const lineaIdx = (v) => (LINEE.findIndex((l) => l.value === v) + 1 || 99);
+  return lineaIdx(a.linea) - lineaIdx(b.linea) || idxOf(a.macchina) - idxOf(b.macchina) || a.macchina.localeCompare(b.macchina, 'it') || new Date(a.created_at) - new Date(b.created_at);
+}
+
+/** Apre l'elenco dei lavori ancora da effettuare: di partenza sono tutti selezionati, si tolgono quelli da non stampare */
+export function onExportTodoPdf() {
   if (!state.open.length) return;
   feedback.tap();
-  const btn = $('int-pdf-todo-btn');
-  setButtonBusy(btn, true);
+  todo.rows = [...state.open].sort(todoRowSort);
+  todo.selected = new Set(todo.rows.map((r) => r.id));
+  paintTodoSheet();
+  openOverlay(els.pdfTodoModal);
+}
+
+function paintTodoSheet() {
+  const total = todo.rows.length;
+  const n = todo.selected.size;
+  $('int-pdf-todo-count').textContent = `${n} di ${total} selezionati`;
+  $('int-pdf-todo-all').textContent = n === total ? 'Deseleziona tutti' : 'Seleziona tutti';
+  const go = $('int-pdf-todo-go');
+  go.disabled = n === 0 || todo.busy;
+  $('int-pdf-todo-go-label').textContent = n === 0 ? 'Scegli almeno un intervento' : `Genera PDF (${n})`;
+
+  const list = $('int-pdf-todo-list');
+  list.innerHTML = '';
+  let lastLinea = null;
+  let lastMachine = null;
+  todo.rows.forEach((r) => {
+    if (r.linea !== lastLinea) {
+      lastLinea = r.linea;
+      lastMachine = null;
+      const h = document.createElement('p');
+      h.className = 'font-display font-bold text-sm uppercase tracking-wider text-white bg-amber-400 rounded-lg px-3 py-1.5 mt-1.5';
+      h.textContent = lineaLabel(r.linea);
+      list.appendChild(h);
+    }
+    if (r.macchina !== lastMachine) {
+      lastMachine = r.macchina;
+      const h = document.createElement('p');
+      h.className = 'font-display font-bold text-xs uppercase tracking-wider text-graphite-400 pt-1';
+      h.textContent = r.macchina; // testo, mai HTML
+      list.appendChild(h);
+    }
+    const on = todo.selected.has(r.id);
+    const ops = operatoriDi(r);
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.setAttribute('role', 'checkbox');
+    row.setAttribute('aria-checked', String(on));
+    row.className = 'int-card card-plate press-spring rounded-xl p-3 flex items-start gap-3';
+    row.innerHTML = `
+      <span class="int-check mt-0.5"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:${on ? 1 : 0}"><path d="m5 12 5 5 9-10"/></svg></span>
+      <span class="min-w-0 flex-1">
+        <span class="block text-sm font-medium text-graphite-100 leading-snug line-clamp-2">${escapeHtml(r.descrizione)}</span>
+        <span class="block text-xs text-graphite-400 mt-0.5 truncate">${ops.length ? escapeHtml(ops.join(', ')) : 'Non assegnato'}</span>
+      </span>`;
+    row.addEventListener('click', () => {
+      if (todo.selected.has(r.id)) todo.selected.delete(r.id);
+      else todo.selected.add(r.id);
+      feedback.presetPick();
+      paintTodoSheet();
+    });
+    list.appendChild(row);
+  });
+}
+
+/** Genera il PDF per operatore con i soli lavori scelti */
+async function generateTodoPdf() {
+  const chosen = todo.rows.filter((r) => todo.selected.has(r.id));
+  if (!chosen.length || todo.busy) return;
+  todo.busy = true;
+  const go = $('int-pdf-todo-go');
+  setButtonBusy(go, true, 'Preparo il PDF…');
   try {
-    const res = await exportDaFarePdf(state.open);
+    const res = await exportDaFarePdf(chosen);
     if (res === true) {
       feedback.confirmAction();
       toastSuccess('PDF generato.', 2500);
+      closeOverlay(els.pdfTodoModal);
     }
+    // 'cancelled': l'invio è stato annullato, la scelta resta aperta per riprovare
   } catch (err) {
     console.error(err);
     feedback.errorAction();
     toastError('Impossibile generare il PDF.');
   } finally {
-    setButtonBusy(btn, false);
-    btn.disabled = !state.open.length;
+    todo.busy = false;
+    setButtonBusy(go, false);
+    paintTodoSheet();
   }
 }
 
