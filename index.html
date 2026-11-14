@@ -1858,6 +1858,27 @@
   </div>
 </div>
 
+<!-- =================== MODALE PDF DA EFFETTUARE (scelta degli interventi) =================== -->
+<div id="int-pdf-todo-modal" class="modal-overlay hidden fixed inset-0 z-[91] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-0 sm:px-4">
+  <div class="modal-panel w-full sm:max-w-md bg-graphite-900 border border-graphite-700 rounded-t-2xl sm:rounded-2xl max-h-[92vh] flex flex-col">
+    <div data-sheet-drag class="sheet-grabber sm:hidden"><span class="sheet-grabber-pill"></span></div>
+    <div data-sheet-drag class="flex items-center justify-between gap-2 px-5 pb-3 pt-1 sm:pt-3 border-b border-graphite-800 shrink-0">
+      <h3 class="font-display font-bold text-lg uppercase tracking-wide">PDF da effettuare</h3>
+      <button id="int-pdf-todo-close" type="button" aria-label="Chiudi" class="modal-close modal-close--on-light"><i data-lucide="x" class="w-6 h-6" stroke-width="2.5"></i></button>
+    </div>
+    <div class="shrink-0 px-5 pt-3 pb-2 flex items-center justify-between gap-2">
+      <p id="int-pdf-todo-count" class="ui-note text-graphite-500"></p>
+      <button id="int-pdf-todo-all" type="button" class="text-xs font-display font-semibold uppercase tracking-wide text-graphite-300 hover:text-graphite-100 px-2 min-h-[40px]">Deseleziona tutti</button>
+    </div>
+    <div id="int-pdf-todo-list" class="flex-1 overflow-y-auto px-5 pb-3 space-y-2"></div>
+    <div class="shrink-0 px-5 py-3 border-t border-graphite-800">
+      <button id="int-pdf-todo-go" type="button" class="press-spring w-full rounded-lg bg-amber-400 hover:bg-amber-300 text-white font-display font-semibold uppercase tracking-wide text-sm min-h-[48px] flex items-center justify-center gap-2">
+        <i data-lucide="file-down" class="w-5 h-5" stroke-width="2.2"></i><span id="int-pdf-todo-go-label">Genera PDF</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- =================== MODALE OPERATORI INTERVENTI (Admin) =================== -->
 <div id="operatori-modal" class="modal-overlay hidden fixed inset-0 z-[92] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-0 sm:px-4">
   <div class="modal-panel w-full sm:max-w-md bg-graphite-900 border border-graphite-700 rounded-t-2xl sm:rounded-2xl max-h-[88vh] flex flex-col">
