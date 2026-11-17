@@ -44,7 +44,7 @@ function cardHtml(r, i) {
   const names = sortOperatori(ops).map(formatOperatore).join(', ');
   const foot = r.stato === 'effettuato' ? `Fatto ${ctx.fmtDateTime(r.esito_at)}${names ? ` · ${names}` : r.esito_by_name ? ` · ${r.esito_by_name}` : ''}` : names ? `Assegnato a ${names}` : `Creato ${ctx.fmtDateTime(r.created_at)}${r.created_by_name ? ` · ${r.created_by_name}` : ''}`;
   const chips = `${r.rapido_id && r.stato !== 'effettuato' ? '<span class="id-tag id-tag--prog">Programmato</span>' : ''}${r.ricambi_mancanti ? '<span class="id-tag id-tag--warn">Ricambi da indicare</span>' : ''}`;
-  return `<div class="id-card list-item-in${r.id === sel ? ' id-sel' : ''}" data-id="${escapeHtml(r.id)}" style="--i:${staggerIndex(Math.min(i, 12))}">
+  return `<div class="id-card list-item-in${r.id === sel ? ' id-sel' : ''}" data-id="${escapeHtml(r.id)}"${r.id === sel ? ' aria-current="true"' : ''} style="--i:${staggerIndex(Math.min(i, 12))}">
     <div class="id-card-top"><span class="id-card-m"><span class="id-line">${escapeHtml(lineaLabel(r.linea))}</span><b>${escapeHtml(r.macchina)}</b></span><span class="id-chips">${chips}${tag(r)}</span></div>
     <p class="id-card-d">${escapeHtml(r.descrizione)}</p>
     <p class="id-card-f">${isUnseen(r) ? '<i class="id-new" title="Nuovo"></i>' : ''}${escapeHtml(foot)}</p></div>`;
@@ -136,7 +136,11 @@ const selectedRow = () => rows.find((r) => r.id === sel) || null;
 function select(id, { scroll = false } = {}) {
   if (id === sel) return;
   sel = id;
-  els.list.querySelectorAll('.id-card').forEach((el) => el.classList.toggle('id-sel', el.dataset.id === String(id)));
+  els.list.querySelectorAll('.id-card').forEach((el) => {
+    const on = el.dataset.id === String(id);
+    el.classList.toggle('id-sel', on);
+    if (on) el.setAttribute('aria-current', 'true'); else el.removeAttribute('aria-current');
+  });
   const r = selectedRow();
   if (r && isUnseen(r)) {
     markSeen(r); // presa visione: il pallino «nuovo» sparisce
