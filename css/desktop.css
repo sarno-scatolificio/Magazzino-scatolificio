@@ -39,7 +39,7 @@
     background: var(--accent, #1f3a8a); animation: dk-bar .22s ease-out;
   }
   .nav-item[data-kbd]::after {
-    content: attr(data-kbd); margin-left: auto; font: 600 .62rem/1 'JetBrains Mono', monospace; color: #8a93a5;
+    content: attr(data-kbd); margin-left: auto; font: 600 .62rem/1 'JetBrains Mono', monospace; color: #667085;
     border: 1px solid #d3d9e4; border-radius: 5px; padding: 3px 5px; opacity: 0; transition: opacity .16s ease;
   }
   .nav-item:hover[data-kbd]::after, .nav-item:focus-visible[data-kbd]::after { opacity: 1; }
@@ -75,7 +75,7 @@
   }
   .modal-panel [role="checkbox"]:hover, .modal-panel [role="option"]:hover { background: var(--accent-tint-soft, rgba(31, 58, 138, .08)); }
   .dk-hint { /* riga suggerimenti in fondo alle modali */
-    display: flex; gap: 14px; justify-content: flex-end; padding: 6px 20px 10px; font-size: .68rem; color: #8a93a5;
+    display: flex; gap: 14px; justify-content: flex-end; padding: 6px 20px 10px; font-size: .68rem; color: #667085;
   }
   .dk-hint kbd { font: 600 .64rem 'JetBrains Mono', monospace; border: 1px solid #d3d9e4; border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; margin-right: 4px; color: #5b6579; }
 }
@@ -295,4 +295,68 @@
   .mn-search input:focus { border-color: var(--accent, #1f3a8a); box-shadow: 0 0 0 3px #e4e9f6; }
   .mn-search kbd { position: absolute; right: 12px; top: 12px; font: 600 .66rem 'JetBrains Mono', monospace; border: 1px solid #d3d9e4; border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; color: #5b6579; background: #fff; pointer-events: none; }
   .mn-search-note { margin: 6px 2px 0; font-size: 12px; color: #6b7488; }
+}
+
+/* =============================================================
+   Revisione desktop (16/11/2026): larghezze 1024 / 1280 / 1440 / 1920, scrollbar, stati e movimento ridotto.
+   Solo desktop: il mobile non viene toccato (tutto dentro media ≥1024px).
+   ============================================================= */
+
+/* --- Scrollbar della pagina: su desktop deve vedersi (con il mouse è l'unico riferimento di posizione).
+       scrollbar-gutter: stable tiene lo spazio sempre riservato, quindi niente scatti di larghezza quando
+       animateFluidSwap blocca lo scorrimento (la ragione per cui su mobile è nascosta). --- */
+@media (min-width: 1024px) {
+  html { scrollbar-width: thin; scrollbar-gutter: stable; scrollbar-color: var(--line, #d6dbe4) transparent; }
+  button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
+}
+
+/* --- 1024–1279 px: sidebar e pannelli laterali più stretti, altrimenti la tabella/elenco restano sotto i 380 px --- */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  :root { --side-w: 200px; }
+  .nav-brand { padding: 10px 10px 12px; }
+  .nav-brand .mate-logo-wrap { height: 5.4rem; }
+  .nav-seg-wrap { padding: 0 10px; }
+  .nav-item { padding: 0 12px !important; gap: 12px !important; }
+  .nav-item.nav-active::before { left: -10px; }
+  .hdr-row { padding-left: 20px !important; padding-right: 20px !important; }
+  .view-host { padding-left: 20px !important; padding-right: 20px !important; }
+  #product-table-view:not(.hidden) { grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; }
+  .pt-panel { padding: 18px; }
+  .pt-title { font-size: 20px; }
+  .id-wrap--open { grid-template-columns: minmax(0, 1fr) 320px; }
+  .id-wrap--done { grid-template-columns: 290px minmax(0, 1fr); }
+  .id-panel { padding: 18px; }
+  #view-scanner:not(.hidden) { grid-template-columns: minmax(0, 1fr) 340px; column-gap: 16px; }
+  #view-manuals:not(.hidden) { grid-template-columns: 280px minmax(0, 1fr); column-gap: 18px; }
+  #manuals-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #int-new-modal .modal-panel { max-width: 820px !important; }
+}
+
+/* --- ≥1600 px: il contenuto usa lo spazio in più invece di restare in una colonna da 1480 px --- */
+@media (min-width: 1600px) {
+  .hdr-row, .view-host { max-width: 1680px !important; }
+  #product-table-view:not(.hidden) { grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; }
+  .id-wrap--open { grid-template-columns: minmax(0, 1fr) 420px; }
+  .id-wrap--done { grid-template-columns: 340px minmax(0, 1fr); }
+  #view-scanner:not(.hidden) { grid-template-columns: minmax(0, 1fr) 460px; column-gap: 24px; }
+  #view-manuals:not(.hidden) { grid-template-columns: 380px minmax(0, 1fr); column-gap: 28px; }
+  #manuals-detail-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .modal-overlay .modal-panel { max-height: min(90vh, 920px) !important; }
+}
+
+/* --- Tastiera: anello di focus anche su righe, gruppi, schede e calendario (prima solo dentro le modali e il pannello) --- */
+@media (min-width: 1024px) {
+  .pt-group:focus-visible, .id-card:focus-visible, .id-day:focus-visible, .id-cal-head button:focus-visible,
+  .desk-mode:focus-visible, #manuals-browser-list > button:focus-visible, .nav-item:focus-visible {
+    outline: 2px solid var(--accent, #1f3a8a); outline-offset: -2px; border-radius: 8px;
+  }
+  .pt-group:focus-visible { border-radius: 0; }
+  .mn-search kbd, .pt-hint kbd { user-select: none; }
+}
+
+/* --- Movimento ridotto: copre anche accordion, freccette, griglia, ricerca e controlli aggiunti dopo la prima regola --- */
+@media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
+  .pt-gtrack, .pt-chev, .pt-group, .pt-grip::after, .desk-mode, .id-cal-head button, .id-day,
+  .mn-search input, #manuals-browser-list > button, .pt-btn, .id-open { transition-duration: 1ms !important; }
+  .nav-item:active, .pt-btn:active, .id-open:active, .id-card:active, .id-day--has:active { transform: none; }
 }
