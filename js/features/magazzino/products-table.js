@@ -126,7 +126,7 @@ export function renderProductTable({ list, mode: m, locsOf }) {
     chunk
       .map((r) => {
         const sub = [r.p.macchina, r.p.punto_utilizzo_standard].filter(Boolean).join(' · ');
-        return `<div class="pt-row pt-item list-item-in${r.key === selKey ? ' pt-sel' : ''}" data-key="${escapeHtml(r.key)}" style="--i:${staggerIndex(Math.min(i++, 14))}">
+        return `<div class="pt-row pt-item list-item-in${r.key === selKey ? ' pt-sel' : ''}" data-key="${escapeHtml(r.key)}"${r.key === selKey ? ' aria-current="true"' : ''} style="--i:${staggerIndex(Math.min(i++, 14))}">
           <span class="pt-code">${escapeHtml(r.p.codice_articolo)}</span><span class="pt-sub">${escapeHtml(sub) || '—'}</span>
           <span class="pt-shelf">${escapeHtml(r.third)}</span><span class="pt-num${r.low ? ' pt-low' : ''}">${r.qty}${r.low ? ' ▾' : ''}</span></div>`;
       })
@@ -161,7 +161,7 @@ export function renderProductTable({ list, mode: m, locsOf }) {
     });
   });
 
-  host.innerHTML = `<div class="pt-main"><div class="pt-card" role="grid" aria-label="Articoli"><div class="pt-headwrap"><div class="pt-headtrack">${head}</div></div><div class="pt-scroll">${body}</div></div>
+  host.innerHTML = `<div class="pt-main"><div class="pt-card" role="group" aria-label="Articoli"><div class="pt-headwrap"><div class="pt-headtrack">${head}</div></div><div class="pt-scroll">${body}</div></div>
     <p class="pt-hint"><kbd>↑</kbd><kbd>↓</kbd> scorri &nbsp; <kbd>Invio</kbd> scheda completa &nbsp; <kbd>P</kbd> prelievo &nbsp; <kbd>D</kbd> deposito</p></div>
     <aside class="pt-panel" id="pt-panel" aria-live="polite"></aside>`;
   applyCols(host.querySelector('.pt-card'), cols);
@@ -182,7 +182,7 @@ export function resetProductTable() {
     g.classList.add('is-collapsed');
     g.querySelector(':scope > .pt-group')?.setAttribute('aria-expanded', 'false');
   });
-  host.querySelectorAll('.pt-item.pt-sel').forEach((el) => el.classList.remove('pt-sel'));
+  host.querySelectorAll('.pt-item.pt-sel').forEach((el) => { el.classList.remove('pt-sel'); el.removeAttribute('aria-current'); });
   paintPanel();
   void host.offsetHeight;
   requestAnimationFrame(() => requestAnimationFrame(() => host.classList.remove('pt-instant')));
@@ -222,7 +222,11 @@ function paintPanel() {
 function select(key, { scroll = false } = {}) {
   if (key === selKey) return;
   selKey = key;
-  host.querySelectorAll('.pt-item').forEach((el) => el.classList.toggle('pt-sel', el.dataset.key === String(key)));
+  host.querySelectorAll('.pt-item').forEach((el) => {
+    const on = el.dataset.key === String(key);
+    el.classList.toggle('pt-sel', on);
+    if (on) el.setAttribute('aria-current', 'true'); else el.removeAttribute('aria-current');
+  });
   if (scroll) host.querySelector('.pt-sel')?.scrollIntoView({ block: 'nearest' });
   paintPanel();
 }
