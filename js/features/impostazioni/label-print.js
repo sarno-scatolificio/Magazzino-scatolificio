@@ -130,7 +130,7 @@ function paintSettings() {
   const [w0, w1] = LABEL_LIMITS.barW;
   const [h0, h1] = LABEL_LIMITS.barH;
   st.overlay.querySelector('[data-role="hint"]').textContent =
-    `Larghezza da ${cm(w0)} a ${cm(w1)} cm, altezza da ${cm(h0)} a ${cm(h1)} cm. Pagina A5 verticale: le colonne riempiono la larghezza, più il codice a barre è stretto più etichette entrano.`;
+    `Larghezza da ${cm(w0)} a ${cm(w1)} cm, altezza da ${cm(h0)} a ${cm(h1)} cm. Pagina A5 verticale: il testo (nome articolo e descrizione) ha la priorità, il codice a barre può restare piccolo (consigliato 4 × 0,8 cm).`;
 }
 
 function readSettings() {
