@@ -76,7 +76,11 @@ function applyFilter() {
 
 function markSelected() {
   const id = ms.currentMachine?.id;
-  rows().forEach((r) => r.classList.toggle('mn-sel', id != null && r.dataset.machineId === String(id)));
+  rows().forEach((r) => {
+    const on = id != null && r.dataset.machineId === String(id);
+    r.classList.toggle('mn-sel', on);
+    if (on) r.setAttribute('aria-current', 'true'); else r.removeAttribute('aria-current');
+  });
 }
 
 /** Da chiamare dopo ogni disegno dell'elenco macchine: evidenzia la scelta, riapplica la ricerca, apre una macchina se nessuna lo è */
