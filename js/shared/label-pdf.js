@@ -4,7 +4,8 @@
 // Più etichette sulla stessa pagina, a griglia compatta: le etichette sono attaccate l'una all'altra e condividono
 // la stessa linea tratteggiata di taglio (nessuno spazio sprecato). Le colonne riempiono tutta la larghezza utile.
 // Ogni etichetta contiene, dall'alto: la descrizione dell'articolo (grassetto, il carattere più grande possibile
-// entro 2 righe), le barre del codice e, in basso, il codice articolo in grassetto.
+// entro 3 righe: è ciò che l'operatore legge per capire che ricambio c'è nel contenitore), le barre del codice
+// (compatte: il lettore non ha bisogno di barre grandi) e, in basso, il codice articolo in grassetto.
 // Le misure si possono cambiare (vedi LABEL_DEFAULTS) e vengono ricordate sul telefono.
 
 import { loadLib } from './ui-utils.js';
@@ -12,10 +13,10 @@ import { loadLib } from './ui-utils.js';
 export const PAGE_W = 148; // A5 verticale, mm
 export const PAGE_H = 210;
 
-/** Valori iniziali: barre 5,5 × 1,4 cm → 2 colonne e 6 righe = 12 etichette per foglio A5 */
+/** Valori iniziali: barre 4,5 × 0,9 cm → 2 colonne larghe (più spazio al testo), circa 10 etichette per foglio A5 */
 export const LABEL_DEFAULTS = {
-  barW: 55, // larghezza del codice a barre, mm
-  barH: 14, // altezza del codice a barre, mm
+  barW: 45, // larghezza del codice a barre, mm
+  barH: 9, // altezza del codice a barre, mm
   copies: 1, // copie di ogni etichetta
   showDesc: true, // descrizione dell'articolo sopra le barre
   cutBorder: true, // linee tratteggiate di taglio (condivise tra etichette vicine)
@@ -24,17 +25,17 @@ export const LABEL_DEFAULTS = {
 /** Limiti accettati per le misure (mm) */
 export const LABEL_LIMITS = { barW: [20, 120], barH: [8, 60], copies: [1, 20] };
 
-const STORAGE_KEY = 'label_print_settings_v2'; // v2: nuovo layout compatto, ripartono i valori iniziali
+const STORAGE_KEY = 'label_print_settings_v3'; // v3: testo in risalto e barre compatte, ripartono i valori iniziali
 const MARGIN = 5; // margine della pagina, mm (le stampanti d'ufficio non stampano oltre ~4 mm dal bordo)
 const PAD_X = 2; // spazio interno laterale all'etichetta, mm
 const PAD_Y = 1.4; // spazio interno sopra e sotto, mm
 const PT = 0.3528; // 1 punto tipografico in mm
-const DESC_PT_MAX = 12; // descrizione: carattere massimo (si riduce solo se non sta in 2 righe)
-const DESC_PT_MIN = 8.5;
-const DESC_LINES_MAX = 2;
-const CODE_PT_MAX = 14; // codice articolo: carattere massimo
-const CODE_PT_MIN = 8;
-const CODE_H = 4.8; // altezza riservata alla riga del codice articolo, mm
+const DESC_PT_MAX = 22; // descrizione: carattere massimo (si riduce solo se non sta in 3 righe)
+const DESC_PT_MIN = 10;
+const DESC_LINES_MAX = 3;
+const CODE_PT_MAX = 11; // codice articolo: secondario rispetto alla descrizione
+const CODE_PT_MIN = 7;
+const CODE_H = 4.2; // altezza riservata alla riga del codice articolo, mm
 
 const clamp = (v, [lo, hi]) => Math.min(hi, Math.max(lo, v));
 
@@ -106,7 +107,7 @@ function fitLine(doc, text, maxW, startPt, minPt) {
   return { text: out === text ? text : `${out.trimEnd()}…`, pt };
 }
 
-/** Descrizione: il carattere più grande (tra DESC_PT_MAX e DESC_PT_MIN) con cui sta in al massimo 2 righe; oltre, "…" */
+/** Descrizione: il carattere più grande (tra DESC_PT_MAX e DESC_PT_MIN) con cui sta in al massimo 3 righe; oltre, "…" */
 function fitDescription(doc, text, maxW) {
   doc.setFont('helvetica', 'bold');
   let pt = DESC_PT_MAX;
@@ -155,7 +156,7 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
   const barW = Math.min(s.barW, cellW - PAD_X * 2);
   const textW = cellW - PAD_X * 2;
 
-  // Misura la descrizione di ogni etichetta: tutte le celle hanno la stessa altezza (1 o 2 righe a seconda delle descrizioni)
+  // Misura la descrizione di ogni etichetta: tutte le celle hanno la stessa altezza (1, 2 o 3 righe a seconda delle descrizioni)
   const prepared = list.map((it) => {
     const desc = s.showDesc ? String(it.description || '').trim() : '';
     return { it, desc: desc ? fitDescription(doc, desc, textW) : null };
