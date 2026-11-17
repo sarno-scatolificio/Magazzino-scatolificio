@@ -34,7 +34,7 @@ location history screen alert confirm prompt getComputedStyle matchMedia atob bt
 decodeURI isNaN isFinite Reflect Proxy BigInt TextEncoder TextDecoder structuredClone queueMicrotask indexedDB caches self globalThis
 XMLHttpRequest Response Request Headers Worker OffscreenCanvas ImageData DOMParser Node Element requestIdleCallback BarcodeDetector CSS
 KeyboardEvent MouseEvent PointerEvent TouchEvent DOMException Path2D Option Range Selection Text SVGElement
-XLSX JsBarcode Html5Qrcode lucide tailwind pdfjsLib jspdf jsPDF supabase`.split(/\s+/));
+NaN XLSX JsBarcode Html5Qrcode lucide tailwind pdfjsLib jspdf jsPDF supabase`.split(/\s+/));
 
 const errors = [];
 const warnings = [];
