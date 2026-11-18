@@ -352,6 +352,7 @@ function wire() {
     }
   });
   document.addEventListener('keydown', (e) => {
+    if (!e.key) return; // l'autocompilazione del browser invia keydown senza tasto
     // Solo con la tabella a vista, nessuna modale aperta e senza scrivere in un campo
     if (!MQ.matches || !host || host.classList.contains('hidden') || host.offsetParent === null || e.ctrlKey || e.metaKey || e.altKey) return;
     if (document.querySelector('.modal-overlay.modal-visible')) return;
