@@ -27,6 +27,7 @@ function primaryButton(modal) {
 const fields = (modal) => [...modal.querySelectorAll('input:not([type=hidden]):not([type=file]), textarea, select')].filter((f) => !f.disabled && visible(f));
 
 function onKey(e) {
+  if (!e.key) return; // l'autocompilazione del browser invia keydown senza tasto
   if (!mq.matches || e.isComposing) return;
   const modal = topModal();
   const el = document.activeElement;
