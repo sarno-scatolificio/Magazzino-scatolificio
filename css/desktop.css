@@ -360,3 +360,56 @@
   .mn-search input, #manuals-browser-list > button, .pt-btn, .id-open { transition-duration: 1ms !important; }
   .nav-item:active, .pt-btn:active, .id-open:active, .id-card:active, .id-day--has:active { transform: none; }
 }
+
+/* =============================================================
+   Redesign desktop (secondo passaggio, 18/11/2026) — basato sugli screenshot reali a 1920 px.
+   Obiettivo: meno spazio sprecato, più informazioni a colpo d'occhio, componenti piatti e coerenti.
+   ============================================================= */
+
+/* --- INTERVENTI: da schede alte 112 px a righe compatte da tabella (macchina | descrizione + dettaglio | stato).
+       Il doppio di interventi visibili senza scorrere. Sotto 1440 px resta la scheda a pila (la lista è stretta). --- */
+@media (min-width: 1440px) {
+  .id-card {
+    grid-template-columns: 200px minmax(0, 1fr) auto;
+    grid-template-areas: "m d chips" "m f chips";
+    column-gap: 20px; row-gap: 1px; align-items: center;
+    padding: 10px 16px; border-radius: 10px;
+  }
+  .id-card-top { display: contents; }
+  .id-card-m { grid-area: m; }
+  .id-chips { grid-area: chips; flex-wrap: nowrap; }
+  .id-card-d { grid-area: d; -webkit-line-clamp: 1; font-weight: 600; font-size: 14px; }
+  .id-card-f { grid-area: f; font-size: 12px; }
+  .id-card-m b { font-size: 15px; }
+  .id-card:hover { background: #fafbfe; }
+  .id-card.id-sel { background: #f3f6fd; }
+}
+
+/* --- MAGAZZINO: quando nessun articolo è selezionato la colonna destra non resta un vuoto invisibile
+       ma un riquadro guida tratteggiato (le colonne della tabella restano allineate). --- */
+@media (min-width: 1024px) {
+  .pt-panel:empty {
+    visibility: visible; position: sticky; display: grid; place-items: center; align-content: center; gap: 6px;
+    min-height: 200px; padding: 24px; text-align: center;
+    background: transparent; border: 1.5px dashed #c9d1e0; box-shadow: none; color: #6b7488; font-size: 13px; line-height: 1.5;
+  }
+  .pt-panel:empty::before { content: 'Nessun articolo selezionato'; font: 700 14px 'Space Grotesk', sans-serif; color: #4a5468; }
+  .pt-panel:empty::after { content: 'Clicca una riga per vedere giacenza, locazioni e azioni rapide, oppure usa le frecce ↑ ↓ della tastiera.'; max-width: 26ch; }
+}
+
+/* --- MOVIMENTI: Deposito / Prelievo piatti (niente lucido, niente bordo 3D), a tutta larghezza della colonna,
+       orientamento orizzontale (icona + scritta): più bassi e più facili da colpire con il mouse. --- */
+@media (min-width: 1024px) {
+  #view-scanner .scanner-actions { max-width: none; padding-bottom: 0; }
+  #view-scanner .scanner-actions > #mode-deposito,
+  #view-scanner .scanner-actions > #mode-prelievo {
+    height: 88px !important; padding: 0 28px; flex-direction: row; justify-content: center; gap: 16px;
+    background-image: none; border-color: transparent;
+    box-shadow: 0 1px 2px rgba(13, 17, 23, .16), 0 4px 10px -6px rgba(13, 17, 23, .28);
+    transition: filter .14s ease, box-shadow .14s ease, transform .14s ease;
+  }
+  #view-scanner .scanner-actions > #mode-deposito:hover,
+  #view-scanner .scanner-actions > #mode-prelievo:hover { filter: brightness(1.08); box-shadow: 0 2px 4px rgba(13, 17, 23, .2), 0 8px 16px -8px rgba(13, 17, 23, .34); }
+  #view-scanner .scanner-actions > button > svg { width: 44px !important; height: 44px !important; }
+  #view-scanner .scanner-actions > button > span { font-size: 1.05rem; letter-spacing: .06em; }
+}
