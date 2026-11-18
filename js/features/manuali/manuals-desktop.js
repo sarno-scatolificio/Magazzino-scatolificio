@@ -38,6 +38,7 @@ function ensureSearch() {
   input = wrap.querySelector('input');
   input.addEventListener('input', applyFilter);
   input.addEventListener('keydown', (e) => {
+    if (!e.key) return; // l'autocompilazione del browser invia keydown senza tasto
     if (e.key === 'Enter') {
       e.preventDefault();
       const first = rows().find((r) => !r.classList.contains('hidden'));
@@ -108,6 +109,7 @@ function wire() {
     }, 0);
   });
   document.addEventListener('keydown', (e) => {
+    if (!e.key) return; // l'autocompilazione del browser invia keydown senza tasto
     if (!MQ.matches || els.view?.offsetParent === null || e.ctrlKey || e.metaKey || e.altKey) return;
     if (document.querySelector('.modal-overlay.modal-visible')) return;
     const t = document.activeElement;
