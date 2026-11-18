@@ -413,3 +413,44 @@
   #view-scanner .scanner-actions > button > svg { width: 44px !important; height: 44px !important; }
   #view-scanner .scanner-actions > button > span { font-size: 1.05rem; letter-spacing: .06em; }
 }
+
+/* =============================================================
+   Secondo ciclo (18/11/2026): Impostazioni, Report e sidebar — le tre aree rimaste a colonna unica da telefono.
+   ============================================================= */
+
+/* --- IMPOSTAZIONI: le sezioni (Persone, Reparto e magazzino, Preferenze, App e dati, Zona pericolosa) su 2 colonne
+       (3 da 1700 px) invece di una colonna stirata a tutta larghezza. Account e Report restano a tutta riga.
+       I contenitori "solo admin" diventano trasparenti al layout (display: contents) così le sezioni scorrono insieme. --- */
+@media (min-width: 1100px) {
+  #view-settings:not(.hidden) { column-count: 2; column-gap: 28px; max-width: 1280px; }
+  #view-settings > [data-admin-only]:not(.hidden) { display: contents; }
+  #view-settings .set-group { break-inside: avoid; margin-bottom: 22px; }
+  #view-settings .set-account, #view-settings .settings-report-hero { column-span: all; }
+  #view-settings .settings-report-hero { width: 100%; }
+}
+@media (min-width: 1700px) {
+  #view-settings:not(.hidden) { column-count: 3; max-width: 1640px; }
+}
+
+/* --- REPORT: periodo in alto (largo quanto serve), a sinistra la vita utile dei ricambi, a destra l'elenco
+       Depositi/Prelievi con le sue tab. Da 1280 px; sotto resta la colonna unica. --- */
+@media (min-width: 1280px) {
+  #view-dashboard:not(.hidden) {
+    display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: 28px; align-items: start; align-content: start;
+  }
+  #view-dashboard > div:first-child { grid-column: 1 / -1; grid-row: 1; max-width: 460px; }
+  #view-dashboard > h3:nth-of-type(1) { grid-column: 1; grid-row: 2; }
+  #view-dashboard > #dash-lifespan { grid-column: 1; grid-row: 3 / span 4; margin-bottom: 0; }
+  #view-dashboard > h3:nth-of-type(2) { grid-column: 2; grid-row: 2; }
+  #view-dashboard > #report-seg { grid-column: 2; grid-row: 3; }
+  #view-dashboard > #report-skeleton, #view-dashboard > #report-lists { grid-column: 2; grid-row: 4; }
+}
+
+/* --- SIDEBAR: sotto le voci c'era solo vuoto; promemoria discreto delle scorciatoie da tastiera (già attive in desktop.js) --- */
+@media (min-width: 1024px) {
+  .nav-glass::after {
+    content: 'Alt + n°  sezioni\A /  cerca\A N  nuovo intervento\A Esc  chiudi';
+    white-space: pre; position: absolute; left: 18px; right: 12px; bottom: 16px; padding-top: 12px;
+    border-top: 1px solid #e3e8f2; font: 500 11px/1.9 'JetBrains Mono', monospace; color: #667085; pointer-events: none;
+  }
+}
