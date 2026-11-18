@@ -24,6 +24,8 @@ Il layer desktop (`css/desktop.css`, `js/shared/desktop.js`, `*-desktop.js`, `pr
 - E6. Cursore `not-allowed` sui controlli disabilitati: **RISOLTO**.
 - E7. I suggerimenti `dk-hint` si aggiungono solo alle modali presenti al caricamento, non a quelle create dopo: **NON RISOLTO** (richiede decisione/prova nel browser).
 
+- C2 (P0, trovato dal log console dell'utente): `Uncaught TypeError ... reading 'toLowerCase'` in `desktop.js:102` e `scanner-desktop.js:96` al login nel browser. Causa: l'autocompilazione di Chrome invia eventi `keydown` senza `key`; i gestori delle scorciatoie leggevano `e.key.toLowerCase()`. **RISOLTO** (controllo `if (!e.key) return` in tutti i gestori keydown dei moduli desktop).
+
 ## 3–5. Correzioni e miglioramenti
 Estetici/layout: sidebar 200 px e pannelli più stretti tra 1024 e 1279 px; colonne più larghe, 4 colonne di sezioni Manuali e modali più alte da 1600 px. Nessun gradiente o effetto aggiunto.
 Funzionali: scrollbar visibile, stati disabilitati, semantica ARIA, focus da tastiera. Nessuna logica di business toccata.
@@ -43,7 +45,7 @@ Funzionali: scrollbar visibile, stati disabilitati, semantica ARIA, focus da tas
 - `js/features/magazzino/products-table.js`, `js/features/interventi/interventi-desktop.js`, `js/features/manuali/manuals-desktop.js` — solo attributi ARIA (moduli già usati solo ≥1024 px).
 - `tools/check.mjs` — falso positivo `NaN`.
 - `js/shared/label-pdf.js`, `js/features/impostazioni/label-print.js` — (richiesta a parte) etichette: nome articolo grande, descrizione sotto poco più piccola, barre piccole in fondo (4 × 0,8 cm), 2 colonne.
-- `service-worker.js` — cache `v306` → `v311`.
+- `service-worker.js` — cache `v306` → `v312`.
 - `docs/DESKTOP_AUDIT.md` — questo file.
 Nessuna modifica a database, RLS, Supabase, movimenti, offline.
 
