@@ -32,14 +32,18 @@ Funzionali: scrollbar visibile, stati disabilitati, semantica ARIA, focus da tas
 - Interventi (≥1440 px): schede da ~112 px → righe compatte (macchina | descrizione + dettaglio | stato): circa il doppio di interventi visibili. **RISOLTO** (da verificare a vista).
 - Magazzino: colonna destra vuota → riquadro guida tratteggiato "Nessun articolo selezionato". **RISOLTO** (da verificare a vista).
 - Movimenti: Deposito/Prelievo senza gradiente né bordo 3D, orizzontali, a tutta larghezza colonna (88 px). **RISOLTO** (da verificare a vista).
-- Non toccati in questo passaggio: sidebar (spazio vuoto sotto le voci), Manuali, Report, Impostazioni. **NON RISOLTO**.
+- Impostazioni: sezioni su 2 colonne (3 da 1700 px) invece di una colonna a tutta larghezza; account e pulsante Report a tutta riga. **RISOLTO** (struttura verificata in Chromium; da vedere con i dati reali).
+- Report (≥1280 px): periodo in alto, vita utile dei ricambi a sinistra, elenco Depositi/Prelievi con tab a destra. **RISOLTO** (struttura verificata in Chromium).
+- Sidebar: promemoria delle scorciatoie da tastiera nello spazio vuoto sotto le voci. **RISOLTO**.
+- Manuali: nessuna modifica (dagli screenshot la schermata risulta già ben organizzata). **DA VERIFICARE**.
+- Impostazioni/Report: le finestre aperte dai pulsanti (utenti, macchine, scaffali, inventario) non sono state riprogettate. **NON RISOLTO**.
 
 ## 6. File modificati
 - `css/desktop.css` — tutte le regole nuove sono in `@media (min-width:1024px)` (il mobile non è toccato).
 - `js/features/magazzino/products-table.js`, `js/features/interventi/interventi-desktop.js`, `js/features/manuali/manuals-desktop.js` — solo attributi ARIA (moduli già usati solo ≥1024 px).
 - `tools/check.mjs` — falso positivo `NaN`.
 - `js/shared/label-pdf.js`, `js/features/impostazioni/label-print.js` — (richiesta a parte) etichette: nome articolo grande, descrizione sotto poco più piccola, barre piccole in fondo (4 × 0,8 cm), 2 colonne.
-- `service-worker.js` — cache `v306` → `v310`.
+- `service-worker.js` — cache `v306` → `v311`.
 - `docs/DESKTOP_AUDIT.md` — questo file.
 Nessuna modifica a database, RLS, Supabase, movimenti, offline.
 
