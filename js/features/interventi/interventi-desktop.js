@@ -178,6 +178,7 @@ function wire() {
   });
   els.list.addEventListener('dblclick', (e) => e.target.closest('.id-card') && state.tab === 'open' && openSelected());
   document.addEventListener('keydown', (e) => {
+    if (!e.key) return; // l'autocompilazione del browser invia keydown senza tasto
     if (!MQ.matches || !ctx || els.list.offsetParent === null || e.ctrlKey || e.metaKey || e.altKey) return;
     if (document.querySelector('.modal-overlay.modal-visible')) return;
     const t = document.activeElement;
