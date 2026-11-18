@@ -28,12 +28,18 @@ Il layer desktop (`css/desktop.css`, `js/shared/desktop.js`, `*-desktop.js`, `pr
 Estetici/layout: sidebar 200 px e pannelli più stretti tra 1024 e 1279 px; colonne più larghe, 4 colonne di sezioni Manuali e modali più alte da 1600 px. Nessun gradiente o effetto aggiunto.
 Funzionali: scrollbar visibile, stati disabilitati, semantica ARIA, focus da tastiera. Nessuna logica di business toccata.
 
+### Secondo passaggio (18/11/2026), dagli screenshot reali a 1920 px
+- Interventi (≥1440 px): schede da ~112 px → righe compatte (macchina | descrizione + dettaglio | stato): circa il doppio di interventi visibili. **RISOLTO** (da verificare a vista).
+- Magazzino: colonna destra vuota → riquadro guida tratteggiato "Nessun articolo selezionato". **RISOLTO** (da verificare a vista).
+- Movimenti: Deposito/Prelievo senza gradiente né bordo 3D, orizzontali, a tutta larghezza colonna (88 px). **RISOLTO** (da verificare a vista).
+- Non toccati in questo passaggio: sidebar (spazio vuoto sotto le voci), Manuali, Report, Impostazioni. **NON RISOLTO**.
+
 ## 6. File modificati
 - `css/desktop.css` — tutte le regole nuove sono in `@media (min-width:1024px)` (il mobile non è toccato).
 - `js/features/magazzino/products-table.js`, `js/features/interventi/interventi-desktop.js`, `js/features/manuali/manuals-desktop.js` — solo attributi ARIA (moduli già usati solo ≥1024 px).
 - `tools/check.mjs` — falso positivo `NaN`.
-- `js/shared/label-pdf.js` — (richiesta a parte) etichette: descrizione in risalto (fino a 22 pt, 3 righe), barre compatte 4,5 × 0,9 cm, codice articolo più piccolo.
-- `service-worker.js` — cache `v306` → `v308`.
+- `js/shared/label-pdf.js`, `js/features/impostazioni/label-print.js` — (richiesta a parte) etichette: nome articolo grande, descrizione sotto poco più piccola, barre piccole in fondo (4 × 0,8 cm), 2 colonne.
+- `service-worker.js` — cache `v306` → `v310`.
 - `docs/DESKTOP_AUDIT.md` — questo file.
 Nessuna modifica a database, RLS, Supabase, movimenti, offline.
 
