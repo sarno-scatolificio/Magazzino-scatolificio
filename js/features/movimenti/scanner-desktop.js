@@ -55,6 +55,7 @@ export function initScannerDesktop() {
     els.codeSearchInput.focus();
   }
   input.addEventListener('keydown', (e) => {
+    if (!e.key) return; // l'autocompilazione del browser invia keydown senza tasto
     if (e.key === 'Enter') {
       e.preventDefault();
       run();
@@ -64,6 +65,7 @@ export function initScannerDesktop() {
   // Nella finestra di movimento: Invio sceglie il primo risultato, ↑ ↓ scorrono i risultati, Ctrl+Invio conferma
   const opts = () => [...els.codeSearchResults.querySelectorAll('.custom-select-option')];
   els.codeSearchInput.addEventListener('keydown', (e) => {
+    if (!e.key) return; // l'autocompilazione del browser invia keydown senza tasto
     if (!MQ.matches) return;
     if (e.key === 'Enter') {
       const first = opts()[0];
@@ -80,6 +82,7 @@ export function initScannerDesktop() {
     }
   });
   els.codeSearchResults.addEventListener('keydown', (e) => {
+    if (!e.key) return; // l'autocompilazione del browser invia keydown senza tasto
     if (!MQ.matches || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
     const list = opts();
     const i = list.indexOf(document.activeElement);
@@ -91,6 +94,7 @@ export function initScannerDesktop() {
 
   // D / P: sceglie la modalità e porta il cursore nel campo (solo a vista Movimenti aperta, senza modali e senza scrivere altrove)
   document.addEventListener('keydown', (e) => {
+    if (!e.key) return; // l'autocompilazione del browser invia keydown senza tasto
     if (!MQ.matches || e.ctrlKey || e.metaKey || e.altKey || typing(document.activeElement)) return;
     if (document.getElementById('view-scanner')?.offsetParent === null || document.querySelector('.modal-overlay.modal-visible')) return;
     const k = e.key.toLowerCase();
