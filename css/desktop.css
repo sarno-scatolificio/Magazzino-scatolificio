@@ -454,3 +454,28 @@
     border-top: 1px solid #e3e8f2; font: 500 11px/1.9 'JetBrains Mono', monospace; color: #667085; pointer-events: none;
   }
 }
+
+/* =============================================================
+   Terzo passaggio (18/11/2026), dopo il confronto con gli screenshot reali a 1920 px.
+   ============================================================= */
+@media (min-width: 1024px) {
+  /* MOVIMENTI: "Ultimi movimenti" mostrava solo 4 voci (altezza fissata da scanner-idle.js pensata per il telefono)
+     con mezza pagina vuota sotto. Su desktop la scheda cresce fino all'altezza dello schermo e scorre solo oltre. */
+  #scanner-recent-list { height: auto !important; max-height: calc(100vh - 340px) !important; min-height: 0; }
+  #scanner-recent-list { scrollbar-width: thin; }
+
+  /* MANUALI: elenco macchine più compatto (da ~88 a ~64 px a riga): più macchine in vista senza scorrere */
+  #manuals-browser-list > button { padding-top: 8px !important; padding-bottom: 8px !important; min-height: 0 !important; }
+  #manuals-browser-list > button .w-24 { width: 56px; height: 40px; }
+
+  /* SIDEBAR: promemoria scorciatoie allineato alle icone delle voci */
+  .nav-glass::after { left: 28px; right: 14px; }
+}
+
+/* MOVIMENTI: i due selettori D/P nella scheda di ricerca non devono sembrare una copia dei blocchi grandi.
+   Diventano un interruttore compatto preceduto da "Con Invio:" (cosa registra il tasto Invio del lettore). */
+@media (min-width: 1024px) {
+  .desk-mode-label { align-self: center; white-space: nowrap; margin-left: 6px; font: 600 11px 'JetBrains Mono', monospace; letter-spacing: .04em; text-transform: uppercase; color: #667085; }
+  .desk-mode { min-height: 44px; padding: 0 12px; font-size: 11px; box-shadow: none; }
+  .desk-mode svg { width: 16px !important; height: 16px !important; }
+}
