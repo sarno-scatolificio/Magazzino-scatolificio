@@ -20,7 +20,12 @@ export function initScannerDesktop() {
   if (!input || !btns.length) return;
   let mode = 'prelievo'; // il movimento più frequente
 
-  const paint = () => btns.forEach((b) => b.classList.toggle('is-on', b.dataset.deskMode === mode));
+  const paint = () =>
+    btns.forEach((b) => {
+      const on = b.dataset.deskMode === mode;
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
   const setMode = (m, { focus = true } = {}) => {
     mode = m;
     paint();
