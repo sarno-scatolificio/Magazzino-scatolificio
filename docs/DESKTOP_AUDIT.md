@@ -40,12 +40,20 @@ Funzionali: scrollbar visibile, stati disabilitati, semantica ARIA, focus da tas
 - Manuali: nessuna modifica (dagli screenshot la schermata risulta già ben organizzata). **DA VERIFICARE**.
 - Impostazioni/Report: le finestre aperte dai pulsanti (utenti, macchine, scaffali, inventario) non sono state riprogettate. **NON RISOLTO**.
 
+### Terzo passaggio (18/11/2026) — confronto con screenshot reali a 1920 px
+- Confermati a schermo: righe compatte Interventi, Deposito/Prelievo piatti, scorciatoie in sidebar. **RISOLTO**.
+- Movimenti: "Ultimi movimenti" mostrava 4 voci con metà pagina vuota (altezza fissa pensata per il telefono): ora cresce fino all'altezza dello schermo. **RISOLTO** (da verificare a vista).
+- Manuali: righe dell'elenco macchine da ~88 a ~64 px. **RISOLTO** (da verificare a vista).
+- Movimenti: i pulsanti Deposito/Prelievo nella scheda di ricerca sembravano una copia dei blocchi grandi, ma sono i selettori di cosa registra il tasto Invio del lettore (rimuoverli avrebbe tolto una funzione): ora sono un interruttore compatto con etichetta "Con Invio:", suggerimento al passaggio del mouse e `aria-pressed`. **RISOLTO** (da verificare a vista).
+- Magazzino, Impostazioni, Report: non ancora visti a schermo. **DA VERIFICARE**.
+
 ## 6. File modificati
 - `css/desktop.css` — tutte le regole nuove sono in `@media (min-width:1024px)` (il mobile non è toccato).
 - `js/features/magazzino/products-table.js`, `js/features/interventi/interventi-desktop.js`, `js/features/manuali/manuals-desktop.js` — solo attributi ARIA (moduli già usati solo ≥1024 px).
 - `tools/check.mjs` — falso positivo `NaN`.
 - `js/shared/label-pdf.js`, `js/features/impostazioni/label-print.js` — (richiesta a parte) etichette: nome articolo grande, descrizione sotto poco più piccola, barre piccole in fondo (4 × 0,8 cm), 2 colonne.
-- `service-worker.js` — cache `v306` → `v312`.
+- `index.html` (etichetta e tooltip del selettore Invio, solo nel blocco desktop), `js/features/movimenti/scanner-desktop.js` (`aria-pressed`).
+- `service-worker.js` — cache `v306` → `v314`.
 - `docs/DESKTOP_AUDIT.md` — questo file.
 Nessuna modifica a database, RLS, Supabase, movimenti, offline.
 
