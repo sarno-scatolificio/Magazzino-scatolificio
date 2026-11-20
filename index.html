@@ -497,7 +497,7 @@
                 </button>
                 <select id="scan-macchinario-input" class="hidden" tabindex="-1" aria-hidden="true"></select>
               </div>
-              <!-- Solo piattelle (macchinario con teste, ricavato dalla linea; se ce n'è più d'uno si sceglie prima quale): torre e testa si scelgono con il semicerchio -->
+              <!-- Piattelle e articoli con una torre assegnata, cuscinetti compresi (macchinario con teste, dalla scheda articolo o dalla linea; se ce n'è più d'uno si sceglie prima quale): torre e testa si scelgono con il semicerchio -->
               <div id="scan-testa-wrap" class="hidden">
                 <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Testa <span id="scan-testa-machine" class="normal-case font-normal text-graphite-500"></span></label>
                 <button type="button" id="scan-testa-btn"
@@ -1487,7 +1487,7 @@
         </div>
       </div>
 
-      <!-- Torre del macchinario (solo Ricambi tecnici, se la macchina scelta ha torri con un nome, es. Bordatura / Inferiore):
+      <!-- Torre del macchinario (Ricambi tecnici e Cuscinetti, se la macchina scelta ha torri con un nome, es. Bordatura / Inferiore):
            nel Prelievo si vedono solo le teste di questa torre -->
       <div id="product-torre-wrap" class="hidden">
         <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Torre <span class="normal-case font-normal text-graphite-500">(facoltativa)</span></label>
@@ -1496,7 +1496,7 @@
           <i data-lucide="chevrons-up-down" class="w-4 h-4 text-graphite-400 shrink-0" stroke-width="2"></i>
         </button>
         <input type="hidden" id="product-torre">
-        <p class="ui-note text-graphite-500 mt-1">Nel Prelievo di questo ricambio si sceglie la testa solo tra quelle della torre.</p>
+        <p class="ui-note text-graphite-500 mt-1">Nel Prelievo di questo articolo si sceglie la testa solo tra quelle della torre.</p>
         <!-- Solo se la torre ha teste doppie: dove va montato questo ricambio, così non si dichiara a ogni prelievo -->
         <div id="product-posizione-wrap" class="hidden mt-3">
           <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Posizione <span class="normal-case font-normal text-graphite-500">(facoltativa)</span></label>
