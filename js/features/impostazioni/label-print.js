@@ -2,7 +2,7 @@
 // label-print.js — Impostazioni › Stampa etichette
 // =============================================================
 // Si scelgono uno o più articoli e si crea un PDF A5 con i loro codici a barre (più etichette per pagina, attaccate l'una all'altra).
-// Le misure del codice a barre (larghezza, altezza in cm), le copie e le opzioni si possono cambiare e restano
+// Le misure dell'etichetta (larghezza, altezza in cm), le copie e le opzioni si possono cambiare e restano
 // salvate sul telefono. Per ogni articolo si stampa il codice a barre principale.
 
 import feedback from '../../shared/feedback.js';
@@ -58,13 +58,13 @@ function build() {
           <div class="px-3.5 pb-3 space-y-3">
             <div class="grid grid-cols-3 gap-2">
               <label class="block"><span class="ui-label uppercase tracking-wide text-graphite-500">Larghezza (cm)</span>
-                <input data-set="barW" inputmode="decimal" type="text" class="mt-1 w-full rounded-lg bg-graphite-900 border border-graphite-700 px-2.5 py-2 font-mono text-sm focus:border-amber-400 outline-none"></label>
+                <input data-set="labelW" inputmode="decimal" type="text" class="mt-1 w-full rounded-lg bg-graphite-900 border border-graphite-700 px-2.5 py-2 font-mono text-sm focus:border-amber-400 outline-none"></label>
               <label class="block"><span class="ui-label uppercase tracking-wide text-graphite-500">Altezza (cm)</span>
-                <input data-set="barH" inputmode="decimal" type="text" class="mt-1 w-full rounded-lg bg-graphite-900 border border-graphite-700 px-2.5 py-2 font-mono text-sm focus:border-amber-400 outline-none"></label>
+                <input data-set="labelH" inputmode="decimal" type="text" class="mt-1 w-full rounded-lg bg-graphite-900 border border-graphite-700 px-2.5 py-2 font-mono text-sm focus:border-amber-400 outline-none"></label>
               <label class="block"><span class="ui-label uppercase tracking-wide text-graphite-500">Copie</span>
                 <input data-set="copies" inputmode="numeric" type="text" class="mt-1 w-full rounded-lg bg-graphite-900 border border-graphite-700 px-2.5 py-2 font-mono text-sm focus:border-amber-400 outline-none"></label>
             </div>
-            <label class="flex items-center gap-2 text-sm"><input data-set="showDesc" type="checkbox" class="w-4 h-4 accent-[var(--accent)]"> Descrizione sopra il codice a barre</label>
+            <label class="flex items-center gap-2 text-sm"><input data-set="showDesc" type="checkbox" class="w-4 h-4 accent-[var(--accent)]"> Descrizione sotto il nome dell'articolo</label>
             <label class="flex items-center gap-2 text-sm"><input data-set="cutBorder" type="checkbox" class="w-4 h-4 accent-[var(--accent)]"> Linee tratteggiate per ritagliare (condivise tra etichette)</label>
             <p data-role="hint" class="text-xs text-graphite-400"></p>
           </div>
@@ -94,7 +94,7 @@ function build() {
   });
   q('[data-act="all"]').addEventListener('click', () => {
     feedback.tap();
-    visible().forEach((p) => st.selected.add(p.id));
+    visible().forEach((p) => st.selected.add(String(p.id)));
     paintList();
   });
   q('[data-act="none"]').addEventListener('click', () => {
@@ -105,7 +105,7 @@ function build() {
   q('[data-role="list"]').addEventListener('change', (e) => {
     const cb = e.target.closest('[data-id]');
     if (!cb) return;
-    const id = Number(cb.dataset.id);
+    const id = String(cb.dataset.id); // gli id possono essere testo (UUID): Number() li trasformerebbe in NaN
     if (cb.checked) st.selected.add(id);
     else st.selected.delete(id);
     paintCount();
@@ -122,22 +122,22 @@ function build() {
 function paintSettings() {
   const s = st.settings;
   const set = (k) => st.overlay.querySelector(`[data-set="${k}"]`);
-  set('barW').value = cm(s.barW);
-  set('barH').value = cm(s.barH);
+  set('labelW').value = cm(s.labelW);
+  set('labelH').value = cm(s.labelH);
   set('copies').value = String(s.copies);
   set('showDesc').checked = s.showDesc;
   set('cutBorder').checked = s.cutBorder;
-  const [w0, w1] = LABEL_LIMITS.barW;
-  const [h0, h1] = LABEL_LIMITS.barH;
+  const [w0, w1] = LABEL_LIMITS.labelW;
+  const [h0, h1] = LABEL_LIMITS.labelH;
   st.overlay.querySelector('[data-role="hint"]').textContent =
-    `Larghezza da ${cm(w0)} a ${cm(w1)} cm, altezza da ${cm(h0)} a ${cm(h1)} cm. Pagina A5 verticale: il testo (nome articolo e descrizione) ha la priorità, il codice a barre può restare piccolo (consigliato 4 × 0,8 cm).`;
+    `Misure reali di ogni etichetta: larghezza da ${cm(w0)} a ${cm(w1)} cm, altezza da ${cm(h0)} a ${cm(h1)} cm. Foglio A5 verticale. Per avere le misure esatte stampa al 100% ("dimensioni reali"), senza "adatta alla pagina".`;
 }
 
 function readSettings() {
   const get = (k) => st.overlay.querySelector(`[data-set="${k}"]`);
   st.settings = saveLabelSettings({
-    barW: toMm(get('barW').value),
-    barH: toMm(get('barH').value),
+    labelW: toMm(get('labelW').value),
+    labelH: toMm(get('labelH').value),
     copies: Number(get('copies').value),
     showDesc: get('showDesc').checked,
     cutBorder: get('cutBorder').checked,
@@ -190,7 +190,7 @@ function paintList() {
         const desc = labelDescription(p);
         return `
       <label class="flex items-center gap-3 rounded-lg border border-graphite-700 bg-graphite-800 px-3 py-2.5 cursor-pointer">
-        <input type="checkbox" data-id="${p.id}" ${st.selected.has(p.id) ? 'checked' : ''} class="w-5 h-5 shrink-0 accent-[var(--accent)]">
+        <input type="checkbox" data-id="${p.id}" ${st.selected.has(String(p.id)) ? 'checked' : ''} class="w-5 h-5 shrink-0 accent-[var(--accent)]">
         <span class="min-w-0">
           <span class="block font-mono font-bold text-sm truncate">${escapeHtml(p.codice_articolo)}</span>
           <span class="block text-xs text-graphite-400 truncate">${escapeHtml(desc || '—')}</span>
@@ -205,7 +205,7 @@ function paintList() {
 async function makePdf() {
   readSettings();
   const items = st.products
-    .filter((p) => st.selected.has(p.id))
+    .filter((p) => st.selected.has(String(p.id)))
     .map((p) => ({ barcode: getProductBarcodes(p)[0]?.codice_barre, code: p.codice_articolo, description: labelDescription(p) }));
   const btn = st.overlay.querySelector('[data-act="make"]');
   setButtonBusy(btn, true, 'Creo il PDF…');
@@ -235,7 +235,7 @@ async function open() {
   try {
     const all = await listProducts();
     st.products = all.filter((p) => getProductBarcodes(p).length);
-    st.selected = new Set([...st.selected].filter((id) => st.products.some((p) => p.id === id)));
+    st.selected = new Set([...st.selected].filter((id) => st.products.some((p) => String(p.id) === id)));
     st.loaded = true;
     paintList();
   } catch (err) {
