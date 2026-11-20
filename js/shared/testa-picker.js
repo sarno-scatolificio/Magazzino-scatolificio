@@ -60,6 +60,7 @@ let rcNow = R_MIN; // raggio su cui stanno i centri delle teste
 let headR = 17; // raggio del cerchio di una testa
 let chosen = new Map(); // teste scelte: chiave "torre:testa:pos" -> { t: indice torre, n: testa, p: 'S' | 'I' | null }
 let quantita = 1; // quantità del prelievo all'apertura
+let nomePezzi = 'piattelle'; // come si chiamano i pezzi nei messaggi (piattelle, cuscinetti, ricambi)
 let lastA = null;
 let lastT = 0; // istante dell'ultimo movimento del dito (per la velocità e per sapere se il dito si è fermato)
 let sx = 0;
@@ -146,11 +147,12 @@ export function initTestaPicker() {
  * @param {{machine: string, torri: {nome: string, teste: number, tipo: 'singola'|'doppia'}[], selected?: {torre: string, testa: number, pos: string|null}[], quantita?: number}} opts
  * @returns {Promise<{punti: {torre: string, testa: number, pos: string|null}[], quantita: number}|null>}
  */
-export function openTestaPicker({ machine, torri: towers, selected = [], quantita: qty = 1, posizione = null }) {
+export function openTestaPicker({ machine, torri: towers, selected = [], quantita: qty = 1, posizione = null, pezzi = 'piattelle' }) {
   return new Promise((resolve) => {
     resolveFn = resolve;
     torri = towers && towers.length ? towers : [{ nome: '', teste: 1, tipo: 'singola' }];
     quantita = Math.max(1, Math.round(qty) || 1);
+    nomePezzi = pezzi || 'pezzi';
     chosen = new Map();
     // posizione fissa dalla scheda articolo: conta solo con una torre a teste doppie
     fixedPos = (posizione === 'S' || posizione === 'I') && torri.some((x) => x.tipo === 'doppia') ? posizione : null;
@@ -458,7 +460,7 @@ function tryConfirm() {
   const n = picks.length;
   const Q = quantita;
   if (n === 0) {
-    showNote(`Hai impostato ${Q} piattelle: scegli ${Q} teste. Punta una testa e tocca «Aggiungi testa».`);
+    showNote(`Hai impostato ${Q} ${nomePezzi}: scegli ${Q} teste. Punta una testa e tocca «Aggiungi testa».`);
     return;
   }
   if (n === Q) {
@@ -467,8 +469,8 @@ function tryConfirm() {
   }
   if (Q === 1) {
     // Quantità lasciata a 1 ma scelte più teste: si chiede quante piattelle sono state prelevate davvero
-    showNote(`Hai scelto ${n} teste. Hai prelevato davvero ${n} piattelle?`, [
-      { label: `Sì, ${n} piattelle`, primary: true, run: () => finish(picks, n) },
+    showNote(`Hai scelto ${n} teste. Hai prelevato davvero ${n} ${nomePezzi}?`, [
+      { label: `Sì, ${n} ${nomePezzi}`, primary: true, run: () => finish(picks, n) },
       { label: 'Correggi', run: hideNote },
     ]);
     return;
