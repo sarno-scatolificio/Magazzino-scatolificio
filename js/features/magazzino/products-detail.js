@@ -522,9 +522,11 @@ function updateManualButtonVisibility() {
 }
 
 // --- TORRE DELL'ARTICOLO ---------------------------------------------
-// Solo Ricambi tecnici la cui macchina ha torri con un nome (Impostazioni → Gestione macchine). Il campo è facoltativo:
+// Ricambi tecnici e Cuscinetti la cui macchina ha torri con un nome (Impostazioni → Gestione macchine). Il campo è facoltativo:
 // con una torre assegnata, nel Prelievo il selettore delle teste mostra solo le teste di quella torre.
 const TORRE_VUOTA = 'Nessuna: tutte le torri';
+/** Categorie i cui articoli si possono assegnare a una torre (e quindi a una testa nel Prelievo) */
+const categoriaConTorre = (categoria) => categoria === 'pezzi_ricambio' || categoria === 'cuscinetti';
 let torreSeq = 0; // scarta le risposte arrivate in ritardo (macchina cambiata in fretta)
 
 /** Voce di listMachineEntries della macchina scelta nel form (null se non c'è o l'elenco non è raggiungibile) */
@@ -545,12 +547,12 @@ async function torriDellaMacchinaScelta() {
   return entry ? torriAssegnabili(entry) : [];
 }
 
-/** Mostra il campo Torre solo per i Ricambi tecnici con una macchina che ha torri; con reset azzera una torre che non esiste più */
+/** Mostra il campo Torre solo per Ricambi tecnici e Cuscinetti con una macchina che ha torri; con reset azzera una torre che non esiste più */
 async function updateTorreField({ reset = false } = {}) {
   if (!els.torreWrap) return;
   const seq = ++torreSeq;
-  const ricambio = els.categoriaSelect.value === 'pezzi_ricambio';
-  const torri = ricambio ? await torriDellaMacchinaScelta() : [];
+  const conTorre = categoriaConTorre(els.categoriaSelect.value);
+  const torri = conTorre ? await torriDellaMacchinaScelta() : [];
   if (seq !== torreSeq) return;
   const attuale = els.torreHidden.value;
   // Una torre salvata che nel frattempo non esiste più resta visibile (si può togliere a mano); cambiando macchina si azzera
@@ -742,7 +744,11 @@ function renderDetail(p) {
     if (isRicambi && (p.torre || '').trim()) rows.push({ label: 'Torre', value: p.torre });
     if (isRicambi && (p.torre || '').trim() && POS_LABEL[p.posizione]) rows.push({ label: 'Posizione', value: POS_LABEL[p.posizione] });
   }
-  if (isCuscinetto && (p.macchina || '').trim()) rows.push({ label: 'Macchina', value: p.macchina });
+  if (isCuscinetto && (p.macchina || '').trim()) {
+    rows.push({ label: 'Macchina', value: p.macchina });
+    if ((p.torre || '').trim()) rows.push({ label: 'Torre', value: p.torre });
+    if ((p.torre || '').trim() && POS_LABEL[p.posizione]) rows.push({ label: 'Posizione', value: POS_LABEL[p.posizione] });
+  }
   if (!isRicambi && (hasMachine || (p.punto_utilizzo_standard || '').trim())) {
     rows.push({ label: 'Punto utilizzo standard', value: p.punto_utilizzo_standard });
   }
@@ -985,9 +991,9 @@ async function handleSubmit(e) {
     scorta_minima: parseInt(document.getElementById('product-scorta-minima').value, 10) || 0,
   };
 
-  // La torre vale solo per i Ricambi tecnici con una macchina. La colonna si scrive solo se serve (valore da salvare, o torre
+  // La torre vale solo per Ricambi tecnici e Cuscinetti con una macchina. La colonna si scrive solo se serve (valore da salvare, o torre
   // precedente da togliere): così gli altri salvataggi funzionano anche prima di eseguire la migrazione 2026-11-12-articolo-torre.sql
-  const torre = payload.categoria === 'pezzi_ricambio' && payload.macchina ? els.torreHidden.value || null : null;
+  const torre = categoriaConTorre(payload.categoria) && payload.macchina ? els.torreHidden.value || null : null;
   if (torre || editingSnapshot?.torre) payload.torre = torre;
   const posizione = torre ? els.posHidden.value || null : null;
   if (posizione || editingSnapshot?.posizione) payload.posizione = posizione;
