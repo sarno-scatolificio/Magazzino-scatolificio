@@ -4,7 +4,7 @@
 // Regole:
 // - Ogni prelievo = una sostituzione (qualunque sia la quantità; per le piattelle una per testa).
 // - Si confronta lo stesso ricambio nello stesso posto:
-//     cuscinetti      -> articolo + linea + macchinario + punto di utilizzo
+//     cuscinetti      -> articolo + linea + macchinario + punto di utilizzo (+ testa, se il prelievo ne indica: una sostituzione per testa)
 //     cinghie/ricambi -> articolo + linea
 //     piattelle       -> articolo + linea + macchinario + testa (ogni testa ha la sua piattella;
 //                        un prelievo di N piattelle conta una sostituzione per ciascuna delle N teste)
@@ -70,9 +70,13 @@ export function computeLifespan(rows) {
         skipped += 1;
         return;
       }
-      const g = addEvent(`${r.product_id}|${r.linea}|${macch}|${punto}`, { codice, bearing, linea: r.linea }, t);
-      g.macchinario = r.macchinario; // vince l'ultima grafia usata
-      g.punto = r.punto_utilizzo_specifico;
+      const puntiCusc = puntiDiMovimento(r); // cuscinetto assegnato a una torre: ogni testa ha il suo cuscinetto
+      const luoghi = puntiCusc.length ? puntiCusc : [null];
+      luoghi.forEach((testa) => {
+        const g = addEvent(`${r.product_id}|${r.linea}|${macch}|${punto}${testa ? `|testa${chiavePunto(testa)}` : ''}`, { codice, bearing, linea: r.linea, testa }, t);
+        g.macchinario = r.macchinario; // vince l'ultima grafia usata
+        g.punto = r.punto_utilizzo_specifico;
+      });
       return;
     }
 
@@ -133,7 +137,7 @@ const fmtDate = (t) => new Date(t).toLocaleDateString('it-IT', { day: '2-digit',
 
 function placeLabel(g) {
   const parts = [g.linea === 'REP' ? 'Reparto' : g.linea];
-  if (g.bearing) parts.push(g.macchinario, g.punto);
+  if (g.bearing) parts.push(g.macchinario, g.punto, g.testa ? labelTesta(g.testa) : '');
   else if (g.piattella) parts.push(g.macchinario, labelTesta(g.testa));
   return parts.filter(Boolean).map(escapeHtml).join(' · ');
 }
