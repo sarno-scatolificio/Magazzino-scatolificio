@@ -13,7 +13,7 @@ import { loadIdlePanel } from './scanner-idle.js';
 import { normPunto } from '../magazzino/punti-utilizzo.js';
 import { paintPunti } from './scanner-punti.js';
 import { resetTesta } from './scanner-testa.js';
-import { paramTeste } from '../magazzino/testa-macchine.js';
+import { paramTeste, isPiattella } from '../magazzino/testa-macchine.js';
 import { refreshPrestitiCount } from './prestiti.js';
 import { toastError, toastSuccess, toastWarning } from '../../shared/toast.js';
 
@@ -193,20 +193,22 @@ export async function confirmTransaction() {
       const same = ss.puntiSuggeriti.find((s) => normPunto(s.punto) === normPunto(punto));
       if (same) punto = same.punto;
     }
-    // Piattelle su un macchinario con teste: serve una testa per ogni piattella (la vita utile si calcola per testa) e
-    // le teste devono essere tante quanto la quantità; il macchinario si ricava dalla linea
+    // Piattelle e articoli con una torre assegnata (cuscinetti e ricambi tecnici): serve una testa per ogni pezzo (la vita utile
+    // si calcola per testa) e le teste devono essere tante quanto la quantità; il macchinario si ricava dalla scheda o dalla linea
     if (ss.testa) {
+      const tipo = isPiattella(ss.currentProduct.codice_articolo) ? 'piattella' : ss.currentProduct.categoria === 'cuscinetti' ? 'cuscinetto' : 'ricambio';
+      const [uno, tanti] = { piattella: ['la piattella', 'le piattelle'], cuscinetto: ['il cuscinetto', 'i cuscinetti'], ricambio: ['il ricambio', 'i ricambi'] }[tipo];
       if (!ss.testa.macchinario) {
         feedback.errorAction();
         flagMissing(els.testaBtn);
-        toastError('Scegli il macchinario e la testa su cui monti la piattella.');
+        toastError(`Scegli il macchinario e la testa su cui monti ${uno}.`);
         return;
       }
       const scelte = ss.testa.value || [];
       if (!scelte.length) {
         feedback.errorAction();
         flagMissing(els.testaBtn);
-        toastError(quantita > 1 ? `Scegli le ${quantita} teste su cui monti le piattelle.` : 'Scegli la testa su cui monti la piattella.');
+        toastError(quantita > 1 ? `Scegli le ${quantita} teste su cui monti ${tanti}.` : `Scegli la testa su cui monti ${uno}.`);
         return;
       }
       if (scelte.length !== quantita) {

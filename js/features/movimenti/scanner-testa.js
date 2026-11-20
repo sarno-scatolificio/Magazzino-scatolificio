@@ -1,7 +1,7 @@
 // =============================================================
-// scanner-testa.js — Campo «Testa» del Prelievo (piattelle)
+// scanner-testa.js — Campo «Testa» del Prelievo (piattelle e articoli con una torre assegnata: cuscinetti, ricambi tecnici)
 // =============================================================
-// Per le piattelle il prelievo chiede su quali teste vengono montate (una piattella per testa: tante teste quanta è la
+// Per le piattelle (e per i cuscinetti/ricambi con una torre assegnata nella scheda) il prelievo chiede su quali teste vengono montate (una piattella per testa: tante teste quanta è la
 // quantità): il macchinario si ricava dalla linea (vedi magazzino/testa-macchine.js; se sulla linea ce n'è più d'uno con
 // teste, si sceglie quale) e torre e teste si scelgono con il semicerchio (shared/testa-picker.js), che controlla anche la quantità.
 // Parte di quello che prima era un unico scanner.js (vedi scanner.js).
@@ -9,7 +9,7 @@
 import { els, ss, effectiveLinea } from './scanner-shared.js';
 import { listMachineEntries } from '../../data/supabase.js';
 import feedback from '../../shared/feedback.js';
-import { macchinaDelProdotto, macchineConTeste, richiedeTesta, riepilogoTorri, labelTesta, labelBreve, posizioneDelProdotto } from '../magazzino/testa-macchine.js';
+import { macchinaDelProdotto, macchineConTeste, richiedeTesta, isPiattella, riepilogoTorri, labelTesta, labelBreve, posizioneDelProdotto } from '../magazzino/testa-macchine.js';
 import { openPicker } from '../../shared/picker.js';
 import { openTestaPicker } from '../../shared/testa-picker.js';
 import { setQty } from './scanner-result.js';
@@ -84,7 +84,7 @@ export async function pickTesta() {
     paintTesta();
   }
   const qty = parseInt(els.qtyInput.value, 10) || 1;
-  const res = await openTestaPicker({ machine: ss.testa.macchinario, torri: ss.testa.torri, selected: ss.testa.value, quantita: qty, posizione: posizioneDelProdotto(ss.currentProduct, ss.testa.torri) });
+  const res = await openTestaPicker({ machine: ss.testa.macchinario, torri: ss.testa.torri, selected: ss.testa.value, quantita: qty, posizione: posizioneDelProdotto(ss.currentProduct, ss.testa.torri), pezzi: ss.currentProduct.categoria === 'cuscinetti' ? 'cuscinetti' : isPiattella(ss.currentProduct.codice_articolo) ? 'piattelle' : 'ricambi' });
   if (res === null || !ss.testa) return; // annullato (o nel frattempo il campo è sparito)
   ss.testa.value = res.punti;
   if (res.quantita !== qty) setQty(res.quantita); // confermata dal selettore (es. «Sì, 5 piattelle»): la quantità segue le teste
