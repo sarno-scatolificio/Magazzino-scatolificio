@@ -24,7 +24,7 @@ const CATS = [
 ];
 const NOBAR = '__nobar';
 
-const st = { overlay: null, products: [], selected: new Set(), q: '', cat: '', settings: null, loaded: false };
+const st = { overlay: null, products: [], selected: new Set(), grouped: new Set(), q: '', cat: '', settings: null, loaded: false };
 let initialized = false;
 
 const hasBarcode = (p) => getProductBarcodes(p).length > 0;
@@ -52,6 +52,11 @@ function build() {
             <button type="button" data-act="all" class="text-amber-400 min-h-[32px]">Seleziona visibili</button>
             <button type="button" data-act="none" class="text-graphite-400 min-h-[32px]">Nessuno</button>
           </div>
+        </div>
+        <div data-role="grp-bulk" class="hidden flex items-center gap-2 text-[11px] font-display font-semibold uppercase tracking-wide">
+          <span class="text-graphite-400">Selezionati:</span>
+          <button type="button" data-act="grp-on" class="rounded-lg border border-graphite-700 bg-graphite-800 px-2.5 min-h-[32px] text-amber-400">In gruppo (senza barre)</button>
+          <button type="button" data-act="grp-off" class="rounded-lg border border-graphite-700 bg-graphite-800 px-2.5 min-h-[32px] text-graphite-300">Con barre</button>
         </div>
       </div>
       <div data-role="list" class="flex-1 overflow-y-auto px-5 pb-3 space-y-1.5"></div>
@@ -107,6 +112,25 @@ function build() {
     visible().forEach((p) => st.selected.add(String(p.id)));
     paintList();
   });
+  const bulk = (on) => {
+    feedback.tap();
+    st.selected.forEach((id) => (on ? st.grouped.add(id) : st.grouped.delete(id)));
+    paintList();
+  };
+  q('[data-act="grp-on"]').addEventListener('click', () => bulk(true));
+  q('[data-act="grp-off"]').addEventListener('click', () => bulk(false));
+  // Interruttore per riga: "Barre" (etichetta classica) ↔ "Gruppo" (insieme ad altri, solo codice articolo)
+  q('[data-role="list"]').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-grp]');
+    if (!b) return;
+    e.preventDefault();
+    feedback.tap();
+    const id = String(b.dataset.grp);
+    if (st.grouped.has(id)) st.grouped.delete(id);
+    else st.grouped.add(id);
+    paintGrpBtn(b, st.grouped.has(id));
+    paintCount();
+  });
   q('[data-act="none"]').addEventListener('click', () => {
     feedback.tap();
     st.selected.clear();
@@ -140,6 +164,7 @@ function paintSettings() {
   set('multi').checked = s.multi;
   set('multiCount').value = String(s.multiCount);
   st.overlay.querySelector('[data-role="multi-row"]').classList.toggle('hidden', !s.multi);
+  st.overlay.querySelector('[data-role="grp-bulk"]').classList.toggle('hidden', !s.multi);
   const [w0, w1] = LABEL_LIMITS.labelW;
   const [h0, h1] = LABEL_LIMITS.labelH;
   st.overlay.querySelector('[data-role="hint"]').textContent =
@@ -158,6 +183,7 @@ function readSettings() {
     multiCount: Number(get('multiCount').value),
   });
   paintSettings(); // riporta nei campi i valori corretti dentro i limiti
+  if (st.loaded) paintList(); // mostra o nasconde l'interruttore Barre/Gruppo su ogni riga
   paintCount();
 }
 
@@ -184,15 +210,24 @@ function visible() {
   });
 }
 
+const GRP_BASE = 'ml-auto shrink-0 rounded-md border px-2 py-1 text-[11px] font-display font-bold uppercase tracking-wide';
+function paintGrpBtn(btn, on) {
+  btn.textContent = on ? 'Gruppo' : 'Barre';
+  btn.className = `${GRP_BASE} ${on ? 'bg-amber-400 border-amber-400 text-white' : 'bg-graphite-800 border-graphite-700 text-graphite-300'}`;
+  btn.setAttribute('aria-pressed', String(on));
+  btn.title = on ? 'Va in un\'etichetta con altri codici, solo codice articolo' : 'Etichetta classica con codice a barre';
+}
+
 function paintCount() {
   const n = st.selected.size;
   const shown = visible().length;
-  const noBar = st.settings.multi ? 0 : st.products.filter((p) => st.selected.has(String(p.id)) && !hasBarcode(p)).length;
+  const noBar = st.products.filter((p) => st.selected.has(String(p.id)) && !hasBarcode(p) && !(st.settings.multi && st.grouped.has(String(p.id)))).length;
   st.overlay.querySelector('[data-role="count"]').textContent =
     `${n} selezionat${n === 1 ? 'o' : 'i'} · ${shown} articoli${noBar ? ` · ${noBar} senza codice a barre` : ''}`;
   const btn = st.overlay.querySelector('[data-act="make"]');
   btn.disabled = n === 0;
-  const labels = st.settings.multi ? Math.ceil(n / st.settings.multiCount) : n;
+  const grp = st.settings.multi ? [...st.selected].filter((id) => st.grouped.has(id)).length : 0;
+  const labels = n - grp + Math.ceil(grp / st.settings.multiCount);
   if (!btn.dataset.busy) btn.textContent = n ? `Crea PDF (${labels * st.settings.copies} etichett${labels * st.settings.copies === 1 ? 'a' : 'e'})` : 'Crea PDF';
 }
 
@@ -217,6 +252,7 @@ function paintList() {
           ${hasBarcode(p) ? '' : '<span class="inline-block my-0.5 rounded px-1.5 py-px text-[10px] font-display font-bold uppercase tracking-wide bg-red-100 text-red-700 border border-red-300">No codice a barre</span>'}
           <span class="block text-xs text-graphite-400 truncate">${escapeHtml(desc || '—')}</span>
         </span>
+        ${st.settings.multi ? `<button type="button" data-grp="${p.id}" class="${GRP_BASE} ${st.grouped.has(String(p.id)) ? 'bg-amber-400 border-amber-400 text-white' : 'bg-graphite-800 border-graphite-700 text-graphite-300'}" aria-pressed="${st.grouped.has(String(p.id))}">${st.grouped.has(String(p.id)) ? 'Gruppo' : 'Barre'}</button>` : ''}
       </label>`;
       })
       .join('') +
@@ -228,8 +264,13 @@ async function makePdf() {
   readSettings();
   const items = st.products
     .filter((p) => st.selected.has(String(p.id)))
-    .map((p) => ({ barcode: getProductBarcodes(p)[0]?.codice_barre || '', code: p.codice_articolo, description: labelDescription(p) }));
-  const noBar = st.settings.multi ? 0 : items.filter((i) => !i.barcode).length; // con più codici per etichetta le barre non si stampano comunque
+    .map((p) => ({
+      barcode: getProductBarcodes(p)[0]?.codice_barre || '',
+      code: p.codice_articolo,
+      description: labelDescription(p),
+      group: st.settings.multi && st.grouped.has(String(p.id)),
+    }));
+  const noBar = items.filter((i) => !i.barcode && !i.group).length; // gli articoli "in gruppo" non stampano comunque le barre
   const btn = st.overlay.querySelector('[data-act="make"]');
   setButtonBusy(btn, true, 'Creo il PDF…');
   try {
