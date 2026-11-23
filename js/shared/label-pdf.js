@@ -19,10 +19,12 @@ export const LABEL_DEFAULTS = {
   copies: 1, // copie di ogni etichetta
   showDesc: true, // descrizione dell'articolo sotto il nome
   cutBorder: true, // linee tratteggiate di taglio (condivise tra etichette vicine)
+  multi: false, // più codici articolo insieme in una sola etichetta (senza barre), separati da linee sottili
+  multiCount: 2, // quanti codici per etichetta quando `multi` è attivo (2, 3 o 4)
 };
 
 /** Limiti accettati per le misure (mm): l'etichetta deve stare nell'area utile dell'A5 */
-export const LABEL_LIMITS = { labelW: [30, 138], labelH: [15, 200], copies: [1, 20] };
+export const LABEL_LIMITS = { labelW: [30, 138], labelH: [15, 200], copies: [1, 20], multiCount: [2, 4] };
 
 const STORAGE_KEY = 'label_print_settings_v5'; // v5: le misure sono quelle dell'etichetta intera (prima del solo codice a barre)
 const MARGIN = 5; // margine della pagina, mm (le stampanti d'ufficio non stampano oltre ~4 mm dal bordo)
@@ -68,6 +70,8 @@ function normalizeSettings(s) {
     copies: Math.round(clamp(num(s.copies, 1), LABEL_LIMITS.copies)),
     showDesc: s.showDesc !== false,
     cutBorder: s.cutBorder !== false,
+    multi: s.multi === true,
+    multiCount: Math.round(clamp(num(s.multiCount, 2), LABEL_LIMITS.multiCount)),
   };
 }
 
@@ -117,7 +121,7 @@ function ellipsize(doc, text, w, maxLines) {
  * Sceglie i caratteri più grandi per nome e descrizione in modo che tutto stia nell'area di testo dell'etichetta
  * (larghezza `w`, altezza `areaH`). Il nome è sempre più grande della descrizione.
  */
-function fitText(doc, name, desc, w, areaH) {
+function fitText(doc, name, desc, w, areaH, maxPt = NAME_PT_MAX) {
   doc.setFont('helvetica', 'bold');
   const lay = (text, pt) => {
     if (!text) return [];
@@ -125,7 +129,7 @@ function fitText(doc, name, desc, w, areaH) {
     return doc.splitTextToSize(text, w);
   };
   const height = (lines, pt) => lines.length * pitchOf(pt);
-  for (let npt = NAME_PT_MAX; npt >= NAME_PT_MIN; npt -= 0.5) {
+  for (let npt = maxPt; npt >= NAME_PT_MIN; npt -= 0.5) {
     const dpt = Math.max(DESC_PT_MIN, Math.min(DESC_PT_MAX, npt * DESC_RATIO));
     const nl = lay(name, npt);
     const dl = lay(desc, dpt);
@@ -185,7 +189,7 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
   const textW = labelW - PAD_X * 2;
   const areaH = Math.max(4, labelH - PAD_Y * 2 - barH - GAP);
 
-  const prepared = list.map((it) => {
+  const buildSingles = () => list.map((it) => {
     let name = String(it.code || '').trim();
     let desc = s.showDesc ? String(it.description || '').trim() : '';
     if (!name && desc) { name = desc; desc = ''; }
@@ -194,8 +198,33 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
     return { it, hasBar, areaI, ...fitText(doc, name, desc, textW, areaI) };
   });
 
+  // Modalità "più codici in una etichetta": i codici selezionati si raggruppano a 2, 3 o 4 per etichetta, solo codice articolo
+  // (niente barre). 2 → due righe, 3 → tre righe, 4 → 2 righe × 2 colonne, separate da linee sottili continue.
+  const buildMultis = () => {
+    const out = [];
+    for (let i = 0; i < list.length; i += s.multiCount) {
+      const group = list
+        .slice(i, i + s.multiCount)
+        .map((it) => String(it.code || it.description || it.barcode || '').trim())
+        .filter(Boolean);
+      if (!group.length) continue;
+      const cols = group.length === 4 ? 2 : 1;
+      const rows = Math.ceil(group.length / cols);
+      const cw = labelW / cols;
+      const ch = labelH / rows;
+      const fw = cw - PAD_X * 2;
+      const fh = Math.max(4, ch - 2);
+      // Stesso corpo in tutte le celle dell'etichetta: quello che sta anche al codice più lungo
+      const first = group.map((t) => fitText(doc, t, '', fw, fh));
+      const cap = Math.min(...first.map((f) => f.namePt));
+      const fits = group.map((t) => fitText(doc, t, '', fw, fh, cap));
+      out.push({ multi: true, cols, rows, cw, ch, fits });
+    }
+    return out;
+  };
+
   const all = [];
-  for (const p of prepared) for (let c = 0; c < s.copies; c += 1) all.push(p);
+  for (const p of s.multi ? buildMultis() : buildSingles()) for (let c = 0; c < s.copies; c += 1) all.push(p);
 
   const modCache = new Map();
   const imgCache = new Map();
@@ -223,10 +252,30 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
       doc.setLineDashPattern([], 0);
     }
 
-    chunk.forEach(({ it, hasBar, areaI, nameLines, namePt, descLines, descPt }, slot) => {
+    chunk.forEach((lab, slot) => {
       const x = x0 + (slot % cols) * labelW;
       const y = MARGIN + Math.floor(slot / cols) * labelH;
       const cx = x + labelW / 2;
+
+      if (lab.multi) {
+        // Più codici nella stessa etichetta: linee sottili continue tra le celle, in ogni cella solo il codice articolo
+        doc.setDrawColor(70);
+        doc.setLineWidth(0.25);
+        for (let r = 1; r < lab.rows; r += 1) doc.line(x, y + r * lab.ch, x + labelW, y + r * lab.ch);
+        for (let c = 1; c < lab.cols; c += 1) doc.line(x + c * lab.cw, y, x + c * lab.cw, y + labelH);
+        doc.setTextColor(0);
+        doc.setFont('helvetica', 'bold');
+        lab.fits.forEach((f, i) => {
+          const ccx = x + (i % lab.cols) * lab.cw + lab.cw / 2;
+          const cy = y + Math.floor(i / lab.cols) * lab.ch;
+          const used = f.nameLines.length * pitchOf(f.namePt);
+          const t0 = cy + Math.max(0, (lab.ch - used) / 2);
+          doc.setFontSize(f.namePt);
+          f.nameLines.forEach((ln, k) => doc.text(ln, ccx, t0 + k * pitchOf(f.namePt) + f.namePt * PT * 0.8, { align: 'center' }));
+        });
+        return;
+      }
+      const { it, hasBar, areaI, nameLines, namePt, descLines, descPt } = lab;
       doc.setTextColor(0);
       doc.setFont('helvetica', 'bold');
 
