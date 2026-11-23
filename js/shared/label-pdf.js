@@ -154,7 +154,8 @@ function fitText(doc, name, desc, w, areaH) {
  * @returns {Promise<{ labels: number, pages: number }>}
  */
 export async function generateLabelsPdf(items, options = null, fileName = null) {
-  const list = (items || []).filter((i) => i && String(i.barcode || '').trim());
+  // Un'etichetta serve anche senza codice a barre (solo testo): basta che ci sia il nome o la descrizione
+  const list = (items || []).filter((i) => i && (String(i.barcode || '').trim() || String(i.code || '').trim() || String(i.description || '').trim()));
   if (!list.length) throw new Error('Nessuna etichetta da stampare.');
   await loadLib('jspdf'); // libreria PDF: caricata solo alla prima stampa
   const s = options ? normalizeSettings(options) : getLabelSettings();
@@ -188,7 +189,9 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
     let name = String(it.code || '').trim();
     let desc = s.showDesc ? String(it.description || '').trim() : '';
     if (!name && desc) { name = desc; desc = ''; }
-    return { it, ...fitText(doc, name, desc, textW, areaH) };
+    const hasBar = Boolean(String(it.barcode || '').trim());
+    const areaI = hasBar ? areaH : Math.max(4, labelH - PAD_Y * 2); // senza barre il testo usa tutta l'altezza
+    return { it, hasBar, areaI, ...fitText(doc, name, desc, textW, areaI) };
   });
 
   const all = [];
@@ -220,7 +223,7 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
       doc.setLineDashPattern([], 0);
     }
 
-    chunk.forEach(({ it, nameLines, namePt, descLines, descPt }, slot) => {
+    chunk.forEach(({ it, hasBar, areaI, nameLines, namePt, descLines, descPt }, slot) => {
       const x = x0 + (slot % cols) * labelW;
       const y = MARGIN + Math.floor(slot / cols) * labelH;
       const cx = x + labelW / 2;
@@ -229,7 +232,7 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
 
       // 1) Nome/codice articolo (grande) e 2) descrizione (poco più piccola), una sopra l'altra, centrati nell'area di testo
       const usedH = nameLines.length * pitchOf(namePt) + descLines.length * pitchOf(descPt);
-      let top = y + PAD_Y + Math.max(0, (areaH - usedH) / 2);
+      let top = y + PAD_Y + Math.max(0, (areaI - usedH) / 2);
       [[nameLines, namePt], [descLines, descPt]].forEach(([lines, pt]) => {
         doc.setFontSize(pt);
         lines.forEach((ln, i) => doc.text(ln, cx, top + i * pitchOf(pt) + pt * PT * 0.8, { align: 'center' }));
@@ -237,6 +240,7 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
       });
 
       // 3) Codice a barre in fondo: rettangoli vettoriali (misure esatte, nessun ricampionamento)
+      if (!hasBar) return;
       const barcode = String(it.barcode).trim();
       const by = y + labelH - PAD_Y - barH;
       if (!modCache.has(barcode)) modCache.set(barcode, barModules(barcode));
