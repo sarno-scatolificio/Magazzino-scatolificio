@@ -189,7 +189,10 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
   const textW = labelW - PAD_X * 2;
   const areaH = Math.max(4, labelH - PAD_Y * 2 - barH - GAP);
 
-  const buildSingles = () => list.map((it) => {
+  // Con `multi` attivo: gli articoli con group=true vanno nelle etichette a più codici, gli altri restano classici (con barre)
+  const classicList = s.multi ? list.filter((it) => !it.group) : list;
+  const groupList = s.multi ? list.filter((it) => it.group) : [];
+  const buildSingles = () => classicList.map((it) => {
     let name = String(it.code || '').trim();
     let desc = s.showDesc ? String(it.description || '').trim() : '';
     if (!name && desc) { name = desc; desc = ''; }
@@ -202,8 +205,8 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
   // (niente barre). 2 → due righe, 3 → tre righe, 4 → 2 righe × 2 colonne, separate da linee sottili continue.
   const buildMultis = () => {
     const out = [];
-    for (let i = 0; i < list.length; i += s.multiCount) {
-      const group = list
+    for (let i = 0; i < groupList.length; i += s.multiCount) {
+      const group = groupList
         .slice(i, i + s.multiCount)
         .map((it) => String(it.code || it.description || it.barcode || '').trim())
         .filter(Boolean);
@@ -224,7 +227,7 @@ export async function generateLabelsPdf(items, options = null, fileName = null) 
   };
 
   const all = [];
-  for (const p of s.multi ? buildMultis() : buildSingles()) for (let c = 0; c < s.copies; c += 1) all.push(p);
+  for (const p of [...buildSingles(), ...(s.multi ? buildMultis() : [])]) for (let c = 0; c < s.copies; c += 1) all.push(p);
 
   const modCache = new Map();
   const imgCache = new Map();
