@@ -175,7 +175,7 @@ function wordStartPatterns(token) {
   return [`${lit}%`, ...WORD_SEPARATORS.map((sep) => `%${likeEscape(sep)}${lit}%`)];
 }
 
-export async function listProducts({ search = '', onlyLowStock = false, categoria = null } = {}) {
+export async function listProducts({ search = '', onlyLowStock = false, categoria = null, allPages = false } = {}) {
   let query = supabase.from('products').select(PRODUCT_SELECT).order('codice_articolo', { ascending: true });
 
   if (categoria) query = query.eq('categoria', categoria);
@@ -197,8 +197,23 @@ export async function listProducts({ search = '', onlyLowStock = false, categori
     if (extraIds.length) conds.push(`id.in.(${extraIds.join(',')})`);
     query = query.or(conds.join(','));
   }
-  const { data, error } = await query;
-  if (error) throw error;
+  let data;
+  if (allPages) {
+    // Il server restituisce al massimo 1000 righe per richiesta: si leggono tutte, a pagine (usato dalla stampa etichette)
+    const PAGE = 1000;
+    query = query.order('id', { ascending: true });
+    data = [];
+    for (let from = 0; ; from += PAGE) {
+      const res = await query.range(from, from + PAGE - 1);
+      if (res.error) throw res.error;
+      data.push(...res.data);
+      if (res.data.length < PAGE) break;
+    }
+  } else {
+    const res = await query;
+    if (res.error) throw res.error;
+    data = res.data;
+  }
   let list = data.map(normalizeProduct);
   const tokens = searchTokens(search);
   if (tokens.length) list = list.filter((p) => productMatchesTokens(p, tokens)); // stessa regola del server, più il caso «4905» → NA4905-XL
