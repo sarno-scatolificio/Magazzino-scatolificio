@@ -69,6 +69,13 @@ function build() {
             </div>
             <label class="flex items-center gap-2 text-sm"><input data-set="showDesc" type="checkbox" class="w-4 h-4 accent-[var(--accent)]"> Descrizione sotto il nome dell'articolo</label>
             <label class="flex items-center gap-2 text-sm"><input data-set="cutBorder" type="checkbox" class="w-4 h-4 accent-[var(--accent)]"> Linee tratteggiate per ritagliare (condivise tra etichette)</label>
+            <label class="flex items-center gap-2 text-sm"><input data-set="multi" type="checkbox" class="w-4 h-4 accent-[var(--accent)]"> Più codici in una etichetta (solo codice articolo, senza barre)</label>
+            <label data-role="multi-row" class="flex items-center justify-between gap-2 text-sm">Codici per etichetta
+              <select data-set="multiCount" class="rounded-lg bg-graphite-900 border border-graphite-700 px-2.5 py-2 font-mono text-sm focus:border-amber-400 outline-none">
+                <option value="2">2 (uno sopra l'altro)</option>
+                <option value="3">3 (tre righe)</option>
+                <option value="4">4 (2 righe × 2 colonne)</option>
+              </select></label>
             <p data-role="hint" class="text-xs text-graphite-400"></p>
           </div>
         </details>
@@ -130,6 +137,9 @@ function paintSettings() {
   set('copies').value = String(s.copies);
   set('showDesc').checked = s.showDesc;
   set('cutBorder').checked = s.cutBorder;
+  set('multi').checked = s.multi;
+  set('multiCount').value = String(s.multiCount);
+  st.overlay.querySelector('[data-role="multi-row"]').classList.toggle('hidden', !s.multi);
   const [w0, w1] = LABEL_LIMITS.labelW;
   const [h0, h1] = LABEL_LIMITS.labelH;
   st.overlay.querySelector('[data-role="hint"]').textContent =
@@ -144,8 +154,11 @@ function readSettings() {
     copies: Number(get('copies').value),
     showDesc: get('showDesc').checked,
     cutBorder: get('cutBorder').checked,
+    multi: get('multi').checked,
+    multiCount: Number(get('multiCount').value),
   });
   paintSettings(); // riporta nei campi i valori corretti dentro i limiti
+  paintCount();
 }
 
 function paintCats() {
@@ -174,12 +187,13 @@ function visible() {
 function paintCount() {
   const n = st.selected.size;
   const shown = visible().length;
-  const noBar = st.products.filter((p) => st.selected.has(String(p.id)) && !hasBarcode(p)).length;
+  const noBar = st.settings.multi ? 0 : st.products.filter((p) => st.selected.has(String(p.id)) && !hasBarcode(p)).length;
   st.overlay.querySelector('[data-role="count"]').textContent =
     `${n} selezionat${n === 1 ? 'o' : 'i'} · ${shown} articoli${noBar ? ` · ${noBar} senza codice a barre` : ''}`;
   const btn = st.overlay.querySelector('[data-act="make"]');
   btn.disabled = n === 0;
-  if (!btn.dataset.busy) btn.textContent = n ? `Crea PDF (${n * st.settings.copies} etichette)` : 'Crea PDF';
+  const labels = st.settings.multi ? Math.ceil(n / st.settings.multiCount) : n;
+  if (!btn.dataset.busy) btn.textContent = n ? `Crea PDF (${labels * st.settings.copies} etichett${labels * st.settings.copies === 1 ? 'a' : 'e'})` : 'Crea PDF';
 }
 
 function paintList() {
@@ -215,7 +229,7 @@ async function makePdf() {
   const items = st.products
     .filter((p) => st.selected.has(String(p.id)))
     .map((p) => ({ barcode: getProductBarcodes(p)[0]?.codice_barre || '', code: p.codice_articolo, description: labelDescription(p) }));
-  const noBar = items.filter((i) => !i.barcode).length;
+  const noBar = st.settings.multi ? 0 : items.filter((i) => !i.barcode).length; // con più codici per etichetta le barre non si stampano comunque
   const btn = st.overlay.querySelector('[data-act="make"]');
   setButtonBusy(btn, true, 'Creo il PDF…');
   try {
