@@ -13,18 +13,21 @@ import { isAdmin } from '../../core/auth.js';
 import { listProducts, getProductBarcodes } from '../../data/supabase.js';
 import { generateLabelsPdf, getLabelSettings, saveLabelSettings, labelDescription, LABEL_LIMITS } from '../../shared/label-pdf.js';
 
-const MAX_ROWS = 200; // righe disegnate alla volta: con più risultati si restringe la ricerca
+const MAX_ROWS = 3000; // righe disegnate alla volta (un elenco di tutto il magazzino ci sta largamente)
 
 const CATS = [
   ['', 'Tutti'],
   ['cuscinetti', 'Cuscinetti'],
   ['cinghie', 'Cinghie'],
   ['pezzi_ricambio', 'Ricambi'],
+  ['__nobar', 'Senza barre'], // filtro speciale: solo gli articoli privi di codice a barre
 ];
+const NOBAR = '__nobar';
 
 const st = { overlay: null, products: [], selected: new Set(), q: '', cat: '', settings: null, loaded: false };
 let initialized = false;
 
+const hasBarcode = (p) => getProductBarcodes(p).length > 0;
 const cm = (mm) => String(Math.round(mm) / 10).replace('.', ',');
 const toMm = (txt) => Number(String(txt).replace(',', '.')) * 10;
 
@@ -154,10 +157,12 @@ function paintCats() {
   ).join('');
 }
 
-/** Articoli stampabili (hanno un codice a barre) che rispettano ricerca e categoria */
+/** Tutti gli articoli del magazzino (anche senza codice a barre) che rispettano ricerca e categoria */
 function visible() {
   return st.products.filter((p) => {
-    if (st.cat && p.categoria !== st.cat) return false;
+    if (st.cat === NOBAR) {
+      if (hasBarcode(p)) return false;
+    } else if (st.cat && p.categoria !== st.cat) return false;
     if (!st.q) return true;
     const hay = [p.codice_articolo, labelDescription(p), p.locazione, p.macchina, ...getProductBarcodes(p).map((b) => b.codice_barre)]
       .join(' ')
@@ -169,7 +174,9 @@ function visible() {
 function paintCount() {
   const n = st.selected.size;
   const shown = visible().length;
-  st.overlay.querySelector('[data-role="count"]').textContent = `${n} selezionat${n === 1 ? 'o' : 'i'} · ${shown} articoli`;
+  const noBar = st.products.filter((p) => st.selected.has(String(p.id)) && !hasBarcode(p)).length;
+  st.overlay.querySelector('[data-role="count"]').textContent =
+    `${n} selezionat${n === 1 ? 'o' : 'i'} · ${shown} articoli${noBar ? ` · ${noBar} senza codice a barre` : ''}`;
   const btn = st.overlay.querySelector('[data-act="make"]');
   btn.disabled = n === 0;
   if (!btn.dataset.busy) btn.textContent = n ? `Crea PDF (${n * st.settings.copies} etichette)` : 'Crea PDF';
@@ -193,6 +200,7 @@ function paintList() {
         <input type="checkbox" data-id="${p.id}" ${st.selected.has(String(p.id)) ? 'checked' : ''} class="w-5 h-5 shrink-0 accent-[var(--accent)]">
         <span class="min-w-0">
           <span class="block font-mono font-bold text-sm truncate">${escapeHtml(p.codice_articolo)}</span>
+          ${hasBarcode(p) ? '' : '<span class="inline-block my-0.5 rounded px-1.5 py-px text-[10px] font-display font-bold uppercase tracking-wide bg-red-100 text-red-700 border border-red-300">No codice a barre</span>'}
           <span class="block text-xs text-graphite-400 truncate">${escapeHtml(desc || '—')}</span>
         </span>
       </label>`;
@@ -206,13 +214,17 @@ async function makePdf() {
   readSettings();
   const items = st.products
     .filter((p) => st.selected.has(String(p.id)))
-    .map((p) => ({ barcode: getProductBarcodes(p)[0]?.codice_barre, code: p.codice_articolo, description: labelDescription(p) }));
+    .map((p) => ({ barcode: getProductBarcodes(p)[0]?.codice_barre || '', code: p.codice_articolo, description: labelDescription(p) }));
+  const noBar = items.filter((i) => !i.barcode).length;
   const btn = st.overlay.querySelector('[data-act="make"]');
   setButtonBusy(btn, true, 'Creo il PDF…');
   try {
     const { labels, pages } = await generateLabelsPdf(items, st.settings);
     feedback.confirmAction();
-    toastSuccess(`PDF creato: ${labels} etichett${labels === 1 ? 'a' : 'e'} su ${pages} pagin${pages === 1 ? 'a' : 'e'} A5.`);
+    toastSuccess(
+      `PDF creato: ${labels} etichett${labels === 1 ? 'a' : 'e'} su ${pages} pagin${pages === 1 ? 'a' : 'e'} A5.` +
+        (noBar ? ` ${noBar} articol${noBar === 1 ? 'o' : 'i'} senza codice a barre: stampat${noBar === 1 ? 'o' : 'i'} solo con il testo.` : '')
+    );
   } catch (err) {
     console.error(err);
     feedback.errorAction();
@@ -233,8 +245,7 @@ async function open() {
   const list = st.overlay.querySelector('[data-role="list"]');
   if (!st.loaded) list.innerHTML = '<div class="space-y-2"><div class="skeleton h-14 w-full"></div><div class="skeleton h-14 w-full"></div><div class="skeleton h-14 w-full"></div></div>';
   try {
-    const all = await listProducts();
-    st.products = all.filter((p) => getProductBarcodes(p).length);
+    st.products = await listProducts({ allPages: true }); // tutto il magazzino, anche gli articoli senza codice a barre
     st.selected = new Set([...st.selected].filter((id) => st.products.some((p) => String(p.id) === id)));
     st.loaded = true;
     paintList();
