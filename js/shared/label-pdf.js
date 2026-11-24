@@ -22,10 +22,12 @@ export const LABEL_DEFAULTS = {
   copies: 1, // copie di ogni etichetta
   showDesc: true, // descrizione dell'articolo sotto il nome (solo etichette singole)
   cutBorder: true, // linee tratteggiate di taglio (condivise tra etichette vicine)
+  offsetY: 0, // sposta tutta la stampa verso il basso, mm (se la stampante taglia l'alto del foglio)
+  offsetX: 0, // sposta tutta la stampa a destra (valori negativi: a sinistra), mm
 };
 
 /** Limiti accettati (mm): l'etichetta deve stare nell'area utile dell'A5 */
-export const LABEL_LIMITS = { labelW: [30, 138], labelH: [15, 200], copies: [1, 20] };
+export const LABEL_LIMITS = { labelW: [30, 138], labelH: [15, 200], copies: [1, 20], offsetY: [0, 30], offsetX: [-15, 15] };
 export const GROUP_LIMITS = [2, 4]; // codici per etichetta di gruppo
 
 const STORAGE_KEY = 'label_print_settings_v5';
@@ -72,6 +74,8 @@ function normalizeSettings(s) {
     copies: Math.round(clamp(num(s.copies, 1), LABEL_LIMITS.copies)),
     showDesc: s.showDesc !== false,
     cutBorder: s.cutBorder !== false,
+    offsetY: clamp(num(s.offsetY, 0), LABEL_LIMITS.offsetY),
+    offsetX: clamp(num(s.offsetX, 0), LABEL_LIMITS.offsetX),
   };
 }
 
@@ -179,15 +183,16 @@ export async function generateLabelsPdf(labels, options = null, fileName = null)
     /* funzione non disponibile in questa versione della libreria */
   }
 
-  const usableW = PAGE_W - MARGIN * 2;
-  const usableH = PAGE_H - MARGIN * 2;
+  const usableW = PAGE_W - MARGIN * 2 - Math.abs(s.offsetX);
+  const top0 = MARGIN + s.offsetY; // inizio della stampa dall'alto (margine + spostamento scelto)
+  const usableH = PAGE_H - top0 - MARGIN;
   const { labelW, labelH } = s;
 
   // Griglia: etichette esattamente labelW × labelH, attaccate tra loro, centrate nella pagina
   const cols = Math.max(1, Math.floor((usableW + 0.001) / labelW));
   const rowsPerPage = Math.max(1, Math.floor((usableH + 0.001) / labelH));
   const perPage = cols * rowsPerPage;
-  const x0 = MARGIN + (usableW - cols * labelW) / 2;
+  const x0 = MARGIN + Math.max(0, s.offsetX) + (usableW - cols * labelW) / 2;
 
   // Singola: codice a barre piccolo (al lettore basta poco) e area di testo = tutto il resto
   const barW = Math.min(labelW - PAD_X * 2, Math.max(28, labelW * 0.55));
@@ -240,18 +245,18 @@ export async function generateLabelsPdf(labels, options = null, fileName = null)
       doc.setLineDashPattern([1.2, 1.2], 0);
       for (let r = 0; r <= rowsUsed; r += 1) {
         const w = (r === rowsUsed ? lastCount : cols) * labelW;
-        doc.line(x0, MARGIN + r * labelH, x0 + w, MARGIN + r * labelH);
+        doc.line(x0, top0 + r * labelH, x0 + w, top0 + r * labelH);
       }
       for (let c = 0; c <= cols; c += 1) {
         const rows = c > lastCount ? rowsUsed - 1 : rowsUsed;
-        if (rows > 0) doc.line(x0 + c * labelW, MARGIN, x0 + c * labelW, MARGIN + rows * labelH);
+        if (rows > 0) doc.line(x0 + c * labelW, top0, x0 + c * labelW, top0 + rows * labelH);
       }
       doc.setLineDashPattern([], 0);
     }
 
     chunk.forEach((lab, slot) => {
       const x = x0 + (slot % cols) * labelW;
-      const y = MARGIN + Math.floor(slot / cols) * labelH;
+      const y = top0 + Math.floor(slot / cols) * labelH;
       const cx = x + labelW / 2;
       doc.setTextColor(0);
       doc.setFont('helvetica', 'bold');
