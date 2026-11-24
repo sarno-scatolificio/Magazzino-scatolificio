@@ -3382,3 +3382,61 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
   .tp-hint-touch { display: none; }
   .tp-hint-desk { display: inline; }
 }
+
+/* =============================================================
+   Stampa etichette (cassetto in Impostazioni): stesso linguaggio dell'app — riquadri con l'icona di categoria come negli
+   Ultimi movimenti, controllo segmentato blu che scorre, barra di selezione blu piena, anteprima in scala reale.
+   ============================================================= */
+.lp-head-ico {
+  width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; flex-shrink: 0; display: grid; place-items: center;
+  background: var(--accent-tint); color: var(--accent);
+}
+.lp-row {
+  display: flex; align-items: center; gap: 0.75rem; padding: 0.55rem 0.75rem; border-radius: 0.75rem; cursor: pointer;
+  background: #ffffff; border: 1px solid #d3d8df; box-shadow: 0 1px 2px rgba(13, 17, 23, 0.06);
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+.lp-row:has(input:checked) { background: var(--accent-tint-8); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.lp-row:active { background: var(--accent-tint); }
+.lp-check {
+  position: relative; width: 1.5rem; height: 1.5rem; flex-shrink: 0; border-radius: 999px; border: 2px solid #b4bbc6; background: #ffffff;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+}
+.lp-check::after {
+  content: ''; position: absolute; left: 50%; top: 46%; width: 0.3rem; height: 0.58rem; border: solid #ffffff; border-width: 0 2px 2px 0;
+  transform: translate(-50%, -50%) rotate(45deg) scale(0); transition: transform var(--dur-fast) var(--ease-out);
+}
+.lp-row input:checked ~ .lp-check { background: var(--accent); border-color: var(--accent); transform: scale(1.06); }
+.lp-row input:checked ~ .lp-check::after { transform: translate(-50%, -50%) rotate(45deg) scale(1); }
+.lp-row input:focus-visible ~ .lp-check { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lp-nobar {
+  display: inline-block; border-radius: 0.3rem; padding: 0.05rem 0.4rem; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  background: #fff1f2; color: #be123c; border: 1px solid #fecdd3;
+}
+.lp-filter {
+  display: inline-flex; align-items: center; gap: 0.4rem; min-height: 36px; padding: 0 0.7rem; border-radius: 999px; border: 1px solid #d3d8df; background: #ffffff;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #5c6672;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+.lp-filter[aria-pressed="true"] { background: #fff1f2; border-color: #fb7185; color: #be123c; }
+.lp-selbar { background: var(--accent); color: #ffffff; border-radius: 0.85rem; padding: 0.65rem 0.75rem; box-shadow: 0 6px 14px -8px rgba(var(--accent-rgb), 0.8); }
+.lp-selbtn {
+  min-height: 40px; padding: 0 0.6rem; border-radius: 0.6rem; border: 1px solid rgba(255, 255, 255, 0.55); color: #ffffff; background: transparent;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.15;
+  transition: background-color var(--dur-fast) ease, opacity var(--dur-fast) ease;
+}
+.lp-selbtn--solid { background: #ffffff; color: var(--accent); border-color: #ffffff; }
+.lp-selbtn:disabled { opacity: 0.45; }
+.lp-queue { border-radius: 0.85rem; border: 1px solid #c3c9d1; background: #ffffff; box-shadow: 0 1px 2px rgba(13, 17, 23, 0.08); }
+.lp-queue > summary { list-style: none; }
+.lp-queue > summary::-webkit-details-marker { display: none; }
+.lp-queue[open] > summary .lp-chev { transform: rotate(180deg); }
+.lp-chev { transition: transform var(--dur-base) var(--ease-out); }
+.lp-qrow { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.5rem; border-radius: 0.6rem; background: var(--accent-tint-soft); border: 1px solid #e0e4ea; }
+.lp-gtag { flex-shrink: 0; border-radius: 0.3rem; padding: 0.05rem 0.4rem; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; background: var(--accent); color: #fff; }
+.lp-prev-wrap { display: grid; place-items: center; padding: 0.75rem; border-radius: 0.75rem; background: repeating-linear-gradient(45deg, #eef0f3 0 6px, #f6f7f9 6px 12px); }
+.lp-prev { container-type: inline-size; position: relative; width: 100%; background: #ffffff; color: #0d1117; border: 1px solid #8b94a0; box-shadow: 0 4px 10px -4px rgba(13, 17, 23, 0.35); overflow: hidden; }
+.lp-prev b { display: block; font-family: 'Inter', Arial, sans-serif; font-weight: 800; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.12; }
+.lp-prev svg { display: block; margin: 0 auto; }
+.lp-prev .lp-pg { position: absolute; background: #3d4652; }
+@media (prefers-reduced-motion: reduce) { .lp-row, .lp-check, .lp-check::after, .lp-chev { transition-duration: 1ms; } }
