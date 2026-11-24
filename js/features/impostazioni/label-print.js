@@ -11,7 +11,8 @@
 // Misure reali dell'etichetta, copie e opzioni restano salvate sul dispositivo.
 
 import feedback from '../../shared/feedback.js';
-import { closeOverlay, enableSheetDrag, openOverlay, setButtonBusy } from '../../shared/ui-utils.js';
+import { closeOverlay, enableSheetDrag, openOverlay, setButtonBusy, syncSegIndicator } from '../../shared/ui-utils.js';
+import { catIconHtml } from '../movimenti/movements.js';
 import { escapeHtml } from '../../shared/html-utils.js';
 import { toastError, toastSuccess } from '../../shared/toast.js';
 import { isAdmin } from '../../core/auth.js';
@@ -23,9 +24,7 @@ const CATS = [
   ['cuscinetti', 'Cuscinetti'],
   ['cinghie', 'Cinghie'],
   ['pezzi_ricambio', 'Ricambi'],
-  ['__nobar', 'Senza barre'], // filtro speciale: solo gli articoli privi di codice a barre
 ];
-const NOBAR = '__nobar';
 
 const st = {
   overlay: null,
@@ -35,6 +34,7 @@ const st = {
   queue: [], // lista "Da stampare": { key, kind: 'single' | 'group', ids: [] }
   q: '',
   cat: '',
+  onlyNoBar: false, // filtro "Senza barre": solo gli articoli privi di codice a barre
   settings: null,
   loaded: false,
 };
@@ -47,8 +47,9 @@ const toMm = (txt) => Number(String(txt).replace(',', '.')) * 10;
 const plural = (n, one, many) => (n === 1 ? one : many);
 const codeOf = (id) => st.byId.get(id)?.codice_articolo || '?';
 
-const NOBAR_TAG =
-  '<span class="inline-block rounded px-1.5 py-px text-[10px] font-display font-bold uppercase tracking-wide bg-red-100 text-red-700 border border-red-300">No codice a barre</span>';
+const NOBAR_TAG = '<span class="lp-nobar font-display">No codice a barre</span>';
+const SEG_BTN =
+  'category-tab flex-1 min-w-0 rounded-md min-h-[40px] px-1 py-1.5 flex items-center justify-center text-center leading-tight text-[11px] font-display font-semibold uppercase tracking-wide';
 
 function build() {
   const overlay = document.createElement('div');
@@ -56,22 +57,32 @@ function build() {
   overlay.innerHTML = `
     <div class="modal-panel w-full sm:max-w-lg h-[92vh] sm:h-[85vh] bg-graphite-900 border border-graphite-700 rounded-t-2xl sm:rounded-2xl flex flex-col">
       <div data-sheet-drag class="sheet-grabber sm:hidden"><span class="sheet-grabber-pill"></span></div>
-      <div data-sheet-drag class="flex items-center justify-between px-5 pb-3 pt-1 sm:pt-3 border-b border-graphite-800 shrink-0">
-        <h3 class="font-display font-bold text-lg uppercase tracking-wide">Stampa etichette</h3>
+      <div data-sheet-drag class="flex items-center gap-3 px-5 pb-3 pt-1 sm:pt-4 border-b border-graphite-800 shrink-0">
+        <span class="lp-head-ico"><i data-lucide="printer" class="w-5 h-5" stroke-width="2.2"></i></span>
+        <div class="min-w-0 flex-1">
+          <h3 class="font-display font-bold text-lg uppercase tracking-wide leading-tight">Stampa etichette</h3>
+          <p class="text-xs text-graphite-400">Scegli gli articoli, poi crea il PDF</p>
+        </div>
         <button type="button" data-act="close" aria-label="Chiudi" class="modal-close modal-close--on-light">
           <i data-lucide="x" class="w-6 h-6" stroke-width="2.5"></i>
         </button>
       </div>
 
-      <div class="px-5 pt-3 pb-2 shrink-0 space-y-2">
-        <input data-role="q" type="text" autocomplete="off" placeholder="Cerca codice, descrizione, scaffale…"
-          class="w-full rounded-lg bg-graphite-800 border border-graphite-700 px-3.5 py-2.5 text-sm outline-none focus:border-amber-400">
-        <div data-role="cats" class="flex gap-1.5 overflow-x-auto"></div>
+      <div class="px-5 pt-3 pb-2 shrink-0 space-y-2.5">
+        <div class="relative">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-graphite-400 pointer-events-none"></i>
+          <input data-role="q" type="text" autocomplete="off" placeholder="Cerca codice, descrizione, scaffale…"
+            class="w-full rounded-xl bg-graphite-800 border border-graphite-700 pl-10 pr-3.5 py-2.5 text-sm outline-none focus:border-amber-400">
+        </div>
+        <div data-role="seg" class="seg flex w-full rounded-lg border border-graphite-700 bg-graphite-800 p-0.5" role="tablist">
+          <span class="seg-indicator" aria-hidden="true"></span>
+          ${CATS.map(([k, label]) => `<button type="button" role="tab" data-cat="${k}" class="${SEG_BTN}${k === '' ? ' category-tab-active' : ''}">${label}</button>`).join('')}
+        </div>
         <div class="flex items-center justify-between gap-2">
-          <p data-role="count" class="text-xs text-graphite-400"></p>
+          <button type="button" data-act="nobar" aria-pressed="false" class="lp-filter press-spring font-display"><i data-lucide="triangle-alert" class="w-3.5 h-3.5"></i><span data-role="nobar-label">Senza barre</span></button>
           <div class="flex gap-3 text-xs font-display font-semibold uppercase tracking-wide">
-            <button type="button" data-act="all" class="text-amber-400 min-h-[32px]">Seleziona visibili</button>
-            <button type="button" data-act="none" class="text-graphite-400 min-h-[32px]">Nessuno</button>
+            <button type="button" data-act="all" class="text-amber-400 min-h-[36px]">Seleziona visibili</button>
+            <button type="button" data-act="none" class="text-graphite-400 min-h-[36px]">Nessuno</button>
           </div>
         </div>
       </div>
@@ -79,25 +90,32 @@ function build() {
       <div data-role="list" class="flex-1 overflow-y-auto px-5 pb-3 space-y-1.5"></div>
 
       <div class="border-t border-graphite-800 px-5 pt-3 pb-4 shrink-0 space-y-2.5">
-        <div data-role="selbar" class="hidden rounded-lg border border-amber-400/40 bg-graphite-800 p-2.5 space-y-2">
-          <p data-role="seltext" class="text-xs font-display font-semibold uppercase tracking-wide text-graphite-300"></p>
+        <div data-role="selbar" class="lp-selbar hidden space-y-2">
+          <p data-role="seltext" class="text-xs font-display font-bold uppercase tracking-wide"></p>
           <div class="grid grid-cols-2 gap-2">
-            <button type="button" data-act="add-single" class="press-spring rounded-lg border border-graphite-700 bg-graphite-900 min-h-[40px] px-2 text-xs font-display font-semibold uppercase tracking-wide text-graphite-200">Aggiungi singole</button>
-            <button type="button" data-act="add-group" class="press-spring rounded-lg border border-amber-400 bg-graphite-900 min-h-[40px] px-2 text-xs font-display font-semibold uppercase tracking-wide text-amber-400 disabled:opacity-40 disabled:border-graphite-700 disabled:text-graphite-400"></button>
+            <button type="button" data-act="add-single" class="lp-selbtn press-spring font-display">Aggiungi singole</button>
+            <button type="button" data-act="add-group" class="lp-selbtn lp-selbtn--solid press-spring font-display"></button>
           </div>
         </div>
 
-        <details data-role="queue-box" class="hidden rounded-lg border border-graphite-700 bg-graphite-800">
-          <summary class="px-3.5 py-2.5 text-xs font-display font-semibold uppercase tracking-wide cursor-pointer select-none"><span data-role="queue-title">Da stampare</span></summary>
+        <details data-role="queue-box" class="lp-queue hidden">
+          <summary class="flex items-center justify-between gap-2 px-3.5 py-2.5 cursor-pointer select-none">
+            <span data-role="queue-title" class="text-xs font-display font-bold uppercase tracking-wide">Da stampare</span>
+            <i data-lucide="chevron-down" class="lp-chev w-4 h-4 text-graphite-400"></i>
+          </summary>
           <div class="px-3 pb-3 space-y-1.5">
             <div data-role="queue-list" class="space-y-1.5 max-h-40 overflow-y-auto"></div>
             <button type="button" data-act="queue-clear" class="text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 min-h-[32px]">Svuota lista</button>
           </div>
         </details>
 
-        <details data-role="params" class="rounded-lg border border-graphite-700 bg-graphite-800">
-          <summary class="px-3.5 py-2.5 text-xs font-display font-semibold uppercase tracking-wide cursor-pointer select-none">Misure e opzioni</summary>
-          <div class="px-3.5 pb-3 space-y-3">
+        <details data-role="params" class="lp-queue">
+          <summary class="flex items-center justify-between gap-2 px-3.5 py-2.5 cursor-pointer select-none">
+            <span class="flex items-center gap-2 text-xs font-display font-bold uppercase tracking-wide"><i data-lucide="ruler" class="w-4 h-4 text-graphite-400"></i>Misure e opzioni</span>
+            <span data-role="params-sum" class="text-xs font-mono text-graphite-400"></span>
+          </summary>
+          <div class="px-3.5 pb-3.5 space-y-3">
+            <div data-role="preview" class="lp-prev-wrap"></div>
             <div class="grid grid-cols-3 gap-2">
               <label class="block"><span class="ui-label uppercase tracking-wide text-graphite-500">Larghezza (cm)</span>
                 <input data-set="labelW" inputmode="decimal" type="text" class="mt-1 w-full rounded-lg bg-graphite-900 border border-graphite-700 px-2.5 py-2 font-mono text-sm focus:border-amber-400 outline-none"></label>
@@ -112,7 +130,7 @@ function build() {
           </div>
         </details>
 
-        <button type="button" data-act="make" class="press-spring w-full rounded-lg py-3 font-display font-semibold uppercase tracking-wide bg-amber-400 text-white shadow-edge disabled:opacity-40">Crea PDF</button>
+        <button type="button" data-act="make" class="press-spring w-full rounded-xl min-h-[48px] font-display font-bold uppercase tracking-wide bg-amber-400 text-white shadow-edge disabled:opacity-40 flex items-center justify-center gap-2"><i data-lucide="printer" class="w-5 h-5"></i><span data-role="make-label">Crea PDF</span></button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -127,11 +145,17 @@ function build() {
     st.q = e.target.value.trim().toLowerCase();
     paintList();
   });
-  q('[data-role="cats"]').addEventListener('click', (e) => {
+  q('[data-role="seg"]').addEventListener('click', (e) => {
     const b = e.target.closest('[data-cat]');
     if (!b) return;
     feedback.filterChange();
     st.cat = b.dataset.cat;
+    paintCats();
+    paintList();
+  });
+  q('[data-act="nobar"]').addEventListener('click', () => {
+    feedback.filterChange();
+    st.onlyNoBar = !st.onlyNoBar;
     paintCats();
     paintList();
   });
@@ -233,20 +257,20 @@ function readSettings() {
 }
 
 function paintCats() {
-  st.overlay.querySelector('[data-role="cats"]').innerHTML = CATS.map(
-    ([k, label]) =>
-      `<button type="button" data-cat="${k}" class="shrink-0 min-h-[36px] rounded-lg border px-3 text-xs font-display font-semibold uppercase tracking-wide transition-colors ${
-        st.cat === k ? 'bg-amber-400 border-amber-400 text-white' : 'bg-graphite-800 border-graphite-700 text-graphite-300'
-      }">${label}</button>`
-  ).join('');
+  const seg = st.overlay.querySelector('[data-role="seg"]');
+  seg.querySelectorAll('[data-cat]').forEach((b) => b.classList.toggle('category-tab-active', b.dataset.cat === st.cat));
+  syncSegIndicator(seg);
+  const nb = st.overlay.querySelector('[data-act="nobar"]');
+  nb.setAttribute('aria-pressed', String(st.onlyNoBar));
+  const total = st.products.filter((p) => !hasBarcode(p)).length;
+  st.overlay.querySelector('[data-role="nobar-label"]').textContent = st.loaded ? `Senza barre · ${total}` : 'Senza barre';
 }
 
 /** Tutti gli articoli del magazzino (anche senza codice a barre) che rispettano ricerca e categoria */
 function visible() {
   return st.products.filter((p) => {
-    if (st.cat === NOBAR) {
-      if (hasBarcode(p)) return false;
-    } else if (st.cat && p.categoria !== st.cat) return false;
+    if (st.onlyNoBar && hasBarcode(p)) return false;
+    if (st.cat && p.categoria !== st.cat) return false;
     if (!st.q) return true;
     const hay = [p.codice_articolo, labelDescription(p), p.locazione, p.macchina, ...getProductBarcodes(p).map((b) => b.codice_barre)]
       .join(' ')
@@ -262,7 +286,10 @@ function paintList() {
   const list = st.overlay.querySelector('[data-role="list"]');
   const rows = visible();
   if (!rows.length) {
-    list.innerHTML = '<p class="text-sm text-graphite-400 text-center py-10">Nessun articolo trovato.</p>';
+    list.innerHTML = `<div class="flex flex-col items-center gap-2 py-12 text-center text-graphite-400">
+      <i data-lucide="${st.onlyNoBar ? 'circle-check' : 'search-x'}" class="w-8 h-8"></i>
+      <p class="text-sm">${st.onlyNoBar ? 'Tutti gli articoli hanno un codice a barre.' : 'Nessun articolo trovato.'}</p></div>`;
+    window.lucide?.createIcons();
     paintAll();
     return;
   }
@@ -270,13 +297,15 @@ function paintList() {
     .map((p) => {
       const desc = labelDescription(p);
       return `
-      <label class="flex items-center gap-3 rounded-lg border border-graphite-700 bg-graphite-800 px-3 py-2.5 cursor-pointer">
-        <input type="checkbox" data-id="${p.id}" ${st.selected.has(String(p.id)) ? 'checked' : ''} class="w-5 h-5 shrink-0 accent-[var(--accent)]">
-        <span class="min-w-0">
+      <label class="lp-row">
+        <input type="checkbox" data-id="${p.id}" ${st.selected.has(String(p.id)) ? 'checked' : ''} class="sr-only">
+        <span class="shrink-0">${catIconHtml(p.categoria)}</span>
+        <span class="min-w-0 flex-1">
           <span class="block font-mono font-bold text-sm truncate">${escapeHtml(p.codice_articolo)}</span>
           ${hasBarcode(p) ? '' : `<span class="block my-0.5">${NOBAR_TAG}</span>`}
           <span class="block text-xs text-graphite-400 truncate">${escapeHtml(desc || '—')}</span>
         </span>
+        <span class="lp-check" aria-hidden="true"></span>
       </label>`;
     })
     .join('');
@@ -289,7 +318,7 @@ function paintAll() {
   const n = st.selected.size;
   const shown = visible().length;
 
-  q('[data-role="count"]').textContent = `${n} selezionat${plural(n, 'o', 'i')} · ${shown} articoli`;
+  q('[data-act="all"]').textContent = `Seleziona visibili (${shown})`;
 
   // Barra della selezione: compare appena c'è qualcosa di spuntato
   q('[data-role="selbar"]').classList.toggle('hidden', n === 0);
@@ -306,13 +335,14 @@ function paintAll() {
   q('[data-role="queue-title"]').textContent = `Da stampare: ${st.queue.length} etichett${plural(st.queue.length, 'a', 'e')}`;
   q('[data-role="queue-list"]').innerHTML = st.queue
     .map((it) => {
+      const p0 = st.byId.get(it.ids[0]);
       const label =
         it.kind === 'group'
-          ? `<span class="text-[10px] font-display font-bold uppercase tracking-wide text-amber-400">Gruppo ${it.ids.length}</span> ${it.ids.map((id) => escapeHtml(codeOf(id))).join(' · ')}`
-          : `${escapeHtml(codeOf(it.ids[0]))} ${st.byId.get(it.ids[0]) && !hasBarcode(st.byId.get(it.ids[0])) ? NOBAR_TAG : ''}`;
-      return `<div class="flex items-center gap-2 rounded-md bg-graphite-900 border border-graphite-700 px-2.5 py-1.5">
-        <span class="min-w-0 flex-1 truncate font-mono text-xs font-bold">${label}</span>
-        <button type="button" data-rm="${it.key}" aria-label="Rimuovi" class="shrink-0 w-7 h-7 rounded-md text-graphite-400 text-lg leading-none">×</button>
+          ? `<span class="lp-gtag font-display">Gruppo ${it.ids.length}</span><span class="truncate">${it.ids.map((id) => escapeHtml(codeOf(id))).join(' · ')}</span>`
+          : `<span class="shrink-0">${catIconHtml(p0?.categoria)}</span><span class="truncate">${escapeHtml(codeOf(it.ids[0]))}</span>${p0 && !hasBarcode(p0) ? NOBAR_TAG : ''}`;
+      return `<div class="lp-qrow">
+        <span class="min-w-0 flex-1 flex items-center gap-2 font-mono text-xs font-bold">${label}</span>
+        <button type="button" data-rm="${it.key}" aria-label="Rimuovi" class="shrink-0 w-8 h-8 rounded-md text-graphite-400 text-xl leading-none">×</button>
       </div>`;
     })
     .join('');
@@ -322,7 +352,59 @@ function paintAll() {
   const labels = total * (st.settings?.copies || 1);
   const btn = q('[data-act="make"]');
   btn.disabled = total === 0;
-  if (!btn.dataset.busy) btn.textContent = total ? `Crea PDF (${labels} etichett${plural(labels, 'a', 'e')})` : 'Crea PDF';
+  if (!btn.dataset.busy) btn.querySelector('[data-role="make-label"]').textContent = total ? `Crea PDF · ${labels} etichett${plural(labels, 'a', 'e')}` : 'Crea PDF';
+  const sm = st.settings;
+  if (sm) q('[data-role="params-sum"]').textContent = `${cm(sm.labelW)} × ${cm(sm.labelH)} cm · ${sm.copies}×`;
+  paintPreview();
+  window.lucide?.createIcons();
+}
+
+/** Anteprima indicativa dell'etichetta in scala (stesse proporzioni della misura impostata) con il primo articolo da stampare */
+function paintPreview() {
+  const box = st.overlay?.querySelector('[data-role="preview"]');
+  if (!box || !st.settings) return;
+  const { labelW: W, labelH: H, showDesc } = st.settings;
+  const first = st.queue[0] || (st.selected.size ? { kind: 'single', ids: [[...st.selected][0]] } : null);
+  const p = first && st.byId.get(first.ids[0]);
+  const cqw = (mm) => `${((mm / W) * 100).toFixed(2)}cqw`; // millimetri reali → unità del riquadro (si scala con la larghezza)
+  const ptMm = (pt) => pt * 0.3528;
+  const clampN = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  let inner = '';
+  if (first?.kind === 'group') {
+    const codes = first.ids.map(codeOf);
+    const cols = codes.length === 4 ? 2 : 1;
+    const rows = Math.ceil(codes.length / cols);
+    const ch = H / rows;
+    const pt = clampN(ch * 0.9, 9, 22);
+    inner = codes
+      .map((c, i) => {
+        const x = (i % cols) * (W / cols);
+        const y = Math.floor(i / cols) * ch;
+        return `<b style="position:absolute;left:${cqw(x)};top:${cqw(y)};width:${cqw(W / cols)};height:${cqw(ch)};display:flex;align-items:center;justify-content:center;font-size:${cqw(ptMm(pt))}">${escapeHtml(c)}</b>`;
+      })
+      .join('');
+    for (let r = 1; r < rows; r += 1) inner += `<i class="lp-pg" style="left:0;right:0;top:${cqw(r * ch)};height:1px"></i>`;
+    if (cols === 2) inner += `<i class="lp-pg" style="top:0;bottom:0;left:${cqw(W / 2)};width:1px"></i>`;
+  } else {
+    const code = p ? p.codice_articolo : 'CODICE ARTICOLO';
+    const desc = showDesc ? (p ? labelDescription(p) : 'Descrizione articolo') : '';
+    const bar = p ? hasBarcode(p) : true;
+    const barH = Math.min(14, Math.max(6, H * 0.2));
+    const barW = Math.min(W - 4, Math.max(28, W * 0.55));
+    const area = H - 3.2 - (bar ? barH + 1.4 : 0);
+    const npt = clampN(area * 0.62, 9, 26);
+    const seed = String(p ? getProductBarcodes(p)[0]?.codice_barre || '' : '123456');
+    let h = 7; for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    let x = 0, on = true, rects = '';
+    for (let i = 0; i < 44; i += 1) { h = (h * 1103515245 + 12345) >>> 0; const w = 1 + ((h >>> 16) % 3); if (on) rects += `<rect x="${x}" width="${w}" height="10"/>`; x += w; on = !on; }
+    inner = `<div style="position:absolute;left:0;right:0;top:${cqw(1.6)};height:${cqw(area)};display:flex;flex-direction:column;justify-content:center;padding:0 ${cqw(2)}">
+        <b style="font-size:${cqw(ptMm(npt))}">${escapeHtml(code)}</b>
+        ${desc ? `<b style="font-weight:700;font-size:${cqw(ptMm(npt * 0.88))}">${escapeHtml(desc)}</b>` : ''}
+      </div>
+      ${bar ? `<svg viewBox="0 0 ${x} 10" preserveAspectRatio="none" style="position:absolute;left:50%;transform:translateX(-50%);bottom:${cqw(1.6)};width:${cqw(barW)};height:${cqw(barH)}" fill="#0d1117">${rects}</svg>` : ''}`;
+  }
+  box.innerHTML = `<div class="lp-prev" style="aspect-ratio:${W} / ${H};max-width:${clampN(W * 3.4, 140, 300)}px" aria-label="Anteprima indicativa">${inner}</div>
+    <p class="mt-2 text-[11px] text-graphite-400 text-center">Anteprima indicativa${first ? '' : ' (esempio)'}</p>`;
 }
 
 /** Etichette da stampare nell'ordine: prima la lista "Da stampare", poi gli articoli ancora spuntati (singole) */
@@ -375,6 +457,7 @@ async function open() {
   st.queue = [];
   st.q = '';
   st.cat = '';
+  st.onlyNoBar = false;
   st.overlay.querySelector('[data-role="q"]').value = '';
   st.settings = getLabelSettings();
   paintSettings();
@@ -387,6 +470,7 @@ async function open() {
     st.products = await listProducts({ allPages: true }); // tutto il magazzino, anche gli articoli senza codice a barre
     st.byId = new Map(st.products.map((p) => [String(p.id), p]));
     st.loaded = true;
+    paintCats();
     paintList();
   } catch (err) {
     console.error(err);
