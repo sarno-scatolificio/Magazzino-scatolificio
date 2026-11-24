@@ -124,6 +124,12 @@ function build() {
               <label class="block"><span class="ui-label uppercase tracking-wide text-graphite-500">Copie</span>
                 <input data-set="copies" inputmode="numeric" type="text" class="mt-1 w-full rounded-lg bg-graphite-900 border border-graphite-700 px-2.5 py-2 font-mono text-sm focus:border-amber-400 outline-none"></label>
             </div>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="block"><span class="ui-label uppercase tracking-wide text-graphite-500">Sposta in basso (mm)</span>
+                <input data-set="offsetY" inputmode="decimal" type="text" class="mt-1 w-full rounded-lg bg-graphite-900 border border-graphite-700 px-2.5 py-2 font-mono text-sm focus:border-amber-400 outline-none"></label>
+              <label class="block"><span class="ui-label uppercase tracking-wide text-graphite-500">Sposta a destra (mm)</span>
+                <input data-set="offsetX" inputmode="decimal" type="text" class="mt-1 w-full rounded-lg bg-graphite-900 border border-graphite-700 px-2.5 py-2 font-mono text-sm focus:border-amber-400 outline-none"></label>
+            </div>
             <label class="flex items-center gap-2 text-sm"><input data-set="showDesc" type="checkbox" class="w-4 h-4 accent-[var(--accent)]"> Descrizione sotto il nome dell'articolo</label>
             <label class="flex items-center gap-2 text-sm"><input data-set="cutBorder" type="checkbox" class="w-4 h-4 accent-[var(--accent)]"> Linee tratteggiate per ritagliare</label>
             <p data-role="hint" class="text-xs text-graphite-400"></p>
@@ -235,12 +241,14 @@ function paintSettings() {
   set('labelW').value = cm(s.labelW);
   set('labelH').value = cm(s.labelH);
   set('copies').value = String(s.copies);
+  set('offsetY').value = String(s.offsetY).replace('.', ',');
+  set('offsetX').value = String(s.offsetX).replace('.', ',');
   set('showDesc').checked = s.showDesc;
   set('cutBorder').checked = s.cutBorder;
   const [w0, w1] = LABEL_LIMITS.labelW;
   const [h0, h1] = LABEL_LIMITS.labelH;
   st.overlay.querySelector('[data-role="hint"]').textContent =
-    `Misure reali di ogni etichetta: larghezza da ${cm(w0)} a ${cm(w1)} cm, altezza da ${cm(h0)} a ${cm(h1)} cm. Foglio A5 verticale. Per avere le misure esatte stampa al 100% ("dimensioni reali"), senza "adatta alla pagina".`;
+    `Misure reali di ogni etichetta: larghezza da ${cm(w0)} a ${cm(w1)} cm, altezza da ${cm(h0)} a ${cm(h1)} cm. Foglio A5 verticale. Per avere le misure esatte stampa al 100% ("dimensioni reali"), senza "adatta alla pagina". Se la stampante taglia l'alto del foglio, aumenta "Sposta in basso" (per esempio 5–10 mm).`;
 }
 
 function readSettings() {
@@ -249,6 +257,8 @@ function readSettings() {
     labelW: toMm(get('labelW').value),
     labelH: toMm(get('labelH').value),
     copies: Number(get('copies').value),
+    offsetY: Number(String(get('offsetY').value).replace(',', '.')),
+    offsetX: Number(String(get('offsetX').value).replace(',', '.')),
     showDesc: get('showDesc').checked,
     cutBorder: get('cutBorder').checked,
   });
