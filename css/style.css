@@ -3450,3 +3450,13 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
 .lifedue-bar > span { display: block; height: 100%; border-radius: inherit; background: #ea580c; transition: width var(--dur-base) var(--ease-out); }
 .lifedue-bar--over > span { background: #e11d48; }
 @media (prefers-reduced-motion: reduce) { .lifedue-bar > span { transition-duration: 1ms; } }
+
+/* Movimenti: tessere (Sotto scorta, Prestiti, Vita utile) compatte e sulla stessa riga: meno altezza, niente scorrimento in più */
+.mv-tiles .mvt { row-gap: 0.3rem; padding: 0.65rem 0.7rem !important; }
+.mv-tiles .mvt-ico { width: 1.75rem; height: 1.75rem; border-radius: 0.5rem; }
+.mv-tiles .mvt-ico svg { width: 15px; height: 15px; }
+.mv-tiles .mvt-txt > p:first-child { font-size: 1.25rem; }
+.mv-tiles .mvt-txt .ui-note { margin-top: 0.15rem; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mv-tiles:has(#scanner-lifedue-card:not(.hidden)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mv-tiles > #scanner-lifedue-card.lowstock-card-open { grid-column: 1 / -1; }
+.lowstock-card-open .mvt-txt > p:first-child { font-size: 1.5rem; }

@@ -461,7 +461,7 @@
 @media (min-width: 1024px) {
   /* MOVIMENTI: "Ultimi movimenti" mostrava solo 4 voci (altezza fissata da scanner-idle.js pensata per il telefono)
      con mezza pagina vuota sotto. Su desktop la scheda cresce fino all'altezza dello schermo e scorre solo oltre. */
-  #scanner-recent-list { height: auto !important; max-height: calc(100vh - 340px) !important; min-height: 0; }
+  #scanner-recent-list { height: auto !important; max-height: calc(100vh - 400px) !important; min-height: 0; }
   #scanner-recent-list { scrollbar-width: thin; }
 
   /* MANUALI: elenco macchine più compatto (da ~88 a ~64 px a riga): più macchine in vista senza scorrere */
