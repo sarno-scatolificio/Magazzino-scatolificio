@@ -3440,3 +3440,13 @@ button.set-row--danger:not(:disabled):active { background-color: #fff1f2; }
 .lp-prev svg { display: block; margin: 0 auto; }
 .lp-prev .lp-pg { position: absolute; background: #3d4652; }
 @media (prefers-reduced-motion: reduce) { .lp-row, .lp-check, .lp-check::after, .lp-chev { transition-duration: 1ms; } }
+
+/* Vita utile in scadenza (Movimenti): righe con barra di avanzamento; arancio fino al 100%, rosso oltre la media */
+.lifedue-row { display: grid; gap: 0.4rem; padding-top: 0.6rem; border-top: 1px solid #e3e8f2; }
+.lifedue-row:first-child { border-top: 0; padding-top: 0.2rem; }
+.lifedue-pct { padding: 0.05rem 0.5rem; border-radius: 999px; font-size: 12px; font-weight: 700; background: #ffedd5; color: #c2410c; }
+.lifedue-pct--over { background: #ffe4e6; color: #be123c; }
+.lifedue-bar { height: 6px; border-radius: 999px; background: #e7eaef; overflow: hidden; }
+.lifedue-bar > span { display: block; height: 100%; border-radius: inherit; background: #ea580c; transition: width var(--dur-base) var(--ease-out); }
+.lifedue-bar--over > span { background: #e11d48; }
+@media (prefers-reduced-motion: reduce) { .lifedue-bar > span { transition-duration: 1ms; } }
