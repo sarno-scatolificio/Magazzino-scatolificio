@@ -7,6 +7,7 @@ import { animateNumber, emptyStateHtml } from '../../shared/ui-utils.js';
 import { els } from './scanner-shared.js';
 import { listProducts, listTransactions } from '../../data/supabase.js';
 import { refreshPrestitiCount } from './prestiti.js';
+import { refreshLifespanDue } from './lifespan-due.js';
 import { movementRow } from './movements.js';
 
 const RECENT_VISIBLE = 4; // voci viste senza scorrere: Deposito e Prelievo restano visibili
@@ -25,6 +26,7 @@ export async function loadIdlePanel() {
     animateNumber(els.lowStockCountEl, lowStock.length, { duration: 500 });
     renderRecent(recent);
     refreshPrestitiCount();
+    refreshLifespanDue(); // solo Admin; al massimo ogni 2 minuti
   } catch (err) {
     console.error(err);
   }
