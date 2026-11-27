@@ -265,6 +265,25 @@
         </button>
         </div>
 
+        <!-- Vita utile in scadenza (solo Admin): compare solo se c'è qualcosa in scadenza, chiusa, si apre al tocco -->
+        <div id="scanner-lifedue-card" data-admin-only class="hidden lowstock-card card-plate rounded-xl overflow-hidden">
+          <button type="button" id="scanner-lifedue-btn" aria-expanded="false" aria-controls="lifedue-track" class="lowstock-header mvt w-full text-left p-3.5">
+            <span class="mvt-ico shrink-0 w-9 h-9 rounded-lg bg-orange-500/10 flex items-center justify-center">
+              <i data-lucide="hourglass" class="w-[18px] h-[18px] text-orange-600" stroke-width="1.8"></i>
+            </span>
+            <div class="mvt-txt">
+              <p id="scanner-lifedue-count" class="font-display font-bold text-2xl leading-none">0</p>
+              <p class="ui-note text-graphite-500 mt-1">Ricambi a fine vita utile</p>
+            </div>
+            <i data-lucide="chevron-down" class="mvt-chev lowstock-chevron w-5 h-5 text-graphite-400 shrink-0" stroke-width="2"></i>
+          </button>
+          <div id="lifedue-track" class="acc-track">
+            <div class="acc-inner">
+              <div id="lifedue-list" class="px-3.5 pb-3.5 pt-1 space-y-3"></div>
+            </div>
+          </div>
+        </div>
+
         <div class="card-plate rounded-xl px-3.5 py-3">
           <div class="flex items-center justify-between gap-3 mb-1.5">
             <p class="font-display font-bold text-xs uppercase tracking-wide text-graphite-400">Ultimi movimenti <span class="normal-case tracking-normal font-sans font-normal text-graphite-500">· 30 giorni</span></p>
@@ -497,7 +516,7 @@
                 </button>
                 <select id="scan-macchinario-input" class="hidden" tabindex="-1" aria-hidden="true"></select>
               </div>
-              <!-- Piattelle e articoli con una torre assegnata, cuscinetti compresi (macchinario con teste, dalla scheda articolo o dalla linea; se ce n'è più d'uno si sceglie prima quale): torre e testa si scelgono con il semicerchio -->
+              <!-- Solo piattelle (macchinario con teste, ricavato dalla linea; se ce n'è più d'uno si sceglie prima quale): torre e testa si scelgono con il semicerchio -->
               <div id="scan-testa-wrap" class="hidden">
                 <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Testa <span id="scan-testa-machine" class="normal-case font-normal text-graphite-500"></span></label>
                 <button type="button" id="scan-testa-btn"
@@ -1487,7 +1506,7 @@
         </div>
       </div>
 
-      <!-- Torre del macchinario (Ricambi tecnici e Cuscinetti, se la macchina scelta ha torri con un nome, es. Bordatura / Inferiore):
+      <!-- Torre del macchinario (solo Ricambi tecnici, se la macchina scelta ha torri con un nome, es. Bordatura / Inferiore):
            nel Prelievo si vedono solo le teste di questa torre -->
       <div id="product-torre-wrap" class="hidden">
         <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Torre <span class="normal-case font-normal text-graphite-500">(facoltativa)</span></label>
@@ -1496,7 +1515,7 @@
           <i data-lucide="chevrons-up-down" class="w-4 h-4 text-graphite-400 shrink-0" stroke-width="2"></i>
         </button>
         <input type="hidden" id="product-torre">
-        <p class="ui-note text-graphite-500 mt-1">Nel Prelievo di questo articolo si sceglie la testa solo tra quelle della torre.</p>
+        <p class="ui-note text-graphite-500 mt-1">Nel Prelievo di questo ricambio si sceglie la testa solo tra quelle della torre.</p>
         <!-- Solo se la torre ha teste doppie: dove va montato questo ricambio, così non si dichiara a ogni prelievo -->
         <div id="product-posizione-wrap" class="hidden mt-3">
           <label class="block text-xs font-display font-semibold uppercase tracking-wide text-graphite-400 mb-1.5">Posizione <span class="normal-case font-normal text-graphite-500">(facoltativa)</span></label>
