@@ -13,6 +13,7 @@ import { initInventory } from '../features/impostazioni/inventory.js';
 import { initLabelPrint } from '../features/impostazioni/label-print.js';
 import { initMovements } from '../features/movimenti/movements.js';
 import { initPrestiti } from '../features/movimenti/prestiti.js';
+import { initLifespanDue } from '../features/movimenti/lifespan-due.js';
 import { initLowStock, openLowStockCard } from '../features/magazzino/low-stock.js';
 import { initManuals } from '../features/manuali/manuals.js';
 import { initManualsBrowser, enterManualsBrowser, resetManualsBrowser } from '../features/manuali/manuals-browser.js';
@@ -151,6 +152,7 @@ function onAuthed(profile) {
     initLabelPrint(); // dopo l'Inventario: la voce si aggancia a quella
     initMovements();
     initPrestiti();
+    initLifespanDue();
     initLowStock();
     initManuals();
     initManualsBrowser();
