@@ -263,8 +263,8 @@
           </div>
           <i data-lucide="chevron-right" class="mvt-chev w-5 h-5 text-graphite-400 shrink-0" stroke-width="2"></i>
         </button>
-        <!-- Vita utile in scadenza (solo Admin): terza tessera, compare solo se c'è qualcosa in scadenza -->
-        <div id="scanner-lifedue-card" data-admin-only class="hidden lowstock-card card-plate rounded-xl overflow-hidden">
+        <!-- Vita utile in scadenza: terza tessera. Resta nascosta finché lo script (solo Admin) non trova ricambi in scadenza: niente data-admin-only, che la mostrerebbe da subito a 0 -->
+        <div id="scanner-lifedue-card" class="hidden lowstock-card card-plate rounded-xl overflow-hidden">
           <button type="button" id="scanner-lifedue-btn" aria-expanded="false" aria-controls="lifedue-track" class="lowstock-header mvt w-full text-left p-3.5">
             <span class="mvt-ico shrink-0 w-9 h-9 rounded-lg bg-orange-500/10 flex items-center justify-center">
               <i data-lucide="hourglass" class="w-[18px] h-[18px] text-orange-600" stroke-width="1.8"></i>
